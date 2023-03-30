@@ -10,7 +10,7 @@ setuptools.setup(
     url=f'https://github.com/beasteers/auditory-slow-fast',
     packages=setuptools.find_packages(),
     install_requires=[
-        
+        'torch', 'librosa', 'h5py', 'fvcore', 'simplejson', 'psutil',
     ],
     extras_require={
         'test': ['pytest', 'pytest-cov'],
