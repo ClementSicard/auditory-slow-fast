@@ -55,7 +55,7 @@ def parse_args():
     )
     parser.add_argument(
         "opts",
-        help="See slowfast/config/defaults.py for all options",
+        help="See audio_slowfast/config/defaults.py for all options",
         default=None,
         nargs=argparse.REMAINDER,
     )

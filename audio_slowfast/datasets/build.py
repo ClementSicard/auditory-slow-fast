@@ -18,7 +18,7 @@ def build_dataset(dataset_name, cfg, split):
     Args:
         dataset_name (str): the name of the dataset to be constructed.
         cfg (CfgNode): configs. Details can be found in
-            slowfast/config/defaults.py
+            audio_slowfast/config/defaults.py
         split (str): the split of the data loader. Options include `train`,
             `val`, and `test`.
     Returns:

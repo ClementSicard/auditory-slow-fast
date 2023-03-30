@@ -19,7 +19,7 @@ def construct_loader(cfg, split):
     Constructs the data loader for the given dataset.
     Args:
         cfg (CfgNode): configs. Details can be found in
-            slowfast/config/defaults.py
+            audio_slowfast/config/defaults.py
         split (str): the split of the data loader. Options include `train`,
             `val`, and `test`.
     """
