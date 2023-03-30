@@ -4,7 +4,7 @@ import pickle
 import torch
 import torch.utils.data
 
-import slowfast.utils.logging as logging
+import audio_slowfast.utils.logging as logging
 
 from .build import DATASET_REGISTRY
 

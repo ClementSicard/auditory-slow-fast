@@ -6,9 +6,9 @@ import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-import slowfast.utils.logging as logging
-import slowfast.visualization.utils as vis_utils
-from slowfast.utils.misc import get_class_names
+import audio_slowfast.utils.logging as logging
+import audio_slowfast.visualization.utils as vis_utils
+from audio_slowfast.utils.misc import get_class_names
 
 logger = logging.get_logger(__name__)
 log.getLogger("matplotlib").setLevel(log.ERROR)

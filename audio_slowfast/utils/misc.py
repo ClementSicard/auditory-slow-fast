@@ -15,10 +15,10 @@ from fvcore.nn.flop_count import flop_count
 from matplotlib import pyplot as plt
 from torch import nn
 
-import slowfast.utils.logging as logging
-import slowfast.utils.multiprocessing as mpu
-from slowfast.datasets.utils import pack_pathway_output
-from slowfast.models.batchnorm_helper import SubBatchNorm2d
+import audio_slowfast.utils.logging as logging
+import audio_slowfast.utils.multiprocessing as mpu
+from audio_slowfast.datasets.utils import pack_pathway_output
+from audio_slowfast.models.batchnorm_helper import SubBatchNorm2d
 
 logger = logging.get_logger(__name__)
 

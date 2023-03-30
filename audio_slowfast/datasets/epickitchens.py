@@ -6,7 +6,7 @@ import h5py
 import torch.utils.data
 from fvcore.common.file_io import PathManager
 
-import slowfast.utils.logging as logging
+import audio_slowfast.utils.logging as logging
 
 from .build import DATASET_REGISTRY
 from .epickitchens_record import EpicKitchensAudioRecord

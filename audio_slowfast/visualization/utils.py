@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import torch
 from sklearn.metrics import confusion_matrix
 
-import slowfast.utils.logging as logging
+import audio_slowfast.utils.logging as logging
 
 logger = logging.get_logger(__name__)
 

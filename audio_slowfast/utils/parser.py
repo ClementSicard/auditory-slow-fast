@@ -6,8 +6,8 @@
 import argparse
 import sys
 
-import slowfast.utils.checkpoint as cu
-from slowfast.config.defaults import get_cfg
+import audio_slowfast.utils.checkpoint as cu
+from audio_slowfast.config.defaults import get_cfg
 
 
 def parse_args():

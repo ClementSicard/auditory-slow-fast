@@ -11,8 +11,8 @@ from collections import OrderedDict
 import torch
 from fvcore.common.file_io import PathManager
 
-import slowfast.utils.distributed as du
-import slowfast.utils.logging as logging
+import audio_slowfast.utils.distributed as du
+import audio_slowfast.utils.logging as logging
 
 logger = logging.get_logger(__name__)
 

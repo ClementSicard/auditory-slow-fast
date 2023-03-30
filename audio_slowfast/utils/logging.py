@@ -13,7 +13,7 @@ import sys
 import simplejson
 from fvcore.common.file_io import PathManager
 
-import slowfast.utils.distributed as du
+import audio_slowfast.utils.distributed as du
 
 
 def _suppress_print():
