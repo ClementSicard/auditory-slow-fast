@@ -43,6 +43,7 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 MODEL:
   NUM_CLASSES: [97, 300]
+  VOCAB_FILE: vocab.txt
   ARCH: slowfast
   MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy
