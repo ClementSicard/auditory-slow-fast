@@ -42,9 +42,11 @@ class ResNetBasicHead(nn.Module):
                 softmax on the output. 'sigmoid': applies sigmoid on the output.
         """
         super(ResNetBasicHead, self).__init__()
-        assert (
-            len({len(pool_size), len(dim_in)}) == 1
-        ), "pathway dimensions are not consistent."
+
+        self.dim_in = dim_in
+        self.num_classes = num_classes
+
+        assert len({len(pool_size), len(dim_in)}) == 1, "pathway dimensions are not consistent."
         self.num_pathways = len(pool_size)
 
         for pathway in range(self.num_pathways):
@@ -67,15 +69,10 @@ class ResNetBasicHead(nn.Module):
         elif act_func == "sigmoid":
             self.act = nn.Sigmoid()
         else:
-            raise NotImplementedError(
-                "{} is not supported as an activation"
-                "function.".format(act_func)
-            )
+            raise NotImplementedError("{} is not supported as an activation" "function.".format(act_func))
 
     def forward(self, inputs):
-        assert (
-            len(inputs) == self.num_pathways
-        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
+        assert len(inputs) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)
         pool_out = []
         for pathway in range(self.num_pathways):
             m = getattr(self, "pathway{}_avgpool".format(pathway))
