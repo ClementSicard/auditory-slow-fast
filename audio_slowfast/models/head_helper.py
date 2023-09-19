@@ -58,8 +58,8 @@ class ResNetBasicHead(nn.Module):
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
         if isinstance(num_classes, (list, tuple)):
-            self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
-            self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
+            self.project_pre_condition = nn.Linear(sum(dim_in), num_classes[0], bias=True)
+            self.projection_post_condition = nn.Linear(sum(dim_in), num_classes[1], bias=True)
         else:
             self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
         self.num_classes = num_classes
@@ -84,8 +84,8 @@ class ResNetBasicHead(nn.Module):
         if hasattr(self, "dropout"):
             x = self.dropout(x)
         if isinstance(self.num_classes, (list, tuple)):
-            x_v = self.projection_verb(x)
-            x_n = self.projection_noun(x)
+            x_v = self.project_pre_condition(x)
+            x_n = self.projection_post_condition(x)
 
             # Performs fully convlutional inference.
             if not self.training:
