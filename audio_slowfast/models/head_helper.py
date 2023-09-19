@@ -42,11 +42,9 @@ class ResNetBasicHead(nn.Module):
                 softmax on the output. 'sigmoid': applies sigmoid on the output.
         """
         super(ResNetBasicHead, self).__init__()
-
-        self.dim_in = dim_in
-        self.num_classes = num_classes
-
-        assert len({len(pool_size), len(dim_in)}) == 1, "pathway dimensions are not consistent."
+        assert (
+            len({len(pool_size), len(dim_in)}) == 1
+        ), "pathway dimensions are not consistent."
         self.num_pathways = len(pool_size)
 
         for pathway in range(self.num_pathways):
@@ -58,8 +56,8 @@ class ResNetBasicHead(nn.Module):
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
         if isinstance(num_classes, (list, tuple)):
-            self.project_pre_condition = nn.Linear(sum(dim_in), num_classes[0], bias=True)
-            self.project_post_condition = nn.Linear(sum(dim_in), num_classes[1], bias=True)
+            self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
+            self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
         else:
             self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
         self.num_classes = num_classes
@@ -69,10 +67,15 @@ class ResNetBasicHead(nn.Module):
         elif act_func == "sigmoid":
             self.act = nn.Sigmoid()
         else:
-            raise NotImplementedError("{} is not supported as an activation" "function.".format(act_func))
+            raise NotImplementedError(
+                "{} is not supported as an activation"
+                "function.".format(act_func)
+            )
 
     def forward(self, inputs):
-        assert len(inputs) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)
+        assert (
+            len(inputs) == self.num_pathways
+        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
         pool_out = []
         for pathway in range(self.num_pathways):
             m = getattr(self, "pathway{}_avgpool".format(pathway))
@@ -84,8 +87,8 @@ class ResNetBasicHead(nn.Module):
         if hasattr(self, "dropout"):
             x = self.dropout(x)
         if isinstance(self.num_classes, (list, tuple)):
-            x_v = self.project_pre_condition(x)
-            x_n = self.projection_post_condition(x)
+            x_v = self.projection_verb(x)
+            x_n = self.projection_noun(x)
 
             # Performs fully convlutional inference.
             if not self.training:
