@@ -59,7 +59,7 @@ class ResNetBasicHead(nn.Module):
         # initialized with a different std comparing to convolutional layers.
         if isinstance(num_classes, (list, tuple)):
             self.project_pre_condition = nn.Linear(sum(dim_in), num_classes[0], bias=True)
-            self.projection_post_condition = nn.Linear(sum(dim_in), num_classes[1], bias=True)
+            self.project_post_condition = nn.Linear(sum(dim_in), num_classes[1], bias=True)
         else:
             self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
         self.num_classes = num_classes
