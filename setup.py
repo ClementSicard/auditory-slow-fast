@@ -7,7 +7,7 @@ setuptools.setup(
     long_description=open("README.md").read().strip(),
     long_description_content_type="text/markdown",
     author="Evangelos Kazakos",
-    url=f"https://github.com/beasteers/auditory-slow-fast",
+    url=f"https://github.com/ClementSicard/auditory-slow-fast",
     packages=setuptools.find_packages(),
     install_requires=[
         "torch",
