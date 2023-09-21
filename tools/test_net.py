@@ -9,15 +9,15 @@ import pickle
 import torch
 from fvcore.common.file_io import PathManager
 
-import slowfast.utils.checkpoint as cu
-import slowfast.utils.distributed as du
-import slowfast.utils.logging as logging
-import slowfast.utils.misc as misc
-import slowfast.visualization.tensorboard_vis as tb
-from slowfast.datasets import loader
-from slowfast.models import build_model
-from slowfast.utils.meters import TestMeter, EPICTestMeter
-from slowfast.utils.vggsound_metrics import get_stats
+import audio_slowfast.utils.checkpoint as cu
+import audio_slowfast.utils.distributed as du
+import audio_slowfast.utils.logging as logging
+import audio_slowfast.utils.misc as misc
+import audio_slowfast.visualization.tensorboard_vis as tb
+from audio_slowfast.datasets import loader
+from audio_slowfast.models import build_model
+from audio_slowfast.utils.meters import TestMeter, EPICTestMeter
+from audio_slowfast.utils.vggsound_metrics import get_stats
 
 logger = logging.get_logger(__name__)
 
@@ -68,21 +68,17 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         if isinstance(labels, (dict,)):
             # Gather all the predictions across all the devices to perform ensemble.
             if cfg.NUM_GPUS > 1:
-                verb_preds, verb_labels, audio_idx = du.all_gather(
-                    [preds[0], labels['verb'], audio_idx]
-                )
+                verb_preds, verb_labels, audio_idx = du.all_gather([preds[0], labels["verb"], audio_idx])
 
-                noun_preds, noun_labels, audio_idx = du.all_gather(
-                    [preds[1], labels['noun'], audio_idx]
-                )
+                noun_preds, noun_labels, audio_idx = du.all_gather([preds[1], labels["noun"], audio_idx])
                 meta = du.all_gather_unaligned(meta)
-                metadata = {'narration_id': []}
+                metadata = {"narration_id": []}
                 for i in range(len(meta)):
-                    metadata['narration_id'].extend(meta[i]['narration_id'])
+                    metadata["narration_id"].extend(meta[i]["narration_id"])
             else:
                 metadata = meta
-                verb_preds, verb_labels, audio_idx = preds[0], labels['verb'], audio_idx
-                noun_preds, noun_labels, audio_idx = preds[1], labels['noun'], audio_idx
+                verb_preds, verb_labels, audio_idx = preds[0], labels["verb"], audio_idx
+                noun_preds, noun_labels, audio_idx = preds[1], labels["noun"], audio_idx
             if cfg.NUM_GPUS:
                 verb_preds = verb_preds.cpu()
                 verb_labels = verb_labels.cpu()
@@ -103,9 +99,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         else:
             # Gather all the predictions across all the devices to perform ensemble.
             if cfg.NUM_GPUS > 1:
-                preds, labels, audio_idx = du.all_gather(
-                    [preds, labels, audio_idx]
-                )
+                preds, labels, audio_idx = du.all_gather([preds, labels, audio_idx])
             if cfg.NUM_GPUS:
                 preds = preds.cpu()
                 labels = labels.cpu()
@@ -113,15 +107,13 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
             test_meter.iter_toc()
             # Update and log stats.
-            test_meter.update_stats(
-                preds.detach(), labels.detach(), audio_idx.detach()
-            )
+            test_meter.update_stats(preds.detach(), labels.detach(), audio_idx.detach())
             test_meter.log_iter_stats(cur_iter)
 
         test_meter.iter_tic()
 
     # Log epoch stats and print the final testing results.
-    if cfg.TEST.DATASET != 'epickitchens':
+    if cfg.TEST.DATASET != "epickitchens":
         all_preds = test_meter.audio_preds.clone().detach()
         all_labels = test_meter.audio_labels
         if cfg.NUM_GPUS:
@@ -137,9 +129,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
                 with PathManager.open(save_path, "wb") as f:
                     pickle.dump([all_preds, all_labels], f)
 
-            logger.info(
-                "Successfully saved prediction results to {}".format(save_path)
-            )
+            logger.info("Successfully saved prediction results to {}".format(save_path))
 
     preds, preds_clips, labels, metadata = test_meter.finalize_metrics()
     return test_meter, preds, preds_clips, labels, metadata
@@ -176,16 +166,11 @@ def test(cfg):
     test_loader = loader.construct_loader(cfg, "test")
     logger.info("Testing model for {} iterations".format(len(test_loader)))
 
-    assert (
-        len(test_loader.dataset)
-        % cfg.TEST.NUM_ENSEMBLE_VIEWS
-        == 0
-    )
+    assert len(test_loader.dataset) % cfg.TEST.NUM_ENSEMBLE_VIEWS == 0
     # Create meters for multi-view testing.
-    if cfg.TEST.DATASET == 'epickitchens':
+    if cfg.TEST.DATASET == "epickitchens":
         test_meter = EPICTestMeter(
-            len(test_loader.dataset)
-            // cfg.TEST.NUM_ENSEMBLE_VIEWS,
+            len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS,
             cfg.TEST.NUM_ENSEMBLE_VIEWS,
             cfg.MODEL.NUM_CLASSES,
             len(test_loader),
@@ -193,8 +178,7 @@ def test(cfg):
         )
     else:
         test_meter = TestMeter(
-            len(test_loader.dataset)
-            // cfg.TEST.NUM_ENSEMBLE_VIEWS,
+            len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS,
             cfg.TEST.NUM_ENSEMBLE_VIEWS,
             cfg.MODEL.NUM_CLASSES[0],
             len(test_loader),
@@ -203,9 +187,7 @@ def test(cfg):
         )
 
     # Set up writer for logging to Tensorboard format.
-    if cfg.TENSORBOARD.ENABLE and du.is_master_proc(
-        cfg.NUM_GPUS * cfg.NUM_SHARDS
-    ):
+    if cfg.TENSORBOARD.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
         writer = tb.TensorboardWriter(cfg)
     else:
         writer = None
@@ -214,24 +196,22 @@ def test(cfg):
     test_meter, preds, preds_clips, labels, metadata = perform_test(test_loader, model, test_meter, cfg, writer)
 
     if du.is_master_proc():
-        if cfg.TEST.DATASET == 'epickitchens':
-            results = {'verb_output': preds[0],
-                       'noun_output': preds[1],
-                       'narration_id': metadata}
-            scores_path = os.path.join(cfg.OUTPUT_DIR, 'scores')
+        if cfg.TEST.DATASET == "epickitchens":
+            results = {"verb_output": preds[0], "noun_output": preds[1], "narration_id": metadata}
+            scores_path = os.path.join(cfg.OUTPUT_DIR, "scores")
             if not os.path.exists(scores_path):
                 os.makedirs(scores_path)
-            file_path = os.path.join(scores_path, cfg.EPICKITCHENS.TEST_SPLIT+'.pkl')
-            pickle.dump(results, open(file_path, 'wb'))
+            file_path = os.path.join(scores_path, cfg.EPICKITCHENS.TEST_SPLIT + ".pkl")
+            pickle.dump(results, open(file_path, "wb"))
         else:
-            if cfg.TEST.DATASET == 'vggsound':
+            if cfg.TEST.DATASET == "vggsound":
                 get_stats(preds, labels)
-            results = {'scores': preds, 'labels': labels}
-            scores_path = os.path.join(cfg.OUTPUT_DIR, 'scores')
+            results = {"scores": preds, "labels": labels}
+            scores_path = os.path.join(cfg.OUTPUT_DIR, "scores")
             if not os.path.exists(scores_path):
                 os.makedirs(scores_path)
-            file_path = os.path.join(scores_path, 'test.pkl')
-            pickle.dump(results, open(file_path, 'wb'))
+            file_path = os.path.join(scores_path, "test.pkl")
+            pickle.dump(results, open(file_path, "wb"))
 
     if writer is not None:
         writer.close()

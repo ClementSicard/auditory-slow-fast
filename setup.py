@@ -18,6 +18,9 @@ setuptools.setup(
         "simplejson",
         "psutil",
         "tensorboard",
+        "matplotlib",
+        "scipy",
+        "numpy",
     ],
     extras_require={
         "test": ["pytest", "pytest-cov"],
