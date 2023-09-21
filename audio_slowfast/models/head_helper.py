@@ -3,6 +3,7 @@
 
 """ResNe(X)t Head helper."""
 
+from loguru import logger
 import torch
 import torch.nn as nn
 
@@ -58,6 +59,14 @@ class ResNetBasicHead(nn.Module):
         if isinstance(num_classes, (list, tuple)):
             self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
             self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
+
+            if len(num_classes) == 4:
+                logger.info("Using 4 classification heads")
+
+                self.projection_prec = nn.Linear(sum(dim_in), num_classes[2], bias=True)
+                self.projection_postc = nn.Linear(
+                    sum(dim_in), num_classes[3], bias=True
+                )
         else:
             self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
         self.num_classes = num_classes
@@ -68,8 +77,7 @@ class ResNetBasicHead(nn.Module):
             self.act = nn.Sigmoid()
         else:
             raise NotImplementedError(
-                "{} is not supported as an activation"
-                "function.".format(act_func)
+                "{} is not supported as an activation" "function.".format(act_func)
             )
 
     def forward(self, inputs):

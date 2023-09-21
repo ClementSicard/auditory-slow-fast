@@ -20,7 +20,10 @@ setuptools.setup(
         "tensorboard",
         "matplotlib",
         "scipy",
+        "pandas",
         "numpy",
+        "loguru",
+        "fire",
     ],
     extras_require={
         "test": ["pytest", "pytest-cov"],
