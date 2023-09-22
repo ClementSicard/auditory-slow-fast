@@ -44,6 +44,8 @@ SOLVER:
 MODEL:
   NUM_CLASSES: [97, 300, 8, 8]
   VOCAB_FILE: vocab.txt
+  VOCAB_PDDL_PRE_CONDITIONS: preconditions.csv
+  VOCAB_PDDL_POST_CONDITIONS: postconditions.csv
   ARCH: slowfast
   MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy
