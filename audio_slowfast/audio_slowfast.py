@@ -78,6 +78,7 @@ class AudioSlowFast(nn.Module):
             logger.success(
                 f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}"
             )
+            self.cfg.MODEL.NUM_CLASSES.append(len(self.vocab_prec))
 
         # Load post-condition vocab
         self.vocab_postc = []
@@ -91,6 +92,7 @@ class AudioSlowFast(nn.Module):
             logger.success(
                 f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}"
             )
+            self.cfg.MODEL.NUM_CLASSES.append(len(self.vocab_postc))
 
         # window params
         window_size = cfg.AUDIO_DATA.WINDOW_LENGTH
