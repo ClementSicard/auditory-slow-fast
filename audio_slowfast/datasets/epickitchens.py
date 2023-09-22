@@ -20,14 +20,12 @@ logger = logging.get_logger(__name__)
 
 @DATASET_REGISTRY.register()
 class Epickitchens(torch.utils.data.Dataset):
-
     def __init__(self, cfg, mode):
-
         assert mode in [
             "train",
             "val",
             "test",
-            "train+val"
+            "train+val",
         ], "Split '{}' not supported for EPIC-KITCHENS".format(mode)
         self.cfg = cfg
         self.mode = mode
@@ -45,19 +43,37 @@ class Epickitchens(torch.utils.data.Dataset):
         Construct the audio loader.
         """
         if self.mode == "train":
-            path_annotations_pickle = [os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, self.cfg.EPICKITCHENS.TRAIN_LIST)]
+            path_annotations_pickle = [
+                os.path.join(
+                    self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
+                    self.cfg.EPICKITCHENS.TRAIN_LIST,
+                )
+            ]
         elif self.mode == "val":
-            path_annotations_pickle = [os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, self.cfg.EPICKITCHENS.VAL_LIST)]
+            path_annotations_pickle = [
+                os.path.join(
+                    self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
+                    self.cfg.EPICKITCHENS.VAL_LIST,
+                )
+            ]
         elif self.mode == "test":
-            path_annotations_pickle = [os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, self.cfg.EPICKITCHENS.TEST_LIST)]
+            path_annotations_pickle = [
+                os.path.join(
+                    self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
+                    self.cfg.EPICKITCHENS.TEST_LIST,
+                )
+            ]
         else:
-            path_annotations_pickle = [os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, file)
-                                       for file in [self.cfg.EPICKITCHENS.TRAIN_LIST, self.cfg.EPICKITCHENS.VAL_LIST]]
+            path_annotations_pickle = [
+                os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, file)
+                for file in [
+                    self.cfg.EPICKITCHENS.TRAIN_LIST,
+                    self.cfg.EPICKITCHENS.VAL_LIST,
+                ]
+            ]
 
         for file in path_annotations_pickle:
-            assert PathManager.exists(file), "{} dir not found".format(
-                file
-            )
+            assert PathManager.exists(file), "{} dir not found".format(file)
 
         self._audio_records = []
         self._temporal_idx = []
@@ -67,7 +83,7 @@ class Epickitchens(torch.utils.data.Dataset):
                     self._audio_records.append(EpicKitchensAudioRecord(tup))
                     self._temporal_idx.append(idx)
         assert (
-                len(self._audio_records) > 0
+            len(self._audio_records) > 0
         ), "Failed to load EPIC-KITCHENS split {} from {}".format(
             self.mode, path_annotations_pickle
         )
@@ -90,7 +106,7 @@ class Epickitchens(torch.utils.data.Dataset):
             index (int): Return the index of the audio.
         """
         if self.audio_dataset is None:
-            self.audio_dataset = h5py.File(self.cfg.EPICKITCHENS.AUDIO_DATA_FILE, 'r')
+            self.audio_dataset = h5py.File(self.cfg.EPICKITCHENS.AUDIO_DATA_FILE, "r")
 
         if self.mode in ["train", "val", "train+val"]:
             # -1 indicates random sampling.
@@ -98,11 +114,14 @@ class Epickitchens(torch.utils.data.Dataset):
         elif self.mode in ["test"]:
             temporal_sample_index = self._temporal_idx[index]
         else:
-            raise NotImplementedError(
-                "Does not support {} mode".format(self.mode)
-            )
+            raise NotImplementedError("Does not support {} mode".format(self.mode))
 
-        spectrogram = pack_audio(self.cfg, self.audio_dataset, self._audio_records[index], temporal_sample_index)
+        spectrogram = pack_audio(
+            self.cfg,
+            self.audio_dataset,
+            self._audio_records[index],
+            temporal_sample_index,
+        )
         # Normalization.
         spectrogram = spectrogram.float()
         if self.mode in ["train", "train+val"]:

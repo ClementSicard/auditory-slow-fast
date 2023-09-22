@@ -21,14 +21,19 @@ def main(args: Dict[str, Any]) -> None:
     if not os.path.exists(args["input_path"]):
         logger.error(f"Input path {args['input_path']} does not exist.")
         exit(1)
-    model = AudioSlowFast(checkpoint=args["weights"], cfg_file_path=args["config"])
+    if not os.path.exists(args["config"]):
+        logger.error(f"Config path {args['config']} does not exist.")
+        exit(1)
+    model = AudioSlowFast(
+        checkpoint=args["weights"],
+        cfg_file_path=args["config"],
+    )
 
     model.eval()
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info(f"Model parameters: {n_params:,}")
     vocab_verb, vocab_noun = model.vocab
-    vocab_prec = pd.read_csv(args["prec_vocab"])["precondition"].to_list()
-    vocab_postc = pd.read_csv(args["postc_vocab"])["postcondition"].to_list()
+    vocab_prec, vocab_postc = model.vocab_prec, model.vocab_postc
 
     logger.info(f"Loading input audio from {args['input_path']}")
 
@@ -78,18 +83,6 @@ def parse_args() -> Dict[str, Any]:
         "--config",
         dest="config",
         help="The path to the config file",
-        required=True,
-    )
-    parser.add_argument(
-        "--prec_vocab",
-        dest="prec_vocab",
-        help="Path to the preconditions vocab file",
-        required=True,
-    )
-    parser.add_argument(
-        "--postc_vocab",
-        dest="postc_vocab",
-        help="Path to the postconditions vocab file",
         required=True,
     )
 
