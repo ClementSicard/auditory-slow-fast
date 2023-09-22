@@ -6,7 +6,7 @@ POSTC_VOCAB := configs/postconditions.csv
 
 .PHONY: example
 example:
-	@python auditory_slowfast.py \
+	@python main.py \
 		-w $(WEIGHTS_PATH) \
 		-c $(CONFIG_PATH) \
 		-f $(INPUT_PATH) \
