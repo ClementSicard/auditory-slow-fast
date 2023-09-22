@@ -143,9 +143,14 @@ _C.MODEL.ARCH = "slowfast"
 _C.MODEL.MODEL_NAME = "SlowFast"
 
 # The number of classes to predict for the model.
-_C.MODEL.NUM_CLASSES = [400, ]
+_C.MODEL.NUM_CLASSES = [
+    400,
+]
 
+# The vocab files.
 _C.MODEL.VOCAB_FILE = ""
+_C.MODEL.VOCAB_PDDL_PRE_CONDITIONS = ""
+_C.MODEL.VOCAB_PDDL_POST_CONDITIONS = ""
 
 # Loss function.
 _C.MODEL.LOSS_FUNC = "cross_entropy"
