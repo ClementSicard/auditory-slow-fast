@@ -2,37 +2,44 @@ import torch
 import numpy as np
 
 
-def sparse_image_warp(img_tensor,
-                      source_control_point_locations,
-                      dest_control_point_locations,
-                      interpolation_order=2,
-                      regularization_weight=0.0,
-                      num_boundaries_points=0):
-    control_point_flows = (dest_control_point_locations - source_control_point_locations)
+def sparse_image_warp(
+    img_tensor,
+    source_control_point_locations,
+    dest_control_point_locations,
+    interpolation_order=2,
+    regularization_weight=0.0,
+    num_boundaries_points=0,
+):
+    control_point_flows = dest_control_point_locations - source_control_point_locations
 
-#     clamp_boundaries = num_boundary_points > 0
-#     boundary_points_per_edge = num_boundary_points - 1
+    #     clamp_boundaries = num_boundary_points > 0
+    #     boundary_points_per_edge = num_boundary_points - 1
     batch_size, image_height, image_width = img_tensor.shape
     grid_locations = get_grid_locations(image_height, image_width)
-    flattened_grid_locations = torch.tensor(flatten_grid_locations(grid_locations, image_height, image_width))
+    flattened_grid_locations = torch.tensor(
+        flatten_grid_locations(grid_locations, image_height, image_width)
+    )
 
-#     flattened_grid_locations = constant_op.constant(
-#         _expand_to_minibatch(flattened_grid_locations, batch_size), image.dtype)
+    #     flattened_grid_locations = constant_op.constant(
+    #         _expand_to_minibatch(flattened_grid_locations, batch_size), image.dtype)
 
-#     if clamp_boundaries:
-#       (dest_control_point_locations,
-#        control_point_flows) = _add_zero_flow_controls_at_boundary(
-#            dest_control_point_locations, control_point_flows, image_height,
-#            image_width, boundary_points_per_edge)
+    #     if clamp_boundaries:
+    #       (dest_control_point_locations,
+    #        control_point_flows) = _add_zero_flow_controls_at_boundary(
+    #            dest_control_point_locations, control_point_flows, image_height,
+    #            image_width, boundary_points_per_edge)
 
     flattened_flows = interpolate_spline(
         dest_control_point_locations,
         control_point_flows,
         flattened_grid_locations,
         interpolation_order,
-        regularization_weight)
+        regularization_weight,
+    )
 
-    dense_flows = create_dense_flows(flattened_flows, batch_size, image_height, image_width)
+    dense_flows = create_dense_flows(
+        flattened_flows, batch_size, image_height, image_width
+    )
 
     warped_image = dense_image_warp(img_tensor, dense_flows)
 
@@ -44,7 +51,7 @@ def get_grid_locations(image_height, image_width):
 
     y_range = np.linspace(0, image_height - 1, image_height)
     x_range = np.linspace(0, image_width - 1, image_width)
-    y_grid, x_grid = np.meshgrid(y_range, x_range, indexing='ij')
+    y_grid, x_grid = np.meshgrid(y_range, x_range, indexing="ij")
     return np.stack((y_grid, x_grid), -1)
 
 
@@ -57,7 +64,13 @@ def create_dense_flows(flattened_flows, batch_size, image_height, image_width):
     return torch.reshape(flattened_flows, [batch_size, image_height, image_width, 2])
 
 
-def interpolate_spline(train_points, train_values, query_points, order, regularization_weight=0.0,):
+def interpolate_spline(
+    train_points,
+    train_values,
+    query_points,
+    order,
+    regularization_weight=0.0,
+):
     # First, fit the spline to the observed data.
     w, v = solve_interpolation(train_points, train_values, order, regularization_weight)
     # Then, evaluate the spline at the query locations.
@@ -78,42 +91,40 @@ def solve_interpolation(train_points, train_values, order, regularization_weight
     c = train_points
     f = train_values.float()
 
-    matrix_a = phi(cross_squared_distance_matrix(c,c), order).unsqueeze(0)  # [b, n, n]
-#     print('Matrix A', matrix_a, matrix_a.shape)
-#     if regularization_weight > 0:
-#         batch_identity_matrix = array_ops.expand_dims(
-#           linalg_ops.eye(n, dtype=c.dtype), 0)
-#         matrix_a += regularization_weight * batch_identity_matrix
+    matrix_a = phi(cross_squared_distance_matrix(c, c), order).unsqueeze(0)  # [b, n, n]
+    #     print('Matrix A', matrix_a, matrix_a.shape)
+    #     if regularization_weight > 0:
+    #         batch_identity_matrix = array_ops.expand_dims(
+    #           linalg_ops.eye(n, dtype=c.dtype), 0)
+    #         matrix_a += regularization_weight * batch_identity_matrix
 
     # Append ones to the feature values for the bias term in the linear model.
     ones = torch.ones(1, dtype=train_points.dtype).view([-1, 1, 1])
     matrix_b = torch.cat((c, ones), 2).float()  # [b, n, d + 1]
-#     print('Matrix B', matrix_b, matrix_b.shape)
+    #     print('Matrix B', matrix_b, matrix_b.shape)
 
     # [b, n + d + 1, n]
     left_block = torch.cat((matrix_a, torch.transpose(matrix_b, 2, 1)), 1)
-#     print('Left Block', left_block, left_block.shape)
+    #     print('Left Block', left_block, left_block.shape)
 
     num_b_cols = matrix_b.shape[2]  # d + 1
-#     print('Num_B_Cols', matrix_b.shape)
+    #     print('Num_B_Cols', matrix_b.shape)
     #     lhs_zeros = torch.zeros((b, num_b_cols, num_b_cols), dtype=train_points.dtype).float()
 
     # In Tensorflow, zeros are used here. Pytorch gesv fails with zeros for some reason we don't understand.
     # So instead we use very tiny randn values (variance of one, zero mean) on one side of our multiplication.
     lhs_zeros = torch.randn((b, num_b_cols, num_b_cols)) / 1e10
-    right_block = torch.cat((matrix_b, lhs_zeros),
-                                   1)  # [b, n + d + 1, d + 1]
-#     print('Right Block', right_block, right_block.shape)
-    lhs = torch.cat((left_block, right_block),
-                           2)  # [b, n + d + 1, n + d + 1]
-#     print('LHS', lhs, lhs.shape)
+    right_block = torch.cat((matrix_b, lhs_zeros), 1)  # [b, n + d + 1, d + 1]
+    #     print('Right Block', right_block, right_block.shape)
+    lhs = torch.cat((left_block, right_block), 2)  # [b, n + d + 1, n + d + 1]
+    #     print('LHS', lhs, lhs.shape)
 
     rhs_zeros = torch.zeros((b, d + 1, k), dtype=train_points.dtype).float()
     rhs = torch.cat((f, rhs_zeros), 1)  # [b, n + d + 1, k]
-#     print('RHS', rhs, rhs.shape)
+    #     print('RHS', rhs, rhs.shape)
 
     # Then, solve the linear system and unpack the results.
-    X, LU = torch.solve(rhs, lhs)
+    X, LU = torch.linalg.solve(rhs, lhs)
     w = X[:, :n, :]
     v = X[:, n:, :]
 
@@ -122,18 +133,18 @@ def solve_interpolation(train_points, train_values, order, regularization_weight
 
 def cross_squared_distance_matrix(x, y):
     """Pairwise squared distance between two (batch) matrices' rows (2nd dim).
-        Computes the pairwise distances between rows of x and rows of y
-        Args:
-        x: [batch_size, n, d] float `Tensor`
-        y: [batch_size, m, d] float `Tensor`
-        Returns:
-        squared_dists: [batch_size, n, m] float `Tensor`, where
-        squared_dists[b,i,j] = ||x[b,i,:] - y[b,j,:]||^2
+    Computes the pairwise distances between rows of x and rows of y
+    Args:
+    x: [batch_size, n, d] float `Tensor`
+    y: [batch_size, m, d] float `Tensor`
+    Returns:
+    squared_dists: [batch_size, n, m] float `Tensor`, where
+    squared_dists[b,i,j] = ||x[b,i,:] - y[b,j,:]||^2
     """
     x_norm_squared = torch.sum(torch.mul(x, x))
     y_norm_squared = torch.sum(torch.mul(y, y))
 
-    x_y_transpose = torch.matmul(x.squeeze(0), y.squeeze(0).transpose(0,1))
+    x_y_transpose = torch.matmul(x.squeeze(0), y.squeeze(0).transpose(0, 1))
 
     # squared_dists[b,i,j] = ||x_bi - y_bj||^2 = x_bi'x_bi- 2x_bi'x_bj + x_bj'x_bj
     squared_dists = x_norm_squared - 2 * x_y_transpose + y_norm_squared
@@ -150,7 +161,7 @@ def phi(r, order):
     Returns:
     phi_k evaluated coordinate-wise on r, for k = r
     """
-    EPSILON=torch.tensor(1e-10)
+    EPSILON = torch.tensor(1e-10)
     # using EPSILON prevents log(0), sqrt0), etc.
     # sqrt(0) is well-defined, but its gradient is not
     if order == 1:
@@ -185,21 +196,20 @@ def apply_interpolation(query_points, train_points, w, v, order):
     """
     query_points = query_points.unsqueeze(0)
     # First, compute the contribution from the rbf term.
-#     print(query_points.shape, train_points.shape)
-    pairwise_dists = cross_squared_distance_matrix(query_points.float(), train_points.float())
-#     print('Pairwise', pairwise_dists)
+    #     print(query_points.shape, train_points.shape)
+    pairwise_dists = cross_squared_distance_matrix(
+        query_points.float(), train_points.float()
+    )
+    #     print('Pairwise', pairwise_dists)
     phi_pairwise_dists = phi(pairwise_dists, order)
-#     print('Pairwise phi', phi_pairwise_dists)
+    #     print('Pairwise phi', phi_pairwise_dists)
 
     rbf_term = torch.matmul(phi_pairwise_dists, w)
 
     # Then, compute the contribution from the linear term.
     # Pad query_points with ones, for the bias term in the linear model.
     ones = torch.ones_like(query_points[..., :1])
-    query_points_pad = torch.cat((
-      query_points,
-      ones
-    ), 2).float()
+    query_points_pad = torch.cat((query_points, ones), 2).float()
     linear_term = torch.matmul(query_points_pad, v)
 
     return rbf_term + linear_term
@@ -230,36 +240,34 @@ def dense_image_warp(image, flow):
     ValueError: if height < 2 or width < 2 or the inputs have the wrong number
     of dimensions.
     """
-    image = image.unsqueeze(3) # add a single channel dimension to image tensor
+    image = image.unsqueeze(3)  # add a single channel dimension to image tensor
     batch_size, height, width, channels = image.shape
 
     # The flow is defined on the image grid. Turn the flow into a list of query
     # points in the grid space.
-    grid_x, grid_y = torch.meshgrid(
-        torch.arange(width), torch.arange(height))
+    grid_x, grid_y = torch.meshgrid(torch.arange(width), torch.arange(height))
 
     stacked_grid = torch.stack((grid_y, grid_x), dim=2).float()
-#     print('stacked', stacked_grid.shape)
+    #     print('stacked', stacked_grid.shape)
 
     batched_grid = stacked_grid.unsqueeze(-1).permute(3, 1, 0, 2)
-#     print('batched_grid', batched_grid.shape)
+    #     print('batched_grid', batched_grid.shape)
 
     query_points_on_grid = batched_grid - flow
-    query_points_flattened = torch.reshape(query_points_on_grid,
-                                               [batch_size, height * width, 2])
+    query_points_flattened = torch.reshape(
+        query_points_on_grid, [batch_size, height * width, 2]
+    )
     # Compute values at the query points, then reshape the result back to the
     # image grid.
-#     print('Query points', query_points_flattened, query_points_flattened.shape)
+    #     print('Query points', query_points_flattened, query_points_flattened.shape)
     interpolated = interpolate_bilinear(image, query_points_flattened)
-    interpolated = torch.reshape(interpolated,
-                                     [batch_size, height, width, channels])
+    interpolated = torch.reshape(interpolated, [batch_size, height, width, channels])
     return interpolated
 
 
-def interpolate_bilinear(grid,
-                         query_points,
-                         name='interpolate_bilinear',
-                         indexing='ij'):
+def interpolate_bilinear(
+    grid, query_points, name="interpolate_bilinear", indexing="ij"
+):
     """Similar to Matlab's interp2 function.
     Finds values for query points on a grid using bilinear interpolation.
     Args:
@@ -274,14 +282,13 @@ def interpolate_bilinear(grid,
     ValueError: if the indexing mode is invalid, or if the shape of the inputs
       invalid.
     """
-    if indexing != 'ij' and indexing != 'xy':
-        raise ValueError('Indexing mode must be \'ij\' or \'xy\'')
-
+    if indexing != "ij" and indexing != "xy":
+        raise ValueError("Indexing mode must be 'ij' or 'xy'")
 
     shape = grid.shape
     if len(shape) != 4:
-      msg = 'Grid must be 4 dimensional. Received size: '
-      raise ValueError(msg + str(grid.shape))
+        msg = "Grid must be 4 dimensional. Received size: "
+        raise ValueError(msg + str(grid.shape))
 
     batch_size, height, width, channels = grid.shape
 
@@ -290,15 +297,15 @@ def interpolate_bilinear(grid,
     grid_type = grid.dtype
 
     num_queries = query_points.shape[1]
-#     print('Num queries', num_queries)
+    #     print('Num queries', num_queries)
 
     alphas = []
     floors = []
     ceils = []
-    index_order = [0, 1] if indexing == 'ij' else [1, 0]
-#     print(query_points.shape)
+    index_order = [0, 1] if indexing == "ij" else [1, 0]
+    #     print(query_points.shape)
     unstacked_query_points = query_points.unbind(2)
-#     print('Squeezed query_points', unstacked_query_points[0].shape, unstacked_query_points[1].shape)
+    #     print('Squeezed query_points', unstacked_query_points[0].shape, unstacked_query_points[1].shape)
 
     for dim in index_order:
         queries = unstacked_query_points[dim]
@@ -328,10 +335,10 @@ def interpolate_bilinear(grid,
         alpha = torch.unsqueeze(alpha, 2)
         alphas.append(alpha)
 
-    flattened_grid = torch.reshape(
-      grid, [batch_size * height * width, channels])
+    flattened_grid = torch.reshape(grid, [batch_size * height * width, channels])
     batch_offsets = torch.reshape(
-      torch.arange(batch_size) * height * width, [batch_size, 1])
+        torch.arange(batch_size) * height * width, [batch_size, 1]
+    )
 
     # This wraps array_ops.gather. We reshape the image data such that the
     # batch, y, and x coordinates are pulled into the first dimension.
@@ -340,14 +347,13 @@ def interpolate_bilinear(grid,
     def gather(y_coords, x_coords, name):
         linear_coordinates = batch_offsets + y_coords * width + x_coords
         gathered_values = torch.gather(flattened_grid.t(), 1, linear_coordinates)
-        return torch.reshape(gathered_values,
-                                 [batch_size, num_queries, channels])
+        return torch.reshape(gathered_values, [batch_size, num_queries, channels])
 
     # grab the pixel values in the 4 corners around each query point
-    top_left = gather(floors[0], floors[1], 'top_left')
-    top_right = gather(floors[0], ceils[1], 'top_right')
-    bottom_left = gather(ceils[0], floors[1], 'bottom_left')
-    bottom_right = gather(ceils[0], ceils[1], 'bottom_right')
+    top_left = gather(floors[0], floors[1], "top_left")
+    top_right = gather(floors[0], ceils[1], "top_right")
+    bottom_left = gather(ceils[0], floors[1], "bottom_left")
+    bottom_right = gather(ceils[0], ceils[1], "bottom_right")
 
     interp_top = alphas[1] * (top_right - top_left) + top_left
     interp_bottom = alphas[1] * (bottom_right - bottom_left) + bottom_left
