@@ -60,9 +60,9 @@ class AudioSlowFast(nn.Module):
         if cfg.MODEL.VOCAB_FILE:
             import json
 
-            cfg.MODEL.VOCAB_FILE = os.path.join(
-                os.path.dirname(cfg_file_path), cfg.MODEL.VOCAB_FILE
-            )
+            # cfg.MODEL.VOCAB_FILE = os.path.join(
+            #     os.path.dirname(cfg_file_path), cfg.MODEL.VOCAB_FILE
+            # )
             self.vocab = json.load(open(cfg.MODEL.VOCAB_FILE))
             logger.success(f"Loaded vocab from {cfg.MODEL.VOCAB_FILE}")
 
