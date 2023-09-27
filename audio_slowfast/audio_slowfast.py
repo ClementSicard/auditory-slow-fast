@@ -60,18 +60,12 @@ class AudioSlowFast(nn.Module):
         if cfg.MODEL.VOCAB_FILE:
             import json
 
-            # cfg.MODEL.VOCAB_FILE = os.path.join(
-            #     os.path.dirname(cfg_file_path), cfg.MODEL.VOCAB_FILE
-            # )
             self.vocab = json.load(open(cfg.MODEL.VOCAB_FILE))
             logger.success(f"Loaded vocab from {cfg.MODEL.VOCAB_FILE}")
 
         # Load pre-condition vocab
         self.vocab_prec = []
         if cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS:
-            cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS = os.path.join(
-                os.path.dirname(cfg_file_path), cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS
-            )
             self.vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)[
                 "precondition"
             ].to_list()
@@ -83,9 +77,6 @@ class AudioSlowFast(nn.Module):
         # Load post-condition vocab
         self.vocab_postc = []
         if cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS:
-            cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS = os.path.join(
-                os.path.dirname(cfg_file_path), cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS
-            )
             self.vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)[
                 "postcondition"
             ].to_list()
