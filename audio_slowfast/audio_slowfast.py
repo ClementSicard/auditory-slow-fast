@@ -67,7 +67,7 @@ class AudioSlowFast(nn.Module):
         self.vocab_prec = []
         if cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS:
             self.vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)[
-                "precondition"
+                "attribute"
             ].to_list()
             logger.success(
                 f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}"
@@ -78,7 +78,7 @@ class AudioSlowFast(nn.Module):
         self.vocab_postc = []
         if cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS:
             self.vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)[
-                "postcondition"
+                "attribute"
             ].to_list()
             logger.success(
                 f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}"
