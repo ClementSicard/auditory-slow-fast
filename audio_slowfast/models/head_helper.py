@@ -96,29 +96,22 @@ class ResNetBasicHead(nn.Module):
             x = self.dropout(x)
         if isinstance(self.num_classes, (list, tuple)):
             x_v = self.projection_verb(x)
+            x_v = self.train_inference(x_v)
+
             x_n = self.projection_noun(x)
+            x_n = self.train_inference(x_n)
 
-            # Performs fully convlutional inference.
-            if not self.training:
-                x_v = self.act(x_v)
-                x_v = x_v.mean([1, 2])
-
-            x_v = x_v.view(x_v.shape[0], -1)
-
-            # Performs fully convlutional inference.
-            if not self.training:
-                x_n = self.act(x_n)
-                x_n = x_n.mean([1, 2])
-
-            x_n = x_n.view(x_n.shape[0], -1)
             return (x_v, x_n)
         else:
             x = self.projection(x)
+            x = self.train_inference(x)
 
-            # Performs fully convlutional inference.
-            if not self.training:
-                x = self.act(x)
-                x = x.mean([1, 2])
-
-            x = x.view(x.shape[0], -1)
             return x
+
+    def train_inference(self, x: torch.Tensor) -> torch.Tensor:
+        # Performs fully convlutional inference.
+        if not self.training:
+            x_n = self.act(x_n)
+            x_n = x_n.mean([1, 2])
+
+        x_n = x_n.view(x_n.shape[0], -1)
