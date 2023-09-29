@@ -179,8 +179,6 @@ class AudioSlowFast(nn.Module):
             y = [x.view((len(x), -1, s)) for x, s in zip(y, self.num_classes)]
         if return_embedding:
             return y, z[:, 0, 0]
-
-        logger.debug(f"y:\n{y[-1]}")
         return y
 
 
