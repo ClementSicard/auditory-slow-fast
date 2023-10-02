@@ -117,9 +117,7 @@ class TestMeter(object):
                 )
             else:
                 raise NotImplementedError(
-                    "Ensemble Method {} is not supported".format(
-                        self.ensemble_method
-                    )
+                    "Ensemble Method {} is not supported".format(self.ensemble_method)
                 )
             self.audio_preds_clips[vid_id, clip_temporal_id] = preds[ind]
             self.clip_count[vid_id] += 1
@@ -187,21 +185,20 @@ class TestMeter(object):
             num_topks_correct = metrics.topks_correct(
                 self.audio_preds, self.audio_labels, ks
             )
-            topks = [
-                (x / self.audio_preds.size(0)) * 100.0
-                for x in num_topks_correct
-            ]
+            topks = [(x / self.audio_preds.size(0)) * 100.0 for x in num_topks_correct]
             assert len({len(ks), len(topks)}) == 1
             for k, topk in zip(ks, topks):
-                self.stats["top{}_acc".format(k)] = "{:.{prec}f}".format(
-                    topk, prec=2
-                )
+                self.stats["top{}_acc".format(k)] = "{:.{prec}f}".format(topk, prec=2)
 
         logging.log_json_stats(self.stats)
-        return self.audio_preds.numpy().copy(), \
-               self.audio_preds_clips.numpy().copy(), \
-               F.one_hot(self.audio_labels, num_classes=self.audio_preds.shape[1]).numpy().copy(), \
-               None
+        return (
+            self.audio_preds.numpy().copy(),
+            self.audio_preds_clips.numpy().copy(),
+            F.one_hot(self.audio_labels, num_classes=self.audio_preds.shape[1])
+            .numpy()
+            .copy(),
+            None,
+        )
 
 
 class ScalarMeter(object):
@@ -567,6 +564,12 @@ class EPICTrainMeter(object):
         self.loss_verb_total = 0.0
         self.loss_noun = ScalarMeter(cfg.LOG_PERIOD)
         self.loss_noun_total = 0.0
+
+        self.loss_precs = ScalarMeter(cfg.LOG_PERIOD)
+        self.loss_precs_total = 0.0
+        self.loss_posts = ScalarMeter(cfg.LOG_PERIOD)
+        self.loss_posts_total = 0.0
+
         self.lr = None
         # Current minibatch accuracies (smoothed over a window).
         self.mb_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
@@ -575,6 +578,12 @@ class EPICTrainMeter(object):
         self.mb_verb_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_noun_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_noun_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
+
+        self.mb_precs_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
+        self.mb_precs_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
+        self.mb_posts_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
+        self.mb_posts_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
+
         # Number of correctly classified examples.
         self.num_top1_cor = 0
         self.num_top5_cor = 0
@@ -582,6 +591,12 @@ class EPICTrainMeter(object):
         self.num_verb_top5_cor = 0
         self.num_noun_top1_cor = 0
         self.num_noun_top5_cor = 0
+
+        self.num_precs_top1_cor = 0
+        self.num_precs_top5_cor = 0
+        self.num_posts_top1_cor = 0
+        self.num_posts_top5_cor = 0
+
         self.num_samples = 0
         self.output_dir = cfg.OUTPUT_DIR
 
@@ -595,6 +610,12 @@ class EPICTrainMeter(object):
         self.loss_verb_total = 0.0
         self.loss_noun.reset()
         self.loss_noun_total = 0.0
+
+        self.loss_precs.reset()
+        self.loss_precs_total = 0.0
+        self.loss_posts.reset()
+        self.loss_posts_total = 0.0
+
         self.lr = None
         self.mb_top1_acc.reset()
         self.mb_top5_acc.reset()
@@ -602,12 +623,23 @@ class EPICTrainMeter(object):
         self.mb_verb_top5_acc.reset()
         self.mb_noun_top1_acc.reset()
         self.mb_noun_top5_acc.reset()
+        self.mb_precs_top1_acc.reset()
+        self.mb_precs_top5_acc.reset()
+        self.mb_posts_top1_acc.reset()
+        self.mb_posts_top5_acc.reset()
+
         self.num_top1_cor = 0
         self.num_top5_cor = 0
         self.num_verb_top1_cor = 0
         self.num_verb_top5_cor = 0
         self.num_noun_top1_cor = 0
         self.num_noun_top5_cor = 0
+
+        self.num_precs_top1_cor = 0
+        self.num_precs_top5_cor = 0
+        self.num_posts_top1_cor = 0
+        self.num_posts_top5_cor = 0
+
         self.num_samples = 0
 
     def iter_tic(self):
@@ -643,6 +675,12 @@ class EPICTrainMeter(object):
         self.mb_verb_top5_acc.add_value(top5_acc[0])
         self.mb_noun_top1_acc.add_value(top1_acc[1])
         self.mb_noun_top5_acc.add_value(top5_acc[1])
+
+        self.mb_precs_top1_acc.add_value(top1_acc[3])
+        self.mb_precs_top5_acc.add_value(top5_acc[3])
+        self.mb_posts_top1_acc.add_value(top1_acc[4])
+        self.mb_posts_top5_acc.add_value(top5_acc[4])
+
         self.mb_top1_acc.add_value(top1_acc[2])
         self.mb_top5_acc.add_value(top5_acc[2])
         self.loss_verb.add_value(loss[0])
@@ -654,10 +692,17 @@ class EPICTrainMeter(object):
         self.num_verb_top5_cor += top5_acc[0] * mb_size
         self.num_noun_top1_cor += top1_acc[1] * mb_size
         self.num_noun_top5_cor += top5_acc[1] * mb_size
+        self.num_precs_top1_cor += top1_acc[3] * mb_size
+        self.num_precs_top5_cor += top5_acc[3] * mb_size
+        self.num_posts_top1_cor += top1_acc[4] * mb_size
+        self.num_posts_top5_cor += top5_acc[4] * mb_size
+
         self.num_top1_cor += top1_acc[2] * mb_size
         self.num_top5_cor += top5_acc[2] * mb_size
         self.loss_verb_total += loss[0] * mb_size
         self.loss_noun_total += loss[1] * mb_size
+        self.loss_precs_total += loss[3] * mb_size
+        self.loss_posts_total += loss[4] * mb_size
         self.loss_total += loss[2] * mb_size
         self.num_samples += mb_size
 
@@ -686,10 +731,16 @@ class EPICTrainMeter(object):
             "verb_top5_acc": self.mb_verb_top5_acc.get_win_median(),
             "noun_top1_acc": self.mb_noun_top1_acc.get_win_median(),
             "noun_top5_acc": self.mb_noun_top5_acc.get_win_median(),
+            "prec_top1_acc": self.mb_precs_top1_acc.get_win_median(),
+            "prec_top5_acc": self.mb_precs_top5_acc.get_win_median(),
+            "post_top1_acc": self.mb_posts_top1_acc.get_win_median(),
+            "post_top5_acc": self.mb_posts_top5_acc.get_win_median(),
             "top1_acc": self.mb_top1_acc.get_win_median(),
             "top5_acc": self.mb_top5_acc.get_win_median(),
             "verb_loss": self.loss_verb.get_win_median(),
             "noun_loss": self.loss_noun.get_win_median(),
+            "prec_loss": self.loss_precs.get_win_median(),
+            "post_loss": self.loss_posts.get_win_median(),
             "loss": self.loss.get_win_median(),
             "lr": self.lr,
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
@@ -710,10 +761,18 @@ class EPICTrainMeter(object):
         verb_top5_acc = self.num_verb_top5_cor / self.num_samples
         noun_top1_acc = self.num_noun_top1_cor / self.num_samples
         noun_top5_acc = self.num_noun_top5_cor / self.num_samples
+
+        prec_top1_acc = self.num_precs_top1_cor / self.num_samples
+        prec_top5_acc = self.num_precs_top5_cor / self.num_samples
+        post_top1_acc = self.num_posts_top1_cor / self.num_samples
+        post_top5_acc = self.num_posts_top5_cor / self.num_samples
+
         top1_acc = self.num_top1_cor / self.num_samples
         top5_acc = self.num_top5_cor / self.num_samples
         avg_loss_verb = self.loss_verb_total / self.num_samples
         avg_loss_noun = self.loss_noun_total / self.num_samples
+        avg_loss_precs = self.loss_precs_total / self.num_samples
+        avg_loss_posts = self.loss_posts_total / self.num_samples
         avg_loss = self.loss_total / self.num_samples
         stats = {
             "_type": "train_epoch",
@@ -726,10 +785,16 @@ class EPICTrainMeter(object):
             "verb_top5_acc": verb_top5_acc,
             "noun_top1_acc": noun_top1_acc,
             "noun_top5_acc": noun_top5_acc,
+            "prec_top1_acc": prec_top1_acc,
+            "prec_top5_acc": prec_top5_acc,
+            "post_top1_acc": post_top1_acc,
+            "post_top5_acc": post_top5_acc,
             "top1_acc": top1_acc,
             "top5_acc": top5_acc,
             "verb_loss": avg_loss_verb,
             "noun_loss": avg_loss_noun,
+            "prec_loss": avg_loss_precs,
+            "post_loss": avg_loss_posts,
             "loss": avg_loss,
             "lr": self.lr,
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
@@ -925,7 +990,11 @@ class EPICValMeter(object):
         }
         logging.log_json_stats(stats)
 
-        return is_best_epoch, {"top1_acc": top1_acc, "verb_top1_acc": verb_top1_acc, "noun_top1_acc": noun_top1_acc}
+        return is_best_epoch, {
+            "top1_acc": top1_acc,
+            "verb_top1_acc": verb_top1_acc,
+            "noun_top1_acc": noun_top1_acc,
+        }
 
 
 class EPICTestMeter(object):
@@ -937,12 +1006,12 @@ class EPICTestMeter(object):
     """
 
     def __init__(
-            self,
-            num_audios,
-            num_clips,
-            num_cls,
-            overall_iters,
-            ensemble_method="sum",
+        self,
+        num_audios,
+        num_clips,
+        num_cls,
+        overall_iters,
+        ensemble_method="sum",
     ):
         """
         Construct tensors to store the predictions and labels. Expect to get
@@ -1031,13 +1100,11 @@ class EPICTestMeter(object):
                 )
             else:
                 raise NotImplementedError(
-                    "Ensemble Method {} is not supported".format(
-                        self.ensemble_method
-                    )
+                    "Ensemble Method {} is not supported".format(self.ensemble_method)
                 )
             self.verb_audio_preds_clips[vid_id, clip_temporal_id] = preds[0][ind]
             self.noun_audio_preds_clips[vid_id, clip_temporal_id] = preds[1][ind]
-            self.metadata[vid_id] = metadata['narration_id'][ind]
+            self.metadata[vid_id] = metadata["narration_id"][ind]
             self.clip_count[vid_id] += 1
 
     def log_iter_stats(self, cur_iter):
@@ -1093,21 +1160,40 @@ class EPICTestMeter(object):
                 )
             )
 
-        verb_topks = metrics.topk_accuracies(self.verb_audio_preds, self.verb_audio_labels, ks)
-        noun_topks = metrics.topk_accuracies(self.noun_audio_preds, self.noun_audio_labels, ks)
+        verb_topks = metrics.topk_accuracies(
+            self.verb_audio_preds, self.verb_audio_labels, ks
+        )
+        noun_topks = metrics.topk_accuracies(
+            self.noun_audio_preds, self.noun_audio_labels, ks
+        )
 
         assert len({len(ks), len(verb_topks)}) == 1
         assert len({len(ks), len(noun_topks)}) == 1
         self.stats = {"split": "test_final"}
         for k, verb_topk in zip(ks, verb_topks):
-            self.stats["verb_top{}_acc".format(k)] = "{:.{prec}f}".format(verb_topk, prec=2)
+            self.stats["verb_top{}_acc".format(k)] = "{:.{prec}f}".format(
+                verb_topk, prec=2
+            )
         for k, noun_topk in zip(ks, noun_topks):
-            self.stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(noun_topk, prec=2)
+            self.stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(
+                noun_topk, prec=2
+            )
         logging.log_json_stats(self.stats)
-        return (self.verb_audio_preds.numpy().copy(), self.noun_audio_preds.numpy().copy()), \
-               (self.verb_audio_preds_clips.numpy().copy(), self.noun_audio_preds_clips.numpy().copy()), \
-               (self.verb_audio_labels.numpy().copy(), self.noun_audio_labels.numpy().copy()), \
-               self.metadata.copy()
+        return (
+            (
+                self.verb_audio_preds.numpy().copy(),
+                self.noun_audio_preds.numpy().copy(),
+            ),
+            (
+                self.verb_audio_preds_clips.numpy().copy(),
+                self.noun_audio_preds_clips.numpy().copy(),
+            ),
+            (
+                self.verb_audio_labels.numpy().copy(),
+                self.noun_audio_labels.numpy().copy(),
+            ),
+            self.metadata.copy(),
+        )
 
 
 def get_map(preds, labels):
@@ -1135,4 +1221,3 @@ def get_map(preds, labels):
 
     mean_ap = np.mean(aps)
     return mean_ap
-

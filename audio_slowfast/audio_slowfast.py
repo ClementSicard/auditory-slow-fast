@@ -178,7 +178,7 @@ class AudioSlowFast(nn.Module):
         if self.model.training:
             y = [x.view((len(x), -1, s)) for x, s in zip(y, self.num_classes)]
         if return_embedding:
-            return y, z[:, 0, 0]
+w
         return y
 
 
