@@ -43,9 +43,9 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 MODEL:
   NUM_CLASSES: [97, 300] # This will be updated by the pre conditions and post conditions files into a 4-element list
-  VOCAB_FILE: vocab.txt
-  VOCAB_PDDL_PRE_CONDITIONS: preconditions.csv
-  VOCAB_PDDL_POST_CONDITIONS: postconditions.csv
+  VOCAB_FILE: configs/EPIC-KITCHENS/vocab.txt
+  VOCAB_PDDL_PRE_CONDITIONS: configs/EPIC-KITCHENS/preconditions.csv
+  VOCAB_PDDL_POST_CONDITIONS: configs/EPIC-KITCHENS/postconditions.csv
   ARCH: slowfast
   MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy

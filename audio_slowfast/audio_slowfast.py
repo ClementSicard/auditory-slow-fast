@@ -67,7 +67,7 @@ class AudioSlowFast(nn.Module):
         self.vocab_prec = []
         if cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS:
             self.vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)[
-                "precondition"
+                "attribute"
             ].to_list()
             logger.success(
                 f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}"
@@ -78,7 +78,7 @@ class AudioSlowFast(nn.Module):
         self.vocab_postc = []
         if cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS:
             self.vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)[
-                "postcondition"
+                "attribute"
             ].to_list()
             logger.success(
                 f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}"
@@ -243,6 +243,40 @@ class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
             x_v = x_v.mean([1, 2])
         return x_v.view(x_v.shape[0], -1)
 
+    def _proj_discrete(self, x: torch.Tensor, proj: nn.Module) -> torch.Tensor:
+        x_v = proj(x)
+        # Apply tanh activation
+        x_v = torch.tanh(x_v)
+        # Discretize the output
+        x_v = self.discretize(x_v)
+        return x_v.view(x_v.shape[0], -1)
+
+    @staticmethod
+    def discretize(x: torch.Tensor) -> torch.Tensor:
+        """
+        Discretize the tensor values to {-1, 0, 1}.
+
+        Parameters
+        ----------
+        `x` : `torch.Tensor`
+            Input tensor.
+
+        Returns
+        -------
+        `torch.Tensor`
+            Discretized tensor.
+        """
+        # Define the thresholds
+        lower_threshold = -0.5
+        upper_threshold = 0.5
+
+        # Discretize the values
+        x_discrete = torch.zeros_like(x)
+        x_discrete[x < lower_threshold] = -1
+        x_discrete[x > upper_threshold] = 1
+
+        return x_discrete
+
     def project_verb_noun(self, x: torch.Tensor) -> torch.Tensor | List[torch.Tensor]:
         """
         Project the input tensor to verb and noun classes.
@@ -285,8 +319,8 @@ class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
             return (
                 self._proj(x, self.projection_verb),
                 self._proj(x, self.projection_noun),
-                self._proj(x, self.projection_prec),
-                self._proj(x, self.projection_postc),
+                self._proj_discrete(x, self.projection_prec),
+                self._proj_discrete(x, self.projection_postc),
             )
 
         return self._proj(x, self.projection)

@@ -30,6 +30,7 @@ def main(args: Dict[str, Any]) -> None:
     )
 
     model.eval()
+
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info(f"Model parameters: {n_params:,}")
     vocab_verb, vocab_noun = model.vocab
