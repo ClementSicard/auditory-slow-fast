@@ -3,5 +3,7 @@
 
 from .utils.env import setup_environment
 from .audio_slowfast import AudioSlowFast
+from .tools.train_net import train
+from .tools.test_net import test
 
 setup_environment()
