@@ -88,13 +88,19 @@ def train_epoch(
         if isinstance(labels, (dict,)):
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
+            prec_loss_fun = losses.get_loss_func(cfg.MODEL.PRECS_LOSS_FUNC)(
+                reduction="mean"
+            )
+            postc_loss_fun = losses.get_loss_func(cfg.MODEL.POSTS_LOSS_FUNC)(
+                reduction="mean"
+            )
 
             # Compute the loss.
             loss_verb = loss_fun(preds[0], labels["verb"])
             loss_noun = loss_fun(preds[1], labels["noun"])
-            loss_prec = loss_fun(preds[2], labels["prec"])
-            loss_postc = loss_fun(preds[3], labels["postc"])
-            loss = 0.25 * (loss_verb + loss_noun + loss_prec + loss_postc)
+            loss_prec = prec_loss_fun(preds[2], labels["prec"])
+            loss_postc = postc_loss_fun(preds[3], labels["postc"])
+            loss = 1 / 6 * (loss_verb + loss_noun + 2 * loss_prec + 2 * loss_postc)
 
             # check Nan Loss.
             misc.check_nan_losses(loss)
@@ -151,6 +157,42 @@ def train_epoch(
                 noun_top5_acc.item(),
             )
 
+            # Compute the preconditions accuracies.
+            prec_top1_acc, prec_top5_acc = metrics.topk_accuracies(
+                preds[2], labels["prec"], (1, 5)
+            )
+
+            # Gather all the predictions across all the devices.
+            if cfg.NUM_GPUS > 1:
+                loss_prec, prec_top1_acc, prec_top5_acc = du.all_reduce(
+                    [loss_prec, prec_top1_acc, prec_top5_acc]
+                )
+
+            # Copy the stats from GPU to CPU (sync point).
+            loss_prec, prec_top1_acc, prec_top5_acc = (
+                loss_prec.item(),
+                prec_top1_acc.item(),
+                prec_top5_acc.item(),
+            )
+
+            # Compute the postconditions accuracies.
+            post_top1_acc, post_top5_acc = metrics.topk_accuracies(
+                preds[3], labels["postc"], (1, 5)
+            )
+
+            # Gather all the predictions across all the devices.
+            if cfg.NUM_GPUS > 1:
+                loss_postc, post_top1_acc, post_top5_acc = du.all_reduce(
+                    [loss_postc, post_top1_acc, post_top5_acc]
+                )
+
+            # Copy the stats from GPU to CPU (sync point).
+            loss_postc, post_top1_acc, post_top5_acc = (
+                loss_postc.item(),
+                post_top1_acc.item(),
+                post_top5_acc.item(),
+            )
+
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
                 (preds[0], preds[1]), (labels["verb"], labels["noun"]), (1, 5)
@@ -170,11 +212,23 @@ def train_epoch(
 
             # Update and log stats.
             train_meter.update_stats(
-                (verb_top1_acc, noun_top1_acc, action_top1_acc),
-                (verb_top5_acc, noun_top5_acc, action_top5_acc),
-                (loss_verb, loss_noun, loss),
-                lr,
-                inputs[0].size(0)
+                top1_acc=(
+                    verb_top1_acc,
+                    noun_top1_acc,
+                    prec_top1_acc,
+                    post_top1_acc,
+                    action_top1_acc,
+                ),
+                top5_acc=(
+                    verb_top5_acc,
+                    noun_top5_acc,
+                    prec_top5_acc,
+                    post_top5_acc,
+                    action_top5_acc,
+                ),
+                loss=(loss_verb, loss_noun, loss_prec, loss_postc, loss),
+                lr=lr,
+                mb_size=inputs[0].size(0)
                 * max(
                     cfg.NUM_GPUS, 1
                 ),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
@@ -189,10 +243,16 @@ def train_epoch(
                         "Train/Top5_acc": action_top5_acc,
                         "Train/verb/loss": loss_verb,
                         "Train/noun/loss": loss_noun,
+                        "Train/prec/loss": loss_prec,
+                        "Train/postc/loss": loss_postc,
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
                         "Train/noun/Top5_acc": noun_top5_acc,
+                        "Train/prec/Top1_acc": prec_top1_acc,
+                        "Train/prec/Top5_acc": prec_top5_acc,
+                        "Train/postc/Top1_acc": post_top1_acc,
+                        "Train/postc/Top5_acc": post_top5_acc,
                     },
                     global_step=data_size * cur_epoch + cur_iter,
                 )
@@ -206,10 +266,16 @@ def train_epoch(
                         "Train/Top5_acc": action_top5_acc,
                         "Train/verb/loss": loss_verb,
                         "Train/noun/loss": loss_noun,
+                        "Train/prec/loss": loss_prec,
+                        "Train/postc/loss": loss_postc,
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
                         "Train/noun/Top5_acc": noun_top5_acc,
+                        "Train/prec/Top1_acc": prec_top1_acc,
+                        "Train/prec/Top5_acc": prec_top5_acc,
+                        "Train/postc/Top1_acc": post_top1_acc,
+                        "Train/postc/Top5_acc": post_top5_acc,
                         "train_step": data_size * cur_epoch + cur_iter,
                     },
                 )
@@ -318,13 +384,19 @@ def eval_epoch(
         preds = model(inputs)
 
         if isinstance(labels, (dict,)):
-            # Explicitly declare reduction to mean.
-            loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
+            prec_loss_fun = losses.get_loss_func(cfg.MODEL.PRECS_LOSS_FUNC)(
+                reduction="mean"
+            )
+            postc_loss_fun = losses.get_loss_func(cfg.MODEL.POSTS_LOSS_FUNC)(
+                reduction="mean"
+            )
 
             # Compute the loss.
             loss_verb = loss_fun(preds[0], labels["verb"])
             loss_noun = loss_fun(preds[1], labels["noun"])
-            loss = 0.5 * (loss_verb + loss_noun)
+            loss_prec = prec_loss_fun(preds[2], labels["prec"])
+            loss_postc = postc_loss_fun(preds[3], labels["postc"])
+            loss = 1 / 6 * (loss_verb + loss_noun + 2 * loss_prec + 2 * loss_postc)
 
             # Compute the verb accuracies.
             verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(
@@ -362,6 +434,42 @@ def eval_epoch(
                 noun_top5_acc.item(),
             )
 
+            # Compute the preconditions accuracies.
+            prec_top1_acc, prec_top5_acc = metrics.topk_accuracies(
+                preds[2], labels["prec"], (1, 5)
+            )
+
+            # Combine the errors across the GPUs.
+            if cfg.NUM_GPUS > 1:
+                loss_prec, prec_top1_acc, prec_top5_acc = du.all_reduce(
+                    [loss_prec, prec_top1_acc, prec_top5_acc]
+                )
+
+            # Copy the errors from GPU to CPU (sync point).
+            loss_prec, prec_top1_acc, prec_top5_acc = (
+                loss_prec.item(),
+                prec_top1_acc.item(),
+                prec_top5_acc.item(),
+            )
+
+            # Compute the postconditions accuracies.
+            post_top1_acc, post_top5_acc = metrics.topk_accuracies(
+                preds[3], labels["postc"], (1, 5)
+            )
+
+            # Combine the errors across the GPUs.
+            if cfg.NUM_GPUS > 1:
+                loss_postc, post_top1_acc, post_top5_acc = du.all_reduce(
+                    [loss_postc, post_top1_acc, post_top5_acc]
+                )
+
+            # Copy the errors from GPU to CPU (sync point).
+            loss_postc, post_top1_acc, post_top5_acc = (
+                loss_postc.item(),
+                post_top1_acc.item(),
+                post_top5_acc.item(),
+            )
+
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
                 (preds[0], preds[1]), (labels["verb"], labels["noun"]), (1, 5)
@@ -382,9 +490,21 @@ def eval_epoch(
             val_meter.iter_toc()
             # Update and log stats.
             val_meter.update_stats(
-                (verb_top1_acc, noun_top1_acc, action_top1_acc),
-                (verb_top5_acc, noun_top5_acc, action_top5_acc),
-                inputs[0].size(0)
+                top1_acc=(
+                    verb_top1_acc,
+                    noun_top1_acc,
+                    prec_top1_acc,
+                    post_top1_acc,
+                    action_top1_acc,
+                ),
+                top5_acc=(
+                    verb_top5_acc,
+                    noun_top5_acc,
+                    prec_top5_acc,
+                    post_top5_acc,
+                    action_top5_acc,
+                ),
+                mb_size=inputs[0].size(0)
                 * max(
                     cfg.NUM_GPUS, 1
                 ),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
@@ -402,6 +522,12 @@ def eval_epoch(
                         "Val/noun/loss": loss_noun,
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
+                        "Val/prec/loss": loss_prec,
+                        "Val/prec/Top1_acc": prec_top1_acc,
+                        "Val/prec/Top5_acc": prec_top5_acc,
+                        "Val/postc/loss": loss_postc,
+                        "Val/postc/Top1_acc": post_top1_acc,
+                        "Val/postc/Top5_acc": post_top5_acc,
                     },
                     global_step=len(val_loader) * cur_epoch + cur_iter,
                 )
@@ -418,12 +544,29 @@ def eval_epoch(
                         "Val/noun/loss": loss_noun,
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
+                        "Val/prec/loss": loss_prec,
+                        "Val/prec/Top1_acc": prec_top1_acc,
+                        "Val/prec/Top5_acc": prec_top5_acc,
+                        "Val/postc/loss": loss_postc,
+                        "Val/postc/Top1_acc": post_top1_acc,
+                        "Val/postc/Top5_acc": post_top5_acc,
                         "val_step": len(val_loader) * cur_epoch + cur_iter,
                     },
                 )
 
             val_meter.update_predictions(
-                (preds[0], preds[1]), (labels["verb"], labels["noun"])
+                preds=(
+                    preds[0],
+                    preds[1],
+                    preds[2],
+                    preds[3],
+                ),
+                labels=(
+                    labels["verb"],
+                    labels["noun"],
+                    labels["prec"],
+                    labels["postc"],
+                ),
             )
 
         else:
@@ -509,6 +652,8 @@ def eval_epoch(
                     "Val/epoch/Top1_acc": top1_dict["top1_acc"],
                     "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
                     "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/prec/Top1_acc": top1_dict["prec_top1_acc"],
+                    "Val/epoch/postc/Top1_acc": top1_dict["postc_top1_acc"],
                 },
                 global_step=cur_epoch,
             )
@@ -526,6 +671,8 @@ def eval_epoch(
                     "Val/epoch/Top1_acc": top1_dict["top1_acc"],
                     "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
                     "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/prec/Top1_acc": top1_dict["prec_top1_acc"],
+                    "Val/epoch/postc/Top1_acc": top1_dict["postc_top1_acc"],
                     "epoch": cur_epoch,
                 },
             )
@@ -620,11 +767,11 @@ def train(cfg):
 
     # Create meters.
     if cfg.TRAIN.DATASET == "epickitchens":
-        train_meter = EPICTrainMeter(len(train_loader), cfg)
-        val_meter = EPICValMeter(len(val_loader), cfg)
+        train_meter = EPICTrainMeter(epoch_iters=len(train_loader), cfg=cfg)
+        val_meter = EPICValMeter(max_iter=len(val_loader), cfg=cfg)
     else:
-        train_meter = TrainMeter(len(train_loader), cfg)
-        val_meter = ValMeter(len(val_loader), cfg)
+        train_meter = TrainMeter(epoch_iters=len(train_loader), cfg=cfg)
+        val_meter = ValMeter(max_iter=len(val_loader), cfg=cfg)
 
     # set up writer for logging to Tensorboard format.
     if cfg.TENSORBOARD.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):

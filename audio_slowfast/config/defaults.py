@@ -154,6 +154,8 @@ _C.MODEL.VOCAB_PDDL_POST_CONDITIONS = ""
 
 # Loss function.
 _C.MODEL.LOSS_FUNC = "cross_entropy"
+_C.MODEL.PRECS_LOSS_FUNC = "mse"
+_C.MODEL.POSTS_LOSS_FUNC = "mse"
 
 # Model architectures that has one single pathway.
 _C.MODEL.SINGLE_PATHWAY_ARCH = ["slow", "fast"]
