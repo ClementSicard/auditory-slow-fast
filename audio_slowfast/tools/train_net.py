@@ -83,7 +83,7 @@ def train_epoch(
 
         preds = model(inputs)
 
-        logger.warning(f"{preds.shape=}")
+        logger.warning(f"{[x.shape for x in preds]=}")
         logger.warning(f"{preds[0].shape=}")
         logger.warning(f"{preds[1].shape=}")
         logger.warning(f"{preds[2].shape=}")
