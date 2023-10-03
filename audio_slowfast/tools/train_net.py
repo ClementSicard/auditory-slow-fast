@@ -27,7 +27,7 @@ from audio_slowfast.utils.meters import (
     EPICTrainMeter,
     EPICValMeter,
 )
-from audio_slowfast import AudioSlowFast
+from audio_slowfast import AudioSlowFast, CustomResNetBasicHead
 
 from loguru import logger
 
@@ -731,28 +731,6 @@ def train(cfg):
     # Setup logging format.
     logging.setup_logging(cfg.OUTPUT_DIR)
 
-    vocab_prec = []
-    if cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS:
-        vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)[
-            "attribute"
-        ].to_list()
-        logger.success(
-            f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}"
-        )
-        cfg.MODEL.NUM_CLASSES.append(len(vocab_prec))
-
-    if cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS:
-        vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)[
-            "attribute"
-        ].to_list()
-
-        cfg.EPICKITCHENS.ATTRIBUTES = vocab_postc
-
-        logger.success(
-            f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}"
-        )
-        cfg.MODEL.NUM_CLASSES.append(len(vocab_postc))
-
     # Print config.
     logger.info("Train with config:")
     logger.info(pprint.pformat(cfg))
@@ -773,7 +751,7 @@ def train(cfg):
 
     # Load a checkpoint to resume training if applicable.
     start_epoch = cu.load_train_checkpoint(cfg, model, optimizer)
-    # model.head.__class__ = CustomResNetBasicHead
+    model.head.__class__ = CustomResNetBasicHead
 
     # Create the audio train and val loaders.
     if cfg.TRAIN.DATASET != "epickitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
