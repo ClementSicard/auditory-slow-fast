@@ -119,10 +119,10 @@ class AudioSlowFast(nn.Module):
                 ) if cfg.NUM_GPUS > 1 else self.model.freeze_fn("bn_parameters")
 
             # Construct the optimizer.
-            optimizer = optim.construct_optimizer(self.model, cfg)
+            self.optimizer = optim.construct_optimizer(self.model, cfg)
             logger.error("BEFORE")
             # Load a checkpoint to resume training if applicable.
-            start_epoch = cu.load_train_checkpoint(cfg, self.model, optimizer)
+            self.start_epoch = cu.load_train_checkpoint(cfg, self.model, optimizer)
             logger.error("AFTER")
         else:
             cu.load_test_checkpoint(cfg, self.model)
