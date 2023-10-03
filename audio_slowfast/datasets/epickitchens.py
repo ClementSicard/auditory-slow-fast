@@ -79,8 +79,6 @@ class Epickitchens(torch.utils.data.Dataset):
         self._temporal_idx = []
         for file in path_annotations_pickle:
             file_df = pd.read_pickle(file)
-
-            print(f"{file=} {len(file_df)=}")
             for tup in file_df.iterrows():
                 for idx in range(self._num_clips):
                     self._audio_records.append(EpicKitchensAudioRecord(tup))
