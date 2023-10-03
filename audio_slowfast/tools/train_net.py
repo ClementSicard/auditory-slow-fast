@@ -736,7 +736,7 @@ def train(cfg):
     logger.info(pprint.pformat(cfg))
 
     # Build the audio model and print model statistics.
-    model = AudioSlowFast(cfg=cfg)
+    model = AudioSlowFast(cfg=cfg, train=True)
     # model.head.__class__ = CustomResNetBasicHead
     # model = build_model(cfg)
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
