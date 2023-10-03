@@ -27,7 +27,7 @@ from audio_slowfast.utils.meters import (
     EPICTrainMeter,
     EPICValMeter,
 )
-from audio_slowfast import CustomResNetBasicHead
+from audio_slowfast import AudioSlowFast
 
 from loguru import logger
 
@@ -758,10 +758,8 @@ def train(cfg):
     logger.info(pprint.pformat(cfg))
 
     # Build the audio model and print model statistics.
-    model = build_model(cfg)
-
-    model.head.__class__ = CustomResNetBasicHead
-
+    model = AudioSlowFast(cfg=cfg)
+    # model = build_model(cfg)
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
 
@@ -775,6 +773,7 @@ def train(cfg):
 
     # Load a checkpoint to resume training if applicable.
     start_epoch = cu.load_train_checkpoint(cfg, model, optimizer)
+    # model.head.__class__ = CustomResNetBasicHead
 
     # Create the audio train and val loaders.
     if cfg.TRAIN.DATASET != "epickitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:

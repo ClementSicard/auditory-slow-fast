@@ -8,20 +8,21 @@ It was largely inspired by https://github.com/VIDA-NYU/ptg-server-ml/blob/main/p
 """
 
 import os
-from typing import Any, Dict, List
+from typing import List, Optional
 
 import audio_slowfast
 import audio_slowfast.utils.checkpoint as cu
+import audio_slowfast.models.head_helper
 import librosa
 import numpy as np
 import pandas as pd
 import torch
 from audio_slowfast.config.defaults import get_cfg
-from audio_slowfast.models import build_model
 from fvcore.common.config import CfgNode
 from loguru import logger
 from torch import nn
 import pandas as pd
+from fvcore.common.registry import Registry
 
 
 MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
@@ -29,6 +30,7 @@ MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "configs")
 DEFAULT_CONFIG = os.path.join(CONFIG_DIR, "EPIC-KITCHENS/SLOWFAST_R50.yaml")
 DEFAULT_MODEL = os.path.join(MODEL_DIR, "SLOWFAST_EPIC.pyth")
+MODEL_REGISTRY = Registry("MODEL")
 
 
 class AudioSlowFast(nn.Module):
@@ -49,13 +51,15 @@ class AudioSlowFast(nn.Module):
         self,
         checkpoint: str = DEFAULT_MODEL,
         cfg_file_path: str = DEFAULT_CONFIG,
+        cfg: Optional[CfgNode] = None,
     ):
         super().__init__()
         # init config
-        self.cfg = cfg = get_cfg()
-        cfg.merge_from_file(cfg_file_path)
+        if cfg is None:
+            self.cfg = cfg = get_cfg()
+            cfg.merge_from_file(cfg_file_path)
 
-        logger.success(f"Loaded config from {cfg_file_path}")
+            logger.success(f"Loaded config from {cfg_file_path}")
         # get vocab classes
         self.vocab = []
         if cfg.MODEL.VOCAB_FILE:
@@ -343,3 +347,47 @@ def pack_pathway_output(cfg: CfgNode, spec: torch.Tensor) -> List[torch.Tensor]:
     raise NotImplementedError(
         f"Model arch {cfg.MODEL.ARCH} is not in {cfg.MODEL.SINGLE_PATHWAY_ARCH + cfg.MODEL.MULTI_PATHWAY_ARCH}"
     )
+
+
+def build_model(cfg, gpu_id=None):
+    """
+    Builds the audio model.
+    Args:
+        cfg (configs): configs that contains the hyper-parameters to build the
+        backbone. Details can be seen in audio_audio_slowfast/config/defaults.py.
+        gpu_id (Optional[int]): specify the gpu index to build model.
+    """
+    if torch.cuda.is_available():
+        assert (
+            cfg.NUM_GPUS <= torch.cuda.device_count()
+        ), "Cannot use more GPU devices than available"
+    else:
+        assert (
+            cfg.NUM_GPUS == 0
+        ), "Cuda is not available. Please set `NUM_GPUS: 0 for running on CPUs."
+
+    # Construct the model
+    name = cfg.MODEL.MODEL_NAME
+    model = MODEL_REGISTRY.get(name)(cfg)
+
+    if cfg.NUM_GPUS:
+        if gpu_id is None:
+            # Determine the GPU used by the current process
+            cur_device = torch.cuda.current_device()
+        else:
+            cur_device = gpu_id
+        # Transfer the model to the current GPU device
+        if cfg.NUM_GPUS > 1:
+            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        model = model.cuda(device=cur_device)
+
+    # Use multi-process data parallel model in the multi-gpu setting
+    if cfg.NUM_GPUS > 1:
+        # Make model replica operate on the current device
+        model = torch.nn.parallel.DistributedDataParallel(
+            module=model,
+            device_ids=[cur_device],
+            output_device=cur_device,
+            find_unused_parameters=True,
+        )
+    return model
