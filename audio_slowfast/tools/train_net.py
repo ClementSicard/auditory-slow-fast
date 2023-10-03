@@ -9,6 +9,7 @@ import pprint
 import wandb
 import torch
 from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
+import pandas as pd
 
 import audio_slowfast.models.losses as losses
 import audio_slowfast.models.optimizer as optim
