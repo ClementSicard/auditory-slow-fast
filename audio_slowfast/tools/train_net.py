@@ -227,7 +227,7 @@ def train_epoch(
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
-                        "Train/noun/Top5_acc": noun_top5_acc,,
+                        "Train/noun/Top5_acc": noun_top5_acc,
                     },
                     global_step=data_size * cur_epoch + cur_iter,
                 )
