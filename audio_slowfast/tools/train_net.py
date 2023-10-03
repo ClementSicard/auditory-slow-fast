@@ -366,8 +366,8 @@ def eval_epoch(
             # Compute the loss.
             loss_verb = loss_fun(preds[0], labels["verb"])
             loss_noun = loss_fun(preds[1], labels["noun"])
-            loss_prec = prec_loss_fun(preds[2], labels["prec"])
-            loss_postc = postc_loss_fun(preds[3], labels["postc"])
+            loss_prec = prec_loss_fun(preds[2], labels["precs"])
+            loss_postc = postc_loss_fun(preds[3], labels["posts"])
             loss = 1 / 6 * (loss_verb + loss_noun + 2 * loss_prec + 2 * loss_postc)
 
             # Compute the verb accuracies.
@@ -488,8 +488,8 @@ def eval_epoch(
                 labels=(
                     labels["verb"],
                     labels["noun"],
-                    labels["prec"],
-                    labels["postc"],
+                    labels["precs"],
+                    labels["posts"],
                 ),
             )
 
