@@ -90,8 +90,8 @@ def train_epoch(
         logger.warning(f"{preds[3].shape=}")
         logger.warning(f"{labels['verb'].shape=}")
         logger.warning(f"{labels['noun'].shape=}")
-        logger.warning(f"{labels['prec'].shape=}")
-        logger.warning(f"{labels['postc'].shape=}")
+        logger.warning(f"{labels=}")
+        # logger.warning(f"{labels['postc'].shape=}")
 
         if isinstance(labels, (dict,)):
             # Explicitly declare reduction to mean.
