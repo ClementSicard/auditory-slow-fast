@@ -30,6 +30,10 @@ from audio_slowfast.utils.meters import (
 from audio_slowfast import AudioSlowFast, CustomResNetBasicHead
 
 from loguru import logger
+import logging as lg
+
+numba_logger = lg.getLogger("numba")
+numba_logger.setLevel(lg.WARNING)
 
 
 def train_epoch(
@@ -83,11 +87,17 @@ def train_epoch(
 
         preds = model(inputs)
 
+        preds = [pred.squeeze(1) for pred in preds]
+
         logger.warning(f"{[x.shape for x in preds]=}")
         logger.warning(f"{preds[0].shape=}")
+        logger.warning(f"{preds[0].squeeze(1).shape=}")
         logger.warning(f"{preds[1].shape=}")
+        logger.warning(f"{preds[1].squeeze(1).shape=}")
         logger.warning(f"{preds[2].shape=}")
+        logger.warning(f"{preds[2].squeeze(1).shape=}")
         logger.warning(f"{preds[3].shape=}")
+        logger.warning(f"{preds[3].squeeze(1).shape=}")
         logger.warning(f"{labels['verb'].shape=}")
         logger.warning(f"{labels['noun'].shape=}")
         logger.warning(f"{labels=}")
@@ -103,15 +113,13 @@ def train_epoch(
                 reduction="mean"
             )
 
-            # Compute the loss.
-            best_verb = torch.argmax(preds[0], dim=-1)
-            best_noun = torch.argmax(preds[1], dim=-1)
-
-            loss_verb = loss_fun(preds[0][best_verb], labels["verb"])
-            loss_noun = loss_fun(preds[1][best_noun], labels["noun"])
+            loss_verb = loss_fun(preds[0], labels["verb"])
+            loss_noun = loss_fun(preds[1], labels["noun"])
             loss_prec = prec_loss_fun(preds[2], labels["precs"])
             loss_postc = postc_loss_fun(preds[3], labels["posts"])
             loss = 1 / 6 * (loss_verb + loss_noun + 2 * loss_prec + 2 * loss_postc)
+
+            logger.success(f"Loss: {loss}")
 
             # check Nan Loss.
             misc.check_nan_losses(loss)
@@ -170,7 +178,7 @@ def train_epoch(
 
             # Compute the preconditions accuracies.
             prec_top1_acc, prec_top5_acc = metrics.topk_accuracies(
-                preds[2], labels["prec"], (1, 5)
+                preds[2], labels["precs"], (1, 5)
             )
 
             # Gather all the predictions across all the devices.
@@ -188,7 +196,7 @@ def train_epoch(
 
             # Compute the postconditions accuracies.
             post_top1_acc, post_top5_acc = metrics.topk_accuracies(
-                preds[3], labels["postc"], (1, 5)
+                preds[3], labels["posts"], (1, 5)
             )
 
             # Gather all the predictions across all the devices.
