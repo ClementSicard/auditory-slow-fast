@@ -49,6 +49,8 @@ MODEL:
   ARCH: slowfast
   MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy
+  PRECS_LOSS_FUNC: mse
+  POSTS_LOSS_FUNC: mse
   DROPOUT_RATE: 0.5
 TEST:
   ENABLE: False

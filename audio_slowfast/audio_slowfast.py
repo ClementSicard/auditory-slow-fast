@@ -120,10 +120,8 @@ class AudioSlowFast(nn.Module):
 
             # Construct the optimizer.
             self.optimizer = optim.construct_optimizer(self.model, cfg)
-            logger.error("BEFORE")
             # Load a checkpoint to resume training if applicable.
             self.start_epoch = cu.load_train_checkpoint(cfg, self.model, self.optimizer)
-            logger.error("AFTER")
         else:
             cu.load_test_checkpoint(cfg, self.model)
 

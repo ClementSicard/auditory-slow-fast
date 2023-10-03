@@ -361,6 +361,7 @@ def eval_epoch(
             postc_loss_fun = losses.get_loss_func(cfg.MODEL.POSTS_LOSS_FUNC)(
                 reduction="mean"
             )
+            loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
 
             # Compute the loss.
             loss_verb = loss_fun(preds[0], labels["verb"])
