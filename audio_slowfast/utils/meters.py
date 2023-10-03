@@ -580,11 +580,6 @@ class EPICTrainMeter(object):
         self.mb_noun_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_noun_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
 
-        self.mb_precs_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_precs_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_posts_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_posts_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
-
         # Number of correctly classified examples.
         self.num_top1_cor = 0
         self.num_top5_cor = 0
@@ -592,11 +587,6 @@ class EPICTrainMeter(object):
         self.num_verb_top5_cor = 0
         self.num_noun_top1_cor = 0
         self.num_noun_top5_cor = 0
-
-        self.num_precs_top1_cor = 0
-        self.num_precs_top5_cor = 0
-        self.num_posts_top1_cor = 0
-        self.num_posts_top5_cor = 0
 
         self.num_samples = 0
         self.output_dir = cfg.OUTPUT_DIR
@@ -626,22 +616,12 @@ class EPICTrainMeter(object):
         self.mb_noun_top1_acc.reset()
         self.mb_noun_top5_acc.reset()
 
-        self.mb_precs_top1_acc.reset()
-        self.mb_precs_top5_acc.reset()
-        self.mb_posts_top1_acc.reset()
-        self.mb_posts_top5_acc.reset()
-
         self.num_top1_cor = 0
         self.num_top5_cor = 0
         self.num_verb_top1_cor = 0
         self.num_verb_top5_cor = 0
         self.num_noun_top1_cor = 0
         self.num_noun_top5_cor = 0
-
-        self.num_precs_top1_cor = 0
-        self.num_precs_top5_cor = 0
-        self.num_posts_top1_cor = 0
-        self.num_posts_top5_cor = 0
 
         self.num_samples = 0
 
@@ -680,13 +660,8 @@ class EPICTrainMeter(object):
         self.mb_noun_top1_acc.add_value(top1_acc[1])
         self.mb_noun_top5_acc.add_value(top5_acc[1])
 
-        self.mb_precs_top1_acc.add_value(top1_acc[2])
-        self.mb_precs_top5_acc.add_value(top5_acc[2])
-        self.mb_posts_top1_acc.add_value(top1_acc[3])
-        self.mb_posts_top5_acc.add_value(top5_acc[3])
-
-        self.mb_top1_acc.add_value(top1_acc[4])
-        self.mb_top5_acc.add_value(top5_acc[4])
+        self.mb_top1_acc.add_value(top1_acc[2])
+        self.mb_top5_acc.add_value(top5_acc[2])
 
         self.loss_verb.add_value(loss[0])
         self.loss_noun.add_value(loss[1])
@@ -701,13 +676,8 @@ class EPICTrainMeter(object):
         self.num_noun_top1_cor += top1_acc[1] * mb_size
         self.num_noun_top5_cor += top5_acc[1] * mb_size
 
-        self.num_precs_top1_cor += top1_acc[2] * mb_size
-        self.num_precs_top5_cor += top5_acc[2] * mb_size
-        self.num_posts_top1_cor += top1_acc[3] * mb_size
-        self.num_posts_top5_cor += top5_acc[3] * mb_size
-
-        self.num_top1_cor += top1_acc[4] * mb_size
-        self.num_top5_cor += top5_acc[4] * mb_size
+        self.num_top1_cor += top1_acc[2] * mb_size
+        self.num_top5_cor += top5_acc[2] * mb_size
         self.loss_verb_total += loss[0] * mb_size
         self.loss_noun_total += loss[1] * mb_size
         self.loss_precs_total += loss[2] * mb_size
@@ -741,10 +711,6 @@ class EPICTrainMeter(object):
             "verb_top5_acc": self.mb_verb_top5_acc.get_win_median(),
             "noun_top1_acc": self.mb_noun_top1_acc.get_win_median(),
             "noun_top5_acc": self.mb_noun_top5_acc.get_win_median(),
-            "prec_top1_acc": self.mb_precs_top1_acc.get_win_median(),
-            "prec_top5_acc": self.mb_precs_top5_acc.get_win_median(),
-            "post_top1_acc": self.mb_posts_top1_acc.get_win_median(),
-            "post_top5_acc": self.mb_posts_top5_acc.get_win_median(),
             "top1_acc": self.mb_top1_acc.get_win_median(),
             "top5_acc": self.mb_top5_acc.get_win_median(),
             "verb_loss": self.loss_verb.get_win_median(),
@@ -772,12 +738,6 @@ class EPICTrainMeter(object):
         verb_top5_acc = self.num_verb_top5_cor / self.num_samples
         noun_top1_acc = self.num_noun_top1_cor / self.num_samples
         noun_top5_acc = self.num_noun_top5_cor / self.num_samples
-
-        prec_top1_acc = self.num_precs_top1_cor / self.num_samples
-        prec_top5_acc = self.num_precs_top5_cor / self.num_samples
-        post_top1_acc = self.num_posts_top1_cor / self.num_samples
-        post_top5_acc = self.num_posts_top5_cor / self.num_samples
-
         top1_acc = self.num_top1_cor / self.num_samples
         top5_acc = self.num_top5_cor / self.num_samples
         avg_loss_verb = self.loss_verb_total / self.num_samples
@@ -796,10 +756,6 @@ class EPICTrainMeter(object):
             "verb_top5_acc": verb_top5_acc,
             "noun_top1_acc": noun_top1_acc,
             "noun_top5_acc": noun_top5_acc,
-            "prec_top1_acc": prec_top1_acc,
-            "prec_top5_acc": prec_top5_acc,
-            "post_top1_acc": post_top1_acc,
-            "post_top5_acc": post_top5_acc,
             "top1_acc": top1_acc,
             "top5_acc": top5_acc,
             "verb_loss": avg_loss_verb,
@@ -840,11 +796,6 @@ class EPICValMeter(object):
         self.mb_noun_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_noun_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
 
-        self.mb_precs_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_precs_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_posts_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
-        self.mb_posts_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
-
         # Max accuracies (over the full val set).
         self.max_top1_acc = 0.0
         self.max_top5_acc = 0.0
@@ -853,11 +804,6 @@ class EPICValMeter(object):
         self.max_noun_top1_acc = 0.0
         self.max_noun_top5_acc = 0.0
 
-        self.max_precs_top1_acc = 0.0
-        self.max_precs_top5_acc = 0.0
-        self.max_posts_top1_acc = 0.0
-        self.max_posts_top5_acc = 0.0
-
         # Number of correctly classified examples.
         self.num_top1_cor = 0
         self.num_top5_cor = 0
@@ -865,10 +811,6 @@ class EPICValMeter(object):
         self.num_verb_top5_cor = 0
         self.num_noun_top1_cor = 0
         self.num_noun_top5_cor = 0
-        self.num_precs_top1_cor = 0
-        self.num_precs_top5_cor = 0
-        self.num_posts_top1_cor = 0
-        self.num_posts_top5_cor = 0
         self.num_samples = 0
 
         self.all_verb_preds = []
@@ -893,10 +835,6 @@ class EPICValMeter(object):
         self.mb_verb_top5_acc.reset()
         self.mb_noun_top1_acc.reset()
         self.mb_noun_top5_acc.reset()
-        self.mb_precs_top1_acc.reset()
-        self.mb_precs_top5_acc.reset()
-        self.mb_posts_top1_acc.reset()
-        self.mb_posts_top5_acc.reset()
 
         self.num_top1_cor = 0
         self.num_top5_cor = 0
@@ -904,10 +842,6 @@ class EPICValMeter(object):
         self.num_verb_top5_cor = 0
         self.num_noun_top1_cor = 0
         self.num_noun_top5_cor = 0
-        self.num_precs_top1_cor = 0
-        self.num_precs_top5_cor = 0
-        self.num_posts_top1_cor = 0
-        self.num_posts_top5_cor = 0
 
         self.num_samples = 0
         self.all_verb_preds = []
@@ -959,10 +893,6 @@ class EPICValMeter(object):
         self.num_verb_top5_cor += top5_acc[0] * mb_size
         self.num_noun_top1_cor += top1_acc[1] * mb_size
         self.num_noun_top5_cor += top5_acc[1] * mb_size
-        self.num_precs_top1_cor += top1_acc[3] * mb_size
-        self.num_precs_top5_cor += top5_acc[3] * mb_size
-        self.num_posts_top1_cor += top1_acc[4] * mb_size
-        self.num_posts_top5_cor += top5_acc[4] * mb_size
         self.num_top1_cor += top1_acc[2] * mb_size
         self.num_top5_cor += top5_acc[2] * mb_size
         self.num_samples += mb_size
@@ -1007,10 +937,6 @@ class EPICValMeter(object):
             "verb_top5_acc": self.mb_verb_top5_acc.get_win_median(),
             "noun_top1_acc": self.mb_noun_top1_acc.get_win_median(),
             "noun_top5_acc": self.mb_noun_top5_acc.get_win_median(),
-            "prec_top1_acc": self.mb_precs_top1_acc.get_win_median(),
-            "prec_top5_acc": self.mb_precs_top5_acc.get_win_median(),
-            "post_top1_acc": self.mb_posts_top1_acc.get_win_median(),
-            "post_top5_acc": self.mb_posts_top5_acc.get_win_median(),
             "top1_acc": self.mb_top1_acc.get_win_median(),
             "top5_acc": self.mb_top5_acc.get_win_median(),
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
@@ -1029,22 +955,12 @@ class EPICValMeter(object):
         noun_top1_acc = self.num_noun_top1_cor / self.num_samples
         noun_top5_acc = self.num_noun_top5_cor / self.num_samples
 
-        prec_top1_acc = self.num_precs_top1_cor / self.num_samples
-        prec_top5_acc = self.num_precs_top5_cor / self.num_samples
-        post_top1_acc = self.num_posts_top1_cor / self.num_samples
-        post_top5_acc = self.num_posts_top5_cor / self.num_samples
-
         top1_acc = self.num_top1_cor / self.num_samples
         top5_acc = self.num_top5_cor / self.num_samples
         self.max_verb_top1_acc = max(self.max_verb_top1_acc, verb_top1_acc)
         self.max_verb_top5_acc = max(self.max_verb_top5_acc, verb_top5_acc)
         self.max_noun_top1_acc = max(self.max_noun_top1_acc, noun_top1_acc)
         self.max_noun_top5_acc = max(self.max_noun_top5_acc, noun_top5_acc)
-
-        self.max_precs_top1_acc = max(self.max_precs_top1_acc, prec_top1_acc)
-        self.max_precs_top5_acc = max(self.max_precs_top5_acc, prec_top5_acc)
-        self.max_posts_top1_acc = max(self.max_posts_top1_acc, post_top1_acc)
-        self.max_posts_top5_acc = max(self.max_posts_top5_acc, post_top5_acc)
 
         is_best_epoch = top1_acc > self.max_top1_acc
         self.max_top1_acc = max(self.max_top1_acc, top1_acc)
@@ -1057,20 +973,12 @@ class EPICValMeter(object):
             "verb_top5_acc": verb_top5_acc,
             "noun_top1_acc": noun_top1_acc,
             "noun_top5_acc": noun_top5_acc,
-            "prec_top1_acc": prec_top1_acc,
-            "prec_top5_acc": prec_top5_acc,
-            "post_top1_acc": post_top1_acc,
-            "post_top5_acc": post_top5_acc,
             "top1_acc": top1_acc,
             "top5_acc": top5_acc,
             "max_verb_top1_acc": self.max_verb_top1_acc,
             "max_verb_top5_acc": self.max_verb_top5_acc,
             "max_noun_top1_acc": self.max_noun_top1_acc,
             "max_noun_top5_acc": self.max_noun_top5_acc,
-            "max_prec_top1_acc": self.max_precs_top1_acc,
-            "max_prec_top5_acc": self.max_precs_top5_acc,
-            "max_post_top1_acc": self.max_posts_top1_acc,
-            "max_post_top5_acc": self.max_posts_top5_acc,
             "max_top1_acc": self.max_top1_acc,
             "max_top5_acc": self.max_top5_acc,
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
@@ -1082,8 +990,6 @@ class EPICValMeter(object):
             "top1_acc": top1_acc,
             "verb_top1_acc": verb_top1_acc,
             "noun_top1_acc": noun_top1_acc,
-            "prec_top1_acc": prec_top1_acc,
-            "post_top1_acc": post_top1_acc,
         }
 
 
@@ -1295,12 +1201,6 @@ class EPICTestMeter(object):
         )
 
         logger.warning(f"Check this!!!")
-        precs_topks = metrics.multitask_topk_accuracies(
-            self.precs_audio_preds, self.precs_audio_labels, ks
-        )
-        posts_topks = metrics.multitask_topk_accuracies(
-            self.posts_audio_preds, self.posts_audio_labels, ks
-        )
 
         assert len({len(ks), len(verb_topks)}) == 1
         assert len({len(ks), len(noun_topks)}) == 1
@@ -1313,14 +1213,7 @@ class EPICTestMeter(object):
             self.stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(
                 noun_topk, prec=2
             )
-        for k, precs_topk in zip(ks, precs_topks):
-            self.stats["prec_top{}_acc".format(k)] = "{:.{prec}f}".format(
-                precs_topk, prec=2
-            )
-        for k, posts_topk in zip(ks, posts_topks):
-            self.stats["post_top{}_acc".format(k)] = "{:.{prec}f}".format(
-                posts_topk, prec=2
-            )
+
         logging.log_json_stats(self.stats)
         return (
             (

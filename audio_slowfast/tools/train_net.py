@@ -176,42 +176,6 @@ def train_epoch(
                 noun_top5_acc.item(),
             )
 
-            # Compute the preconditions accuracies.
-            prec_top1_acc, prec_top5_acc = metrics.topk_accuracies(
-                preds[2], labels["precs"], (1, 5)
-            )
-
-            # Gather all the predictions across all the devices.
-            if cfg.NUM_GPUS > 1:
-                loss_prec, prec_top1_acc, prec_top5_acc = du.all_reduce(
-                    [loss_prec, prec_top1_acc, prec_top5_acc]
-                )
-
-            # Copy the stats from GPU to CPU (sync point).
-            loss_prec, prec_top1_acc, prec_top5_acc = (
-                loss_prec.item(),
-                prec_top1_acc.item(),
-                prec_top5_acc.item(),
-            )
-
-            # Compute the postconditions accuracies.
-            post_top1_acc, post_top5_acc = metrics.topk_accuracies(
-                preds[3], labels["posts"], (1, 5)
-            )
-
-            # Gather all the predictions across all the devices.
-            if cfg.NUM_GPUS > 1:
-                loss_postc, post_top1_acc, post_top5_acc = du.all_reduce(
-                    [loss_postc, post_top1_acc, post_top5_acc]
-                )
-
-            # Copy the stats from GPU to CPU (sync point).
-            loss_postc, post_top1_acc, post_top5_acc = (
-                loss_postc.item(),
-                post_top1_acc.item(),
-                post_top5_acc.item(),
-            )
-
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
                 (preds[0], preds[1]), (labels["verb"], labels["noun"]), (1, 5)
@@ -234,18 +198,14 @@ def train_epoch(
                 top1_acc=(
                     verb_top1_acc,
                     noun_top1_acc,
-                    prec_top1_acc,
-                    post_top1_acc,
                     action_top1_acc,
                 ),
                 top5_acc=(
                     verb_top5_acc,
                     noun_top5_acc,
-                    prec_top5_acc,
-                    post_top5_acc,
                     action_top5_acc,
                 ),
-                loss=(loss_verb, loss_noun, loss_prec, loss_postc, loss),
+                loss=(loss_verb, loss_noun, loss_prec.item(), loss_postc.item(), loss),
                 lr=lr,
                 mb_size=inputs[0].size(0)
                 * max(
@@ -267,11 +227,7 @@ def train_epoch(
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
-                        "Train/noun/Top5_acc": noun_top5_acc,
-                        "Train/prec/Top1_acc": prec_top1_acc,
-                        "Train/prec/Top5_acc": prec_top5_acc,
-                        "Train/postc/Top1_acc": post_top1_acc,
-                        "Train/postc/Top5_acc": post_top5_acc,
+                        "Train/noun/Top5_acc": noun_top5_acc,,
                     },
                     global_step=data_size * cur_epoch + cur_iter,
                 )
@@ -291,10 +247,6 @@ def train_epoch(
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
                         "Train/noun/Top5_acc": noun_top5_acc,
-                        "Train/prec/Top1_acc": prec_top1_acc,
-                        "Train/prec/Top5_acc": prec_top5_acc,
-                        "Train/postc/Top1_acc": post_top1_acc,
-                        "Train/postc/Top5_acc": post_top5_acc,
                         "train_step": data_size * cur_epoch + cur_iter,
                     },
                 )
@@ -453,42 +405,6 @@ def eval_epoch(
                 noun_top5_acc.item(),
             )
 
-            # Compute the preconditions accuracies.
-            prec_top1_acc, prec_top5_acc = metrics.topk_accuracies(
-                preds[2], labels["prec"], (1, 5)
-            )
-
-            # Combine the errors across the GPUs.
-            if cfg.NUM_GPUS > 1:
-                loss_prec, prec_top1_acc, prec_top5_acc = du.all_reduce(
-                    [loss_prec, prec_top1_acc, prec_top5_acc]
-                )
-
-            # Copy the errors from GPU to CPU (sync point).
-            loss_prec, prec_top1_acc, prec_top5_acc = (
-                loss_prec.item(),
-                prec_top1_acc.item(),
-                prec_top5_acc.item(),
-            )
-
-            # Compute the postconditions accuracies.
-            post_top1_acc, post_top5_acc = metrics.topk_accuracies(
-                preds[3], labels["postc"], (1, 5)
-            )
-
-            # Combine the errors across the GPUs.
-            if cfg.NUM_GPUS > 1:
-                loss_postc, post_top1_acc, post_top5_acc = du.all_reduce(
-                    [loss_postc, post_top1_acc, post_top5_acc]
-                )
-
-            # Copy the errors from GPU to CPU (sync point).
-            loss_postc, post_top1_acc, post_top5_acc = (
-                loss_postc.item(),
-                post_top1_acc.item(),
-                post_top5_acc.item(),
-            )
-
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
                 (preds[0], preds[1]), (labels["verb"], labels["noun"]), (1, 5)
@@ -512,15 +428,11 @@ def eval_epoch(
                 top1_acc=(
                     verb_top1_acc,
                     noun_top1_acc,
-                    prec_top1_acc,
-                    post_top1_acc,
                     action_top1_acc,
                 ),
                 top5_acc=(
                     verb_top5_acc,
                     noun_top5_acc,
-                    prec_top5_acc,
-                    post_top5_acc,
                     action_top5_acc,
                 ),
                 mb_size=inputs[0].size(0)
@@ -542,11 +454,7 @@ def eval_epoch(
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
                         "Val/prec/loss": loss_prec,
-                        "Val/prec/Top1_acc": prec_top1_acc,
-                        "Val/prec/Top5_acc": prec_top5_acc,
                         "Val/postc/loss": loss_postc,
-                        "Val/postc/Top1_acc": post_top1_acc,
-                        "Val/postc/Top5_acc": post_top5_acc,
                     },
                     global_step=len(val_loader) * cur_epoch + cur_iter,
                 )
@@ -564,11 +472,7 @@ def eval_epoch(
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
                         "Val/prec/loss": loss_prec,
-                        "Val/prec/Top1_acc": prec_top1_acc,
-                        "Val/prec/Top5_acc": prec_top5_acc,
                         "Val/postc/loss": loss_postc,
-                        "Val/postc/Top1_acc": post_top1_acc,
-                        "Val/postc/Top5_acc": post_top5_acc,
                         "val_step": len(val_loader) * cur_epoch + cur_iter,
                     },
                 )
@@ -671,8 +575,6 @@ def eval_epoch(
                     "Val/epoch/Top1_acc": top1_dict["top1_acc"],
                     "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
                     "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
-                    "Val/epoch/prec/Top1_acc": top1_dict["prec_top1_acc"],
-                    "Val/epoch/postc/Top1_acc": top1_dict["postc_top1_acc"],
                 },
                 global_step=cur_epoch,
             )
@@ -690,8 +592,6 @@ def eval_epoch(
                     "Val/epoch/Top1_acc": top1_dict["top1_acc"],
                     "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
                     "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
-                    "Val/epoch/prec/Top1_acc": top1_dict["prec_top1_acc"],
-                    "Val/epoch/postc/Top1_acc": top1_dict["postc_top1_acc"],
                     "epoch": cur_epoch,
                 },
             )
