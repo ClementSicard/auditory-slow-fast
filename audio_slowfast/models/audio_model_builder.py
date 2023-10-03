@@ -155,9 +155,7 @@ class SlowFast(nn.Module):
         num_groups = cfg.RESNET.NUM_GROUPS
         width_per_group = cfg.RESNET.WIDTH_PER_GROUP
         dim_inner = num_groups * width_per_group
-        out_dim_ratio = (
-            cfg.SLOWFAST.BETA_INV // cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO
-        )
+        out_dim_ratio = cfg.SLOWFAST.BETA_INV // cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO
 
         temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.MODEL.ARCH]
 
@@ -293,11 +291,14 @@ class SlowFast(nn.Module):
                 width_per_group * 32,
                 width_per_group * 32 // cfg.SLOWFAST.BETA_INV,
             ],
-            num_classes=cfg.MODEL.NUM_CLASSES if len(cfg.MODEL.NUM_CLASSES) > 1 else cfg.MODEL.NUM_CLASSES[0],
+            num_classes=cfg.MODEL.NUM_CLASSES
+            if len(cfg.MODEL.NUM_CLASSES) > 1
+            else cfg.MODEL.NUM_CLASSES[0],
             pool_size=[
                 [
                     cfg.AUDIO_DATA.NUM_FRAMES
-                    // cfg.SLOWFAST.ALPHA // 4
+                    // cfg.SLOWFAST.ALPHA
+                    // 4
                     // pool_size[0][0],
                     cfg.AUDIO_DATA.NUM_FREQUENCIES // 32 // pool_size[0][1],
                 ],
@@ -327,23 +328,29 @@ class SlowFast(nn.Module):
         return x
 
     def freeze_fn(self, freeze_mode):
-        if freeze_mode == 'bn_parameters':
-            print("Freezing all BN layers\' parameters except the first one.")
+        if freeze_mode == "bn_parameters":
+            print("Freezing all BN layers' parameters except the first one.")
             for n, m in self.named_modules():
-                if (isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm)) \
-                        and ('s1.pathway0_stem.bn' not in n
-                             and 's1.pathway1_stem.bn' not in n
-                             and 's1_fuse.bn' not in n):
+                if (
+                    isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm)
+                ) and (
+                    "s1.pathway0_stem.bn" not in n
+                    and "s1.pathway1_stem.bn" not in n
+                    and "s1_fuse.bn" not in n
+                ):
                     # shutdown parameters update in frozen mode
                     m.weight.requires_grad_(False)
                     m.bias.requires_grad_(False)
-        elif freeze_mode == 'bn_statistics':
-            print("Freezing all BN layers\' statistics except the first one.")
+        elif freeze_mode == "bn_statistics":
+            print("Freezing all BN layers' statistics except the first one.")
             for n, m in self.named_modules():
-                if (isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm))\
-                        and ('s1.pathway0_stem.bn' not in n
-                             and 's1.pathway1_stem.bn' not in n
-                             and 's1_fuse.bn' not in n):
+                if (
+                    isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm)
+                ) and (
+                    "s1.pathway0_stem.bn" not in n
+                    and "s1.pathway1_stem.bn" not in n
+                    and "s1_fuse.bn" not in n
+                ):
                     # shutdown running statistics update in frozen mode
                     m.eval()
 
@@ -483,7 +490,9 @@ class ResNet(nn.Module):
 
         self.head = head_helper.ResNetBasicHead(
             dim_in=[width_per_group * 32],
-            num_classes=cfg.MODEL.NUM_CLASSES if len(cfg.MODEL.NUM_CLASSES) > 1 else cfg.MODEL.NUM_CLASSES[0],
+            num_classes=cfg.MODEL.NUM_CLASSES
+            if len(cfg.MODEL.NUM_CLASSES) > 1
+            else cfg.MODEL.NUM_CLASSES[0],
             pool_size=[
                 [
                     cfg.AUDIO_DATA.NUM_FRAMES // 4 // pool_size[0][0],
@@ -507,22 +516,28 @@ class ResNet(nn.Module):
         return x
 
     def freeze_fn(self, freeze_mode):
-        if freeze_mode == 'bn_parameters':
-            print("Freezing all BN layers\' parameters except the first one.")
+        if freeze_mode == "bn_parameters":
+            print("Freezing all BN layers' parameters except the first one.")
             for n, m in self.named_modules():
-                if (isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm))\
-                        and ('s1.pathway0_stem.bn' not in n
-                             and 's1.pathway1_stem.bn' not in n
-                             and 's1_fuse.bn' not in n):
+                if (
+                    isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm)
+                ) and (
+                    "s1.pathway0_stem.bn" not in n
+                    and "s1.pathway1_stem.bn" not in n
+                    and "s1_fuse.bn" not in n
+                ):
                     # shutdown parameters update in frozen mode
                     m.weight.requires_grad_(False)
                     m.bias.requires_grad_(False)
-        elif freeze_mode == 'bn_statistics':
-            print("Freezing all BN layers\' statistics except the first one.")
+        elif freeze_mode == "bn_statistics":
+            print("Freezing all BN layers' statistics except the first one.")
             for n, m in self.named_modules():
-                if (isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm))\
-                        and ('s1.pathway0_stem.bn' not in n
-                             and 's1.pathway1_stem.bn' not in n
-                             and 's1_fuse.bn' not in n):
+                if (
+                    isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm)
+                ) and (
+                    "s1.pathway0_stem.bn" not in n
+                    and "s1.pathway1_stem.bn" not in n
+                    and "s1_fuse.bn" not in n
+                ):
                     # shutdown running statistics update in frozen mode
                     m.eval()

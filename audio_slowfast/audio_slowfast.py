@@ -12,6 +12,7 @@ from typing import List, Optional
 
 import audio_slowfast
 import audio_slowfast.utils.checkpoint as cu
+from audio_slowfast.models.build import MODEL_REGISTRY
 import audio_slowfast.models.head_helper
 import librosa
 import numpy as np
@@ -22,7 +23,6 @@ from fvcore.common.config import CfgNode
 from loguru import logger
 from torch import nn
 import pandas as pd
-from fvcore.common.registry import Registry
 
 
 MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
@@ -30,7 +30,6 @@ MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "configs")
 DEFAULT_CONFIG = os.path.join(CONFIG_DIR, "EPIC-KITCHENS/SLOWFAST_R50.yaml")
 DEFAULT_MODEL = os.path.join(MODEL_DIR, "SLOWFAST_EPIC.pyth")
-MODEL_REGISTRY = Registry("MODEL")
 
 
 class AudioSlowFast(nn.Module):
