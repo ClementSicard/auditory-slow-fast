@@ -10,7 +10,7 @@ It was largely inspired by https://github.com/VIDA-NYU/ptg-server-ml/blob/main/p
 import os
 from typing import List, Optional
 
-import audio_slowfast
+import audio_slowfast.models.optimizer as optim
 import audio_slowfast.utils.checkpoint as cu
 from audio_slowfast.models.build import MODEL_REGISTRY
 import audio_slowfast.models.head_helper
@@ -122,7 +122,7 @@ class AudioSlowFast(nn.Module):
             self.optimizer = optim.construct_optimizer(self.model, cfg)
             logger.error("BEFORE")
             # Load a checkpoint to resume training if applicable.
-            self.start_epoch = cu.load_train_checkpoint(cfg, self.model, optimizer)
+            self.start_epoch = cu.load_train_checkpoint(cfg, self.model, self.optimizer)
             logger.error("AFTER")
         else:
             cu.load_test_checkpoint(cfg, self.model)

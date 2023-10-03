@@ -799,7 +799,7 @@ def train(cfg):
         train_epoch(
             train_loader,
             model,
-            optimizer,
+            model.optimizer,
             train_meter,
             cur_epoch,
             cfg,
@@ -832,7 +832,7 @@ def train(cfg):
 
         # Save a checkpoint.
         if is_checkp_epoch:
-            cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg)
+            cu.save_checkpoint(cfg.OUTPUT_DIR, model, model.optimizer, cur_epoch, cfg)
         # Evaluate the model on validation set.
         if is_eval_epoch:
             is_best_epoch, _ = eval_epoch(
@@ -842,7 +842,7 @@ def train(cfg):
                 cu.save_checkpoint(
                     cfg.OUTPUT_DIR,
                     model,
-                    optimizer,
+                    model.optimizer,
                     cur_epoch,
                     cfg,
                     is_best_epoch=is_best_epoch,
