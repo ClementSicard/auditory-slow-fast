@@ -99,4 +99,4 @@ def log_json_stats(stats):
         use_decimal=True,
         indent=4 * " ",
     )
-    logger.info(f"{json.d}".format(json_stats))
+    logger.info(json_stats)
