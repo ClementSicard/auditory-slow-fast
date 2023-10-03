@@ -20,7 +20,7 @@ import audio_slowfast.utils.multiprocessing as mpu
 from audio_slowfast.datasets.utils import pack_pathway_output
 from audio_slowfast.models.batchnorm_helper import SubBatchNorm2d
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 def check_nan_losses(loss):
@@ -58,7 +58,7 @@ def gpu_mem_usage():
         mem_usage_bytes = torch.cuda.max_memory_allocated()
     else:
         mem_usage_bytes = 0
-    return mem_usage_bytes / 1024 ** 3
+    return mem_usage_bytes / 1024**3
 
 
 def cpu_mem_usage():
@@ -69,8 +69,8 @@ def cpu_mem_usage():
         total (float): total memory (GB).
     """
     vram = psutil.virtual_memory()
-    usage = (vram.total - vram.available) / 1024 ** 3
-    total = vram.total / 1024 ** 3
+    usage = (vram.total - vram.available) / 1024**3
+    total = vram.total / 1024**3
 
     return usage, total
 
@@ -147,16 +147,8 @@ def log_model_info(model, cfg):
     logger.info("Model:\n{}".format(model))
     logger.info("Params: {:,}".format(params_count(model)))
     logger.info("Mem: {:,} MB".format(gpu_mem_usage()))
-    logger.info(
-        "Flops: {:,} G".format(
-            get_model_stats(model, cfg, "flop")
-        )
-    )
-    logger.info(
-        "Activations: {:,} M".format(
-            get_model_stats(model, cfg, "activation")
-        )
-    )
+    logger.info("Flops: {:,} G".format(get_model_stats(model, cfg, "flop")))
+    logger.info("Activations: {:,} M".format(get_model_stats(model, cfg, "activation")))
     logger.info("nvidia-smi")
     os.system("nvidia-smi")
 
@@ -292,17 +284,11 @@ def get_class_names(path, parent_path=None, subset_path=None):
             with PathManager.open(parent_path, "r") as f:
                 d_parent = json.load(f)
         except EnvironmentError as err:
-            print(
-                "Fail to load file from {} with error {}".format(
-                    parent_path, err
-                )
-            )
+            print("Fail to load file from {} with error {}".format(parent_path, err))
             return
         class_parent = {}
         for parent, children in d_parent.items():
-            indices = [
-                class2idx[c] for c in children if class2idx.get(c) is not None
-            ]
+            indices = [class2idx[c] for c in children if class2idx.get(c) is not None]
             class_parent[parent] = indices
 
     subset_ids = None
@@ -316,11 +302,7 @@ def get_class_names(path, parent_path=None, subset_path=None):
                     if class2idx.get(name) is not None
                 ]
         except EnvironmentError as err:
-            print(
-                "Fail to load file from {} with error {}".format(
-                    subset_path, err
-                )
-            )
+            print("Fail to load file from {} with error {}".format(subset_path, err))
             return
 
     return class_names, class_parent, subset_ids

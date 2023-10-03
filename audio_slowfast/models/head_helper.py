@@ -111,7 +111,7 @@ class ResNetBasicHead(nn.Module):
     def train_inference(self, x: torch.Tensor) -> torch.Tensor:
         # Performs fully convlutional inference.
         if not self.training:
-            x_n = self.act(x_n)
-            x_n = x_n.mean([1, 2])
+            x = self.act(x)
+            x = x.mean([1, 2])
 
-        x_n = x_n.view(x_n.shape[0], -1)
+        x = x.view(x.shape[0], -1)

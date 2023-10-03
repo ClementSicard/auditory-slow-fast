@@ -15,7 +15,7 @@ from .spec_augment import combined_transforms
 from . import utils as utils
 from .audio_loader_epic import pack_audio
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 @DATASET_REGISTRY.register()

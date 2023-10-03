@@ -16,7 +16,7 @@ import audio_slowfast.utils.logging as logging
 import audio_slowfast.utils.metrics as metrics
 import audio_slowfast.utils.misc as misc
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 class TestMeter(object):

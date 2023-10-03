@@ -19,7 +19,7 @@ from audio_slowfast.models import build_model
 from audio_slowfast.utils.meters import TestMeter, EPICTestMeter
 from audio_slowfast.utils.vggsound_metrics import get_stats
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 @torch.no_grad()

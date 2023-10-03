@@ -10,7 +10,8 @@ import audio_slowfast.utils.logging as logging
 import audio_slowfast.visualization.utils as vis_utils
 from audio_slowfast.utils.misc import get_class_names
 
-logger = logging.get_logger(__name__)
+from loguru import logger
+
 log.getLogger("matplotlib").setLevel(log.ERROR)
 
 
@@ -41,9 +42,7 @@ class TensorboardWriter(object):
         self.hist_figsize = cfg.TENSORBOARD.HISTOGRAM.FIGSIZE
 
         if cfg.TENSORBOARD.LOG_DIR == "":
-            log_dir = os.path.join(
-                cfg.OUTPUT_DIR, "runs-{}".format(cfg.TRAIN.DATASET)
-            )
+            log_dir = os.path.join(cfg.OUTPUT_DIR, "runs-{}".format(cfg.TRAIN.DATASET))
         else:
             log_dir = os.path.join(cfg.OUTPUT_DIR, cfg.TENSORBOARD.LOG_DIR)
 
@@ -124,10 +123,7 @@ class TensorboardWriter(object):
             if self.parent_map is not None:
                 # Get list of tags (parent categories names) and their children.
                 for parent_class, children_ls in self.parent_map.items():
-                    tag = (
-                        "Confusion Matrices Grouped by Parent Classes/"
-                        + parent_class
-                    )
+                    tag = "Confusion Matrices Grouped by Parent Classes/" + parent_class
                     add_confusion_matrix(
                         self.writer,
                         cmtx,
@@ -251,9 +247,7 @@ def plot_hist(
                 figsize=figsize,
             )
             writer.add_figure(
-                tag="Top {} predictions by classes/{}".format(
-                    k, class_names[i]
-                ),
+                tag="Top {} predictions by classes/{}".format(k, class_names[i]),
                 figure=hist,
                 global_step=global_step,
             )

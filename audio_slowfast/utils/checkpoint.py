@@ -14,7 +14,7 @@ from fvcore.common.file_io import PathManager
 import audio_slowfast.utils.distributed as du
 import audio_slowfast.utils.logging as logging
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 def make_checkpoint_dir(path_to_job):
@@ -150,9 +150,9 @@ def load_checkpoint(
     Returns:
         (int): the number of training epoch of the checkpoint.
     """
-    assert PathManager.exists(
+    assert PathManager.exists(path_to_checkpoint), "Checkpoint '{}' not found".format(
         path_to_checkpoint
-    ), "Checkpoint '{}' not found".format(path_to_checkpoint)
+    )
     logger.info("Loading network weights from {}.".format(path_to_checkpoint))
 
     # Account for the DDP wrapper in the multi-gpu setting.
@@ -172,14 +172,10 @@ def load_checkpoint(
             for k in checkpoint["model_state"]:
                 if item in k:
                     k_re = k.replace(item, "")
-                    model_state_dict_new[k_re] = checkpoint[
-                        "model_state"
-                    ][k]
+                    model_state_dict_new[k_re] = checkpoint["model_state"][k]
                     logger.info("renaming: {} -> {}".format(k, k_re))
                 else:
-                    model_state_dict_new[k] = checkpoint["model_state"][
-                        k
-                    ]
+                    model_state_dict_new[k] = checkpoint["model_state"][k]
             checkpoint["model_state"] = model_state_dict_new
 
     pre_train_dict = checkpoint["model_state"]
@@ -192,9 +188,7 @@ def load_checkpoint(
     }
     # Weights that do not have match from the pre-trained model.
     not_load_layers = [
-        k
-        for k in model_dict.keys()
-        if k not in pre_train_dict_match.keys()
+        k for k in model_dict.keys() if k not in pre_train_dict_match.keys()
     ]
     # Log weights that are not loaded with the pre-trained weights.
     if not_load_layers:
@@ -284,13 +278,10 @@ def normal_to_sub_bn(checkpoint_sd, model_sd):
             ):
                 before_shape = checkpoint_sd[key].shape
                 checkpoint_sd[key] = torch.cat(
-                    [checkpoint_sd[key]]
-                    * (model_blob_shape[0] // c2_blob_shape[0])
+                    [checkpoint_sd[key]] * (model_blob_shape[0] // c2_blob_shape[0])
                 )
                 logger.info(
-                    "{} {} -> {}".format(
-                        key, before_shape, checkpoint_sd[key].shape
-                    )
+                    "{} {} -> {}".format(key, before_shape, checkpoint_sd[key].shape)
                 )
     return checkpoint_sd
 

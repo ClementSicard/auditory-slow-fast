@@ -9,7 +9,7 @@ from sklearn.metrics import confusion_matrix
 
 import audio_slowfast.utils.logging as logging
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 def get_confusion_matrix(preds, labels, num_classes, normalize="true"):
@@ -152,6 +152,3 @@ def plot_topk_histogram(tag, array, k=10, class_names=None, figsize=None):
     fig.set_tight_layout(True)
 
     return fig
-
-
-

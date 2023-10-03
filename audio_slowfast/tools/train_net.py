@@ -27,7 +27,7 @@ from audio_slowfast.utils.meters import (
     EPICValMeter,
 )
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 def train_epoch(

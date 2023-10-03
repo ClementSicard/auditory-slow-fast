@@ -12,14 +12,12 @@ from .spec_augment import combined_transforms
 from . import utils as utils
 from .audio_loader_vggsound import pack_audio
 
-logger = logging.get_logger(__name__)
+from loguru import logger
 
 
 @DATASET_REGISTRY.register()
 class Vggsound(torch.utils.data.Dataset):
-
     def __init__(self, cfg, mode):
-
         assert mode in [
             "train",
             "val",
@@ -40,11 +38,17 @@ class Vggsound(torch.utils.data.Dataset):
         Construct the audio loader.
         """
         if self.mode == "train":
-            path_annotations_pickle = os.path.join(self.cfg.VGGSOUND.ANNOTATIONS_DIR, self.cfg.VGGSOUND.TRAIN_LIST)
+            path_annotations_pickle = os.path.join(
+                self.cfg.VGGSOUND.ANNOTATIONS_DIR, self.cfg.VGGSOUND.TRAIN_LIST
+            )
         elif self.mode == "val":
-            path_annotations_pickle = os.path.join(self.cfg.VGGSOUND.ANNOTATIONS_DIR, self.cfg.VGGSOUND.VAL_LIST)
+            path_annotations_pickle = os.path.join(
+                self.cfg.VGGSOUND.ANNOTATIONS_DIR, self.cfg.VGGSOUND.VAL_LIST
+            )
         else:
-            path_annotations_pickle = os.path.join(self.cfg.VGGSOUND.ANNOTATIONS_DIR, self.cfg.VGGSOUND.TEST_LIST)
+            path_annotations_pickle = os.path.join(
+                self.cfg.VGGSOUND.ANNOTATIONS_DIR, self.cfg.VGGSOUND.TEST_LIST
+            )
 
         assert os.path.exists(path_annotations_pickle), "{} dir not found".format(
             path_annotations_pickle
@@ -57,7 +61,7 @@ class Vggsound(torch.utils.data.Dataset):
                 self._audio_records.append(tup[1])
                 self._temporal_idx.append(idx)
         assert (
-                len(self._audio_records) > 0
+            len(self._audio_records) > 0
         ), "Failed to load VGG-Sound split {} from {}".format(
             self.mode, path_annotations_pickle
         )
@@ -86,11 +90,11 @@ class Vggsound(torch.utils.data.Dataset):
         elif self.mode in ["test"]:
             temporal_sample_index = self._temporal_idx[index]
         else:
-            raise NotImplementedError(
-                "Does not support {} mode".format(self.mode)
-            )
+            raise NotImplementedError("Does not support {} mode".format(self.mode))
 
-        spectrogram = pack_audio(self.cfg, self._audio_records[index], temporal_sample_index)
+        spectrogram = pack_audio(
+            self.cfg, self._audio_records[index], temporal_sample_index
+        )
         # Normalization.
         spectrogram = spectrogram.float()
         if self.mode in ["train"]:
@@ -101,10 +105,9 @@ class Vggsound(torch.utils.data.Dataset):
             spectrogram = combined_transforms(spectrogram)
             # C F T -> C T F
             spectrogram = spectrogram.permute(0, 2, 1)
-        label = self._audio_records[index]['class_id']
+        label = self._audio_records[index]["class_id"]
         spectrogram = utils.pack_pathway_output(self.cfg, spectrogram)
         return spectrogram, label, index, {}
 
     def __len__(self):
         return len(self._audio_records)
-
