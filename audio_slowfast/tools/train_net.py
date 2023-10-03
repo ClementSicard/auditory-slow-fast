@@ -89,20 +89,6 @@ def train_epoch(
 
         preds = [pred.squeeze(1) for pred in preds]
 
-        logger.warning(f"{[x.shape for x in preds]=}")
-        logger.warning(f"{preds[0].shape=}")
-        logger.warning(f"{preds[0].squeeze(1).shape=}")
-        logger.warning(f"{preds[1].shape=}")
-        logger.warning(f"{preds[1].squeeze(1).shape=}")
-        logger.warning(f"{preds[2].shape=}")
-        logger.warning(f"{preds[2].squeeze(1).shape=}")
-        logger.warning(f"{preds[3].shape=}")
-        logger.warning(f"{preds[3].squeeze(1).shape=}")
-        logger.warning(f"{labels['verb'].shape=}")
-        logger.warning(f"{labels['noun'].shape=}")
-        logger.warning(f"{labels=}")
-        # logger.warning(f"{labels['postc'].shape=}")
-
         if isinstance(labels, (dict,)):
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
@@ -117,7 +103,7 @@ def train_epoch(
             loss_noun = loss_fun(preds[1], labels["noun"])
             loss_prec = prec_loss_fun(preds[2], labels["precs"])
             loss_postc = postc_loss_fun(preds[3], labels["posts"])
-            loss = 1 / 6 * (loss_verb + loss_noun + 2 * loss_prec + 2 * loss_postc)
+            loss = 1 / 4 * (loss_verb + loss_noun + loss_prec + loss_postc)
 
             logger.success(f"Loss: {loss}")
 
