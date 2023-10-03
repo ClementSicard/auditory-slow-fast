@@ -185,8 +185,8 @@ def test(cfg):
     np.random.seed(cfg.RNG_SEED)
     torch.manual_seed(cfg.RNG_SEED)
 
-    # Setup logging format.
-    logging.setup_logging(cfg.OUTPUT_DIR)
+    # # Setup logging format.
+    # logging.setup_logging(cfg.OUTPUT_DIR)
 
     # Print config.
     logger.info("Test with config:")
