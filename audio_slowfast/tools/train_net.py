@@ -83,6 +83,16 @@ def train_epoch(
 
         preds = model(inputs)
 
+        logger.warning(f"{preds.shape=}")
+        logger.warning(f"{preds[0].shape=}")
+        logger.warning(f"{preds[1].shape=}")
+        logger.warning(f"{preds[2].shape=}")
+        logger.warning(f"{preds[3].shape=}")
+        logger.warning(f"{labels['verb'].shape=}")
+        logger.warning(f"{labels['noun'].shape=}")
+        logger.warning(f"{labels['prec'].shape=}")
+        logger.warning(f"{labels['postc'].shape=}")
+
         if isinstance(labels, (dict,)):
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
