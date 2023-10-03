@@ -54,6 +54,7 @@ class AudioSlowFast(nn.Module):
         # init config
         self.cfg = cfg = get_cfg()
         cfg.merge_from_file(cfg_file_path)
+
         logger.success(f"Loaded config from {cfg_file_path}")
         # get vocab classes
         self.vocab = []

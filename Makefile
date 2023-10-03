@@ -1,6 +1,6 @@
-WEIGHTS_PATH := ../thesis/models/asf/weights/SLOWFAST_EPIC.pyth
-CONFIG_PATH := ../models/asf/config/SLOWFAST_R50.yaml
-INPUT_PATH := ../thesis/data/EPIC-KITCHENS/P10/videos/P10_04_trimmed.wav
+WEIGHTS_PATH := ../marl-thesis/models/asf/weights/SLOWFAST_EPIC.pyth
+CONFIG_PATH := ../marl-thesis/models/asf/config/SLOWFAST_R50.yaml
+INPUT_PATH := ../marl-thesis/data/EPIC-KITCHENS/P10/videos/P10_04_trimmed.wav
 
 .PHONY: example
 example:

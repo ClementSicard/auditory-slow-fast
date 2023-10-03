@@ -354,6 +354,8 @@ _C.EPICKITCHENS.TRAIN_PLUS_VAL = False
 
 _C.EPICKITCHENS.TEST_SPLIT = "validation"
 
+_C.EPICKITCHENS.ATTRIBUTES = []
+
 
 # -----------------------------------------------------------------------------
 # VGG-Sound Dataset options

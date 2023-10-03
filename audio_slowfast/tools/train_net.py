@@ -26,6 +26,7 @@ from audio_slowfast.utils.meters import (
     EPICTrainMeter,
     EPICValMeter,
 )
+from audio_slowfast import CustomResNetBasicHead
 
 from loguru import logger
 
@@ -729,12 +730,37 @@ def train(cfg):
     # Setup logging format.
     logging.setup_logging(cfg.OUTPUT_DIR)
 
+    vocab_prec = []
+    if cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS:
+        vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)[
+            "attribute"
+        ].to_list()
+        logger.success(
+            f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}"
+        )
+        cfg.MODEL.NUM_CLASSES.append(len(vocab_prec))
+
+    if cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS:
+        vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)[
+            "attribute"
+        ].to_list()
+
+        cfg.EPICKITCHENS.ATTRIBUTES = vocab_postc
+
+        logger.success(
+            f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}"
+        )
+        cfg.MODEL.NUM_CLASSES.append(len(vocab_postc))
+
     # Print config.
     logger.info("Train with config:")
     logger.info(pprint.pformat(cfg))
 
     # Build the audio model and print model statistics.
     model = build_model(cfg)
+
+    model.head.__class__ = CustomResNetBasicHead
+
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
 
