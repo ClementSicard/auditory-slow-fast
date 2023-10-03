@@ -35,6 +35,12 @@ import logging as lg
 numba_logger = lg.getLogger("numba")
 numba_logger.setLevel(lg.WARNING)
 
+jit_logger = lg.getLogger("fvcore.nn.jit_analysis")
+jit_logger.setLevel(lg.ERROR)
+
+bn_logger = lg.getLogger("fvcore.nn.precise_bn")
+bn_logger.setLevel(lg.ERROR)
+
 
 def train_epoch(
     train_loader,
