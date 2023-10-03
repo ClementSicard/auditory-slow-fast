@@ -51,6 +51,7 @@ class AudioSlowFast(nn.Module):
         checkpoint: str = DEFAULT_MODEL,
         cfg_file_path: str = DEFAULT_CONFIG,
         cfg: Optional[CfgNode] = None,
+        train: bool = False,
     ):
         super().__init__()
         # init config
@@ -110,7 +111,22 @@ class AudioSlowFast(nn.Module):
         cfg.TEST.CHECKPOINT_FILE_PATH = checkpoint
         cfg.NUM_GPUS = min(cfg.NUM_GPUS, torch.cuda.device_count())
         self.model = build_model(cfg)
-        cu.load_test_checkpoint(cfg, self.model)
+
+        if train:
+            if cfg.BN.FREEZE:
+                self.model.module.freeze_fn(
+                    "bn_parameters"
+                ) if cfg.NUM_GPUS > 1 else self.model.freeze_fn("bn_parameters")
+
+            # Construct the optimizer.
+            optimizer = optim.construct_optimizer(self.model, cfg)
+            logger.error("BEFORE")
+            # Load a checkpoint to resume training if applicable.
+            start_epoch = cu.load_train_checkpoint(cfg, self.model, optimizer)
+            logger.error("AFTER")
+        else:
+            cu.load_test_checkpoint(cfg, self.model)
+
         self.model.head.__class__ = CustomResNetBasicHead
 
     def prepare_audio(self, y: np.ndarray, sr: int = 24_000) -> np.ndarray:
