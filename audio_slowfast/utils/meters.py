@@ -910,10 +910,10 @@ class EPICValMeter(object):
         self.all_verb_labels.append(labels[0])
         self.all_noun_preds.append(preds[1])
         self.all_noun_labels.append(labels[1])
-        self.all_precs_preds.append(preds[3])
-        self.all_precs_labels.append(labels[3])
-        self.all_posts_preds.append(preds[4])
-        self.all_posts_labels.append(labels[4])
+        self.all_precs_preds.append(preds[2])
+        self.all_precs_labels.append(labels[2])
+        self.all_posts_preds.append(preds[3])
+        self.all_posts_labels.append(labels[3])
 
     # Done for pre-post ✅
     def log_iter_stats(self, cur_epoch, cur_iter):
