@@ -8,3 +8,4 @@ example:
 		-w $(WEIGHTS_PATH) \
 		-c $(CONFIG_PATH) \
 		-f $(INPUT_PATH)
+

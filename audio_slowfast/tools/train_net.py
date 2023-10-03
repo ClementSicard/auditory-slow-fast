@@ -737,6 +737,7 @@ def train(cfg):
 
     # Build the audio model and print model statistics.
     model = AudioSlowFast(cfg=cfg)
+    model.head.__class__ = CustomResNetBasicHead
     # model = build_model(cfg)
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
@@ -751,7 +752,6 @@ def train(cfg):
     logger.error("BEFORE")
     # Load a checkpoint to resume training if applicable.
     start_epoch = cu.load_train_checkpoint(cfg, model, optimizer)
-    model.head.__class__ = CustomResNetBasicHead
     logger.error("AFTER")
 
     # Create the audio train and val loaders.
