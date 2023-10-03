@@ -748,10 +748,11 @@ def train(cfg):
 
     # Construct the optimizer.
     optimizer = optim.construct_optimizer(model, cfg)
-
+    logger.error("BEFORE")
     # Load a checkpoint to resume training if applicable.
     start_epoch = cu.load_train_checkpoint(cfg, model, optimizer)
     model.head.__class__ = CustomResNetBasicHead
+    logger.error("AFTER")
 
     # Create the audio train and val loaders.
     if cfg.TRAIN.DATASET != "epickitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
