@@ -104,10 +104,13 @@ def train_epoch(
             )
 
             # Compute the loss.
-            loss_verb = loss_fun(preds[0], labels["verb"])
-            loss_noun = loss_fun(preds[1], labels["noun"])
-            loss_prec = prec_loss_fun(preds[2], labels["prec"])
-            loss_postc = postc_loss_fun(preds[3], labels["postc"])
+            best_verb = torch.argmax(preds[0], dim=-1)
+            best_noun = torch.argmax(preds[1], dim=-1)
+
+            loss_verb = loss_fun(preds[0][best_verb], labels["verb"])
+            loss_noun = loss_fun(preds[1][best_noun], labels["noun"])
+            loss_prec = prec_loss_fun(preds[2], labels["precs"])
+            loss_postc = postc_loss_fun(preds[3], labels["posts"])
             loss = 1 / 6 * (loss_verb + loss_noun + 2 * loss_prec + 2 * loss_postc)
 
             # check Nan Loss.
