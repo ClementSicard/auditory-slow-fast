@@ -58,10 +58,6 @@ def train_epoch(
     """
     # Enable train mode.
     model.train()
-    if cfg.BN.FREEZE:
-        model.module.freeze_fn(
-            "bn_statistics"
-        ) if cfg.NUM_GPUS > 1 else model.freeze_fn("bn_statistics")
 
     train_meter.iter_tic()
     data_size = len(train_loader)
