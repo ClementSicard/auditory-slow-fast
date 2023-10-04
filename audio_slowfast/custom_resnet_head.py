@@ -3,11 +3,12 @@ from typing import List
 import torch
 import torch.nn as nn
 
-import audio_slowfast
 from audio_slowfast.utils import discretize
 
+from .models.head_helper import ResNetBasicHead
 
-class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
+
+class CustomResNetBasicHead(ResNetBasicHead):
     """
     ResNet basic head for audio classification.
 

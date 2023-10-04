@@ -11,6 +11,15 @@ example:
 
 .PHONY: lint
 lint:
-	@ruff **/*.py --line-length 120 --fix
+	@ruff . --line-length 120 --fix
 	@isort **/*.py --filter-files --profile black
-	@black **/*.py -l 120
+	@black . -l 120
+
+.PHONY: bash
+bash:
+	@echo "Running interactive bash session"
+	@srun --job-name "interactive bash" \
+		--cpus-per-task 8 \
+		--mem 16G \
+		--time 12:00:00 \
+		--pty bash
