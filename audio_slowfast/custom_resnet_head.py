@@ -95,8 +95,10 @@ class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
             return (
                 self._proj(x, self.projection_verb),
                 self._proj(x, self.projection_noun),
-                self._proj_discrete(x, self.projection_prec),
-                self._proj_discrete(x, self.projection_postc),
+                self._proj(x, self.projection_prec),
+                self._proj(x, self.projection_postc),
+                # self._proj_discrete(x, self.projection_prec),
+                # self._proj_discrete(x, self.projection_postc),
             )
 
         return self._proj(x, self.projection)
