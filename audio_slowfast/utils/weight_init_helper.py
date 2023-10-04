@@ -26,11 +26,7 @@ def init_weights(model, fc_init_std=0.01, zero_init_final_bn=True):
             """
             c2_msra_fill(m)
         elif isinstance(m, nn.BatchNorm2d):
-            if (
-                hasattr(m, "transform_final_bn")
-                and m.transform_final_bn
-                and zero_init_final_bn
-            ):
+            if hasattr(m, "transform_final_bn") and m.transform_final_bn and zero_init_final_bn:
                 batchnorm_weight = 0.0
             else:
                 batchnorm_weight = 1.0

@@ -3,8 +3,8 @@
 
 """Functions for computing metrics."""
 
-import torch
 import numpy as np
+import torch
 
 
 def topks_correct(preds, labels, ks):
@@ -23,13 +23,9 @@ def topks_correct(preds, labels, ks):
         topks_correct (list): list of numbers, where the `i`-th entry
             corresponds to the number of top-`ks[i]` correct predictions.
     """
-    assert preds.size(0) == labels.size(
-        0
-    ), "Batch dim of predictions and labels must match"
+    assert preds.size(0) == labels.size(0), "Batch dim of predictions and labels must match"
     # Find the top max_k predictions for each sample
-    _top_max_k_vals, top_max_k_inds = torch.topk(
-        preds, max(ks), dim=1, largest=True, sorted=True
-    )
+    _top_max_k_vals, top_max_k_inds = torch.topk(preds, max(ks), dim=1, largest=True, sorted=True)
     # (batch_size, max_k) -> (max_k, batch_size).
     top_max_k_inds = top_max_k_inds.t()
     # (batch_size, ) -> (max_k, batch_size).
@@ -66,9 +62,7 @@ def multitask_topks_correct(preds, labels, ks=(1,)):
         correct_for_task = max_k_idx.eq(label.view(1, -1).expand_as(max_k_idx))
         all_correct.add_(correct_for_task)
 
-    multitask_topks_correct = [
-        torch.ge(all_correct[:k].float().sum(0), task_count).float().sum(0) for k in ks
-    ]
+    multitask_topks_correct = [torch.ge(all_correct[:k].float().sum(0), task_count).float().sum(0) for k in ks]
 
     return multitask_topks_correct
 
@@ -104,6 +98,6 @@ def multitask_topk_accuracies(preds, labels, ks):
         preds (array): array of predictions. Dimension is N.
         labels (array): array of labels. Dimension is N.
         ks (list): list of ks to calculate the top accuracies.
-   """
+    """
     num_multitask_topks_correct = multitask_topks_correct(preds, labels, ks)
     return [(x / preds[0].size(0)) * 100.0 for x in num_multitask_topks_correct]

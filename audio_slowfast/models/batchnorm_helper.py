@@ -4,6 +4,7 @@
 """BatchNorm (BN) utility functions and custom batch-size BN implementations"""
 
 from functools import partial
+
 import torch
 import torch.distributed as dist
 import torch.nn as nn
@@ -25,13 +26,9 @@ def get_norm(cfg):
     elif cfg.BN.NORM_TYPE == "sub_batchnorm":
         return partial(SubBatchNorm2d, num_splits=cfg.BN.NUM_SPLITS)
     elif cfg.BN.NORM_TYPE == "sync_batchnorm":
-        return partial(
-            NaiveSyncBatchNorm2d, num_sync_devices=cfg.BN.NUM_SYNC_DEVICES
-        )
+        return partial(NaiveSyncBatchNorm2d, num_sync_devices=cfg.BN.NUM_SYNC_DEVICES)
     else:
-        raise NotImplementedError(
-            "Norm type {} is not supported".format(cfg.BN.NORM_TYPE)
-        )
+        raise NotImplementedError("Norm type {} is not supported".format(cfg.BN.NORM_TYPE))
 
 
 class SubBatchNorm2d(nn.Module):
@@ -75,10 +72,7 @@ class SubBatchNorm2d(nn.Module):
             n (int): number of sets of means and stds.
         """
         mean = means.view(n, -1).sum(0) / n
-        std = (
-            stds.view(n, -1).sum(0) / n
-            + ((means.view(n, -1) - mean) ** 2).view(n, -1).sum(0) / n
-        )
+        std = stds.view(n, -1).sum(0) / n + ((means.view(n, -1) - mean) ** 2).view(n, -1).sum(0) / n
         return mean.detach(), std.detach()
 
     def aggregate_stats(self):
@@ -123,22 +117,14 @@ class GroupGather(Function):
         ctx.num_sync_devices = num_sync_devices
         ctx.num_groups = num_groups
 
-        input_list = [
-            torch.zeros_like(input) for k in range(du.get_local_size())
-        ]
-        dist.all_gather(
-            input_list, input, async_op=False, group=du._LOCAL_PROCESS_GROUP
-        )
+        input_list = [torch.zeros_like(input) for k in range(du.get_local_size())]
+        dist.all_gather(input_list, input, async_op=False, group=du._LOCAL_PROCESS_GROUP)
 
         inputs = torch.stack(input_list, dim=0)
         if num_groups > 1:
             rank = du.get_local_rank()
             group_idx = rank // num_sync_devices
-            inputs = inputs[
-                group_idx
-                * num_sync_devices : (group_idx + 1)
-                * num_sync_devices
-            ]
+            inputs = inputs[group_idx * num_sync_devices : (group_idx + 1) * num_sync_devices]
         inputs = torch.sum(inputs, dim=0)
         return inputs
 
@@ -148,9 +134,7 @@ class GroupGather(Function):
         Perform backwarding, gathering the gradients across different process/ GPU
         group.
         """
-        grad_output_list = [
-            torch.zeros_like(grad_output) for k in range(du.get_local_size())
-        ]
+        grad_output_list = [torch.zeros_like(grad_output) for k in range(du.get_local_size())]
         dist.all_gather(
             grad_output_list,
             grad_output,
@@ -162,11 +146,7 @@ class GroupGather(Function):
         if ctx.num_groups > 1:
             rank = du.get_local_rank()
             group_idx = rank // ctx.num_sync_devices
-            grads = grads[
-                group_idx
-                * ctx.num_sync_devices : (group_idx + 1)
-                * ctx.num_sync_devices
-            ]
+            grads = grads[group_idx * ctx.num_sync_devices : (group_idx + 1) * ctx.num_sync_devices]
         grads = torch.sum(grads, dim=0)
         return grads, None, None
 
@@ -201,9 +181,7 @@ class NaiveSyncBatchNorm2d(nn.BatchNorm2d):
         meansqr = torch.mean(input * input, dim=[0, 2, 3])
 
         vec = torch.cat([mean, meansqr], dim=0)
-        vec = GroupGather.apply(vec, self.num_sync_devices, self.num_groups) * (
-            1.0 / self.num_sync_devices
-        )
+        vec = GroupGather.apply(vec, self.num_sync_devices, self.num_groups) * (1.0 / self.num_sync_devices)
 
         mean, meansqr = torch.split(vec, C)
         var = meansqr - mean * mean

@@ -1,18 +1,18 @@
 import os
-import numpy as np
-import librosa
-import torch
-
-
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(__file__, "../..")))
+import librosa
+import numpy as np
+import torch
+
 # pip install librosa simplejson psutil
 import audio_slowfast.utils.checkpoint as cu
 from audio_slowfast.models import build_model
 
 # from audio_slowfast.datasets.utils import pack_pathway_output
-from audio_slowfast.utils.parser import load_config, parse_args
+from audio_slowfast.utils.parser import load_config
+
+sys.path.append(os.path.abspath(os.path.join(__file__, "../..")))
 
 
 def read_labels(fname):
@@ -73,7 +73,14 @@ def load_audio(cfg, path, eps=1e-6):
 
     y, sr = librosa.load(path, sr=cfg.AUDIO_DATA.SAMPLING_RATE, mono=False)
 
-    spec = librosa.stft(y, n_fft=2048, window="hann", hop_length=noverlap, win_length=nperseg, pad_mode="constant")
+    spec = librosa.stft(
+        y,
+        n_fft=2048,
+        window="hann",
+        hop_length=noverlap,
+        win_length=nperseg,
+        pad_mode="constant",
+    )
     mel_basis = librosa.filters.mel(sr=sr, n_fft=2048, n_mels=128, htk=True, norm=None)
     spec = np.dot(mel_basis, np.abs(spec))
     spec = np.log(spec + eps)
@@ -89,7 +96,12 @@ def desc(*xs):
     for x in xs:
         try:
             nonzerodim = all(x.shape)
-            print(x.shape, x.dtype, x.min() if nonzerodim else None, x.max() if nonzerodim else None)
+            print(
+                x.shape,
+                x.dtype,
+                x.min() if nonzerodim else None,
+                x.max() if nonzerodim else None,
+            )
         except AttributeError:
             l = ""
             try:
@@ -178,7 +190,8 @@ def pack_pathway_output(cfg, spectrogram):
     else:
         raise NotImplementedError(
             "Model arch {} is not in {}".format(
-                cfg.MODEL.ARCH, cfg.MODEL.SINGLE_PATHWAY_ARCH + cfg.MODEL.MULTI_PATHWAY_ARCH
+                cfg.MODEL.ARCH,
+                cfg.MODEL.SINGLE_PATHWAY_ARCH + cfg.MODEL.MULTI_PATHWAY_ARCH,
             )
         )
     return spectrogram_list

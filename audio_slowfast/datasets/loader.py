@@ -3,10 +3,8 @@
 
 """Data loader."""
 
-import itertools
-import numpy as np
+
 import torch
-from torch.utils.data._utils.collate import default_collate
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data.sampler import RandomSampler
 
@@ -68,9 +66,9 @@ def shuffle_dataset(loader, cur_epoch):
         cur_epoch (int): number of the current epoch.
     """
     sampler = loader.sampler
-    assert isinstance(
-        sampler, (RandomSampler, DistributedSampler)
-    ), "Sampler type '{}' not supported".format(type(sampler))
+    assert isinstance(sampler, (RandomSampler, DistributedSampler)), "Sampler type '{}' not supported".format(
+        type(sampler)
+    )
     # RandomSampler handles shuffling automatically
     if isinstance(sampler, DistributedSampler):
         # DistributedSampler shuffles data based on epoch

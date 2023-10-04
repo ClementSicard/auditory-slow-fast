@@ -1,4 +1,5 @@
 import random
+
 import numpy as np
 import torch
 
@@ -41,29 +42,20 @@ def pack_audio(cfg, audio_dataset, audio_record, temporal_sample_index):
         int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)),
         temporal_sample_index,
         cfg.TEST.NUM_ENSEMBLE_VIEWS,
-        start_sample=audio_record.start_audio_sample
+        start_sample=audio_record.start_audio_sample,
     )
     spectrogram = _extract_sound_feature(cfg, samples, audio_record, int(start_idx), int(end_idx))
     return spectrogram
 
 
-def _log_specgram(cfg, audio, window_size=10,
-                 step_size=5, eps=1e-6):
+def _log_specgram(cfg, audio, window_size=10, step_size=5, eps=1e-6):
     nperseg = int(round(window_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
     noverlap = int(round(step_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
-    from librosa import stft, filters
+    from librosa import filters, stft
 
     # mel-spec
-    spec = stft(audio, n_fft=2048,
-                window='hann',
-                hop_length=noverlap,
-                win_length=nperseg,
-                pad_mode='constant')
-    mel_basis = filters.mel(sr=cfg.AUDIO_DATA.SAMPLING_RATE,
-                            n_fft=2048,
-                            n_mels=128,
-                            htk=True,
-                            norm=None)
+    spec = stft(audio, n_fft=2048, window="hann", hop_length=noverlap, win_length=nperseg, pad_mode="constant")
+    mel_basis = filters.mel(sr=cfg.AUDIO_DATA.SAMPLING_RATE, n_fft=2048, n_mels=128, htk=True, norm=None)
     mel_spec = np.dot(mel_basis, np.abs(spec))
 
     # log-mel-spec
@@ -73,17 +65,15 @@ def _log_specgram(cfg, audio, window_size=10,
 
 def _extract_sound_feature(cfg, samples, audio_record, start_idx, end_idx):
     if audio_record.num_audio_samples < int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)):
-        samples = samples[audio_record.start_audio_sample:audio_record.end_audio_sample]
-        spectrogram = _log_specgram(cfg, samples,
-                                    window_size=cfg.AUDIO_DATA.WINDOW_LENGTH,
-                                    step_size=cfg.AUDIO_DATA.HOP_LENGTH
-                                    )
+        samples = samples[audio_record.start_audio_sample : audio_record.end_audio_sample]
+        spectrogram = _log_specgram(
+            cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH
+        )
         num_timesteps_to_pad = cfg.AUDIO_DATA.NUM_FRAMES - spectrogram.shape[0]
-        spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), 'edge')
+        spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), "edge")
     else:
         samples = samples[start_idx:end_idx]
-        spectrogram = _log_specgram(cfg, samples,
-                                    window_size=cfg.AUDIO_DATA.WINDOW_LENGTH,
-                                    step_size=cfg.AUDIO_DATA.HOP_LENGTH
-                                    )
+        spectrogram = _log_specgram(
+            cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH
+        )
     return torch.tensor(spectrogram).unsqueeze(0)

@@ -68,9 +68,7 @@ def construct_optimizer(model, cfg):
             weight_decay=cfg.SOLVER.WEIGHT_DECAY,
         )
     else:
-        raise NotImplementedError(
-            "Does not support {} optimizer".format(cfg.SOLVER.OPTIMIZING_METHOD)
-        )
+        raise NotImplementedError("Does not support {} optimizer".format(cfg.SOLVER.OPTIMIZING_METHOD))
 
 
 def get_epoch_lr(cur_epoch, cfg):

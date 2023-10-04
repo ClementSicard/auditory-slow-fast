@@ -1,8 +1,10 @@
-import audio_slowfast
-from audio_slowfast.utils import discretize
+from typing import List
+
 import torch
 import torch.nn as nn
-from typing import List
+
+import audio_slowfast
+from audio_slowfast.utils import discretize
 
 
 class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
@@ -27,9 +29,7 @@ class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
         `torch.Tensor`
             Output tensor.
         """
-        assert (
-            len(inputs) == self.num_pathways
-        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
+        assert len(inputs) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)
         pool_out = []
         for pathway in range(self.num_pathways):
             m = getattr(self, "pathway{}_avgpool".format(pathway))
@@ -74,9 +74,7 @@ class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
         x_v = discretize(x_v)
         return x_v.view(x_v.shape[0], -1)
 
-    def project_pre_post_conditions(
-        self, x: torch.Tensor
-    ) -> torch.Tensor | List[torch.Tensor]:
+    def project_pre_post_conditions(self, x: torch.Tensor) -> torch.Tensor | List[torch.Tensor]:
         """
         Project the input tensor to pre- and post-conditions respective classes.
 

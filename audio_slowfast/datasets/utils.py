@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+
 import torch
 from torch.utils.data.distributed import DistributedSampler
 
@@ -26,9 +27,7 @@ def pack_pathway_output(cfg, spectrogram):
         slow_pathway = torch.index_select(
             spectrogram,
             1,
-            torch.linspace(
-                0, spectrogram.shape[1] - 1, spectrogram.shape[1] // cfg.SLOWFAST.ALPHA
-            ).long(),
+            torch.linspace(0, spectrogram.shape[1] - 1, spectrogram.shape[1] // cfg.SLOWFAST.ALPHA).long(),
         )
         spectrogram_list = [slow_pathway, fast_pathway]
     else:

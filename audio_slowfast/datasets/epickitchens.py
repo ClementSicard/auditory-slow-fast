@@ -1,21 +1,17 @@
 import os
-import pandas as pd
-import pickle
-import torch
+
 import h5py
+import pandas as pd
+import torch
 import torch.utils.data
 from fvcore.common.file_io import PathManager
+from loguru import logger
 
-import audio_slowfast.utils.logging as logging
-
-from .build import DATASET_REGISTRY
-from .epickitchens_record import EpicKitchensAudioRecord
-
-from .spec_augment import combined_transforms
 from . import utils as utils
 from .audio_loader_epic import pack_audio
-
-from loguru import logger
+from .build import DATASET_REGISTRY
+from .epickitchens_record import EpicKitchensAudioRecord
+from .spec_augment import combined_transforms
 
 
 @DATASET_REGISTRY.register()
@@ -83,9 +79,7 @@ class Epickitchens(torch.utils.data.Dataset):
                 for idx in range(self._num_clips):
                     self._audio_records.append(EpicKitchensAudioRecord(tup))
                     self._temporal_idx.append(idx)
-        assert (
-            len(self._audio_records) > 0
-        ), "Failed to load EPIC-KITCHENS split {} from {}".format(
+        assert len(self._audio_records) > 0, "Failed to load EPIC-KITCHENS split {} from {}".format(
             self.mode, path_annotations_pickle
         )
         logger.info(

@@ -3,23 +3,22 @@
 
 """Multi-view test an audio classification model."""
 
-import numpy as np
 import os
 import pickle
+
+import numpy as np
 import torch
 from fvcore.common.file_io import PathManager
+from loguru import logger
 
 import audio_slowfast.utils.checkpoint as cu
 import audio_slowfast.utils.distributed as du
-import audio_slowfast.utils.logging as logging
 import audio_slowfast.utils.misc as misc
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast.datasets import loader
 from audio_slowfast.models import build_model
-from audio_slowfast.utils.meters import TestMeter, EPICTestMeter
+from audio_slowfast.utils.meters import EPICTestMeter, TestMeter
 from audio_slowfast.utils.vggsound_metrics import get_stats
-
-from loguru import logger
 
 
 @torch.no_grad()
@@ -68,21 +67,13 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         if isinstance(labels, (dict,)):
             # Gather all the predictions across all the devices to perform ensemble.
             if cfg.NUM_GPUS > 1:
-                verb_preds, verb_labels, audio_idx = du.all_gather(
-                    [preds[0], labels["verb"], audio_idx]
-                )
+                verb_preds, verb_labels, audio_idx = du.all_gather([preds[0], labels["verb"], audio_idx])
 
-                noun_preds, noun_labels, audio_idx = du.all_gather(
-                    [preds[1], labels["noun"], audio_idx]
-                )
+                noun_preds, noun_labels, audio_idx = du.all_gather([preds[1], labels["noun"], audio_idx])
 
-                precs_preds, precs_labels, audio_idx = du.all_gather(
-                    [preds[2], labels["precs"], audio_idx]
-                )
+                precs_preds, precs_labels, audio_idx = du.all_gather([preds[2], labels["precs"], audio_idx])
 
-                posts_preds, posts_labels, audio_idx = du.all_gather(
-                    [preds[3], labels["posts"], audio_idx]
-                )
+                posts_preds, posts_labels, audio_idx = du.all_gather([preds[3], labels["posts"], audio_idx])
 
                 meta = du.all_gather_unaligned(meta)
                 metadata = {"narration_id": []}
@@ -230,9 +221,7 @@ def test(cfg):
         writer = None
 
     # # Perform multi-view test on the entire dataset.
-    test_meter, preds, _, labels, metadata = perform_test(
-        test_loader, model, test_meter, cfg, writer
-    )
+    test_meter, preds, _, labels, metadata = perform_test(test_loader, model, test_meter, cfg, writer)
 
     if du.is_master_proc():
         if cfg.TEST.DATASET == "epickitchens":

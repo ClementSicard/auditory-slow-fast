@@ -4,17 +4,14 @@
 """Functions that handle saving and loading of checkpoints."""
 
 import copy
-import numpy as np
 import os
-import pickle
 from collections import OrderedDict
+
 import torch
 from fvcore.common.file_io import PathManager
+from loguru import logger
 
 import audio_slowfast.utils.distributed as du
-import audio_slowfast.utils.logging as logging
-
-from loguru import logger
 
 
 def make_checkpoint_dir(path_to_job):
@@ -50,7 +47,7 @@ def get_path_to_checkpoint(path_to_job, epoch, is_best_epoch=False):
         epoch (int): the number of epoch for the checkpoint.
     """
     if is_best_epoch:
-        name = "checkpoint_best.pyth".format(epoch)
+        name = "checkpoint_best.pyth".format()
     else:
         name = "checkpoint_epoch_{:05d}.pyth".format(epoch)
     return os.path.join(get_checkpoint_dir(path_to_job), name)
@@ -150,9 +147,7 @@ def load_checkpoint(
     Returns:
         (int): the number of training epoch of the checkpoint.
     """
-    assert PathManager.exists(path_to_checkpoint), "Checkpoint '{}' not found".format(
-        path_to_checkpoint
-    )
+    assert PathManager.exists(path_to_checkpoint), "Checkpoint '{}' not found".format(path_to_checkpoint)
     logger.info("Loading network weights from {}.".format(path_to_checkpoint))
 
     # Account for the DDP wrapper in the multi-gpu setting.
@@ -160,12 +155,8 @@ def load_checkpoint(
     # Load the checkpoint on CPU to avoid GPU mem spike.
     with PathManager.open(path_to_checkpoint, "rb") as f:
         checkpoint = torch.load(f, map_location="cpu")
-    model_state_dict = (
-        model.module.state_dict() if data_parallel else model.state_dict()
-    )
-    checkpoint["model_state"] = normal_to_sub_bn(
-        checkpoint["model_state"], model_state_dict
-    )
+    model_state_dict = model.module.state_dict() if data_parallel else model.state_dict()
+    checkpoint["model_state"] = normal_to_sub_bn(checkpoint["model_state"], model_state_dict)
     if clear_name_pattern:
         for item in clear_name_pattern:
             model_state_dict_new = OrderedDict()
@@ -182,14 +173,10 @@ def load_checkpoint(
     model_dict = ms.state_dict()
     # Match pre-trained weights that have same shape as current model.
     pre_train_dict_match = {
-        k: v
-        for k, v in pre_train_dict.items()
-        if k in model_dict and v.size() == model_dict[k].size()
+        k: v for k, v in pre_train_dict.items() if k in model_dict and v.size() == model_dict[k].size()
     }
     # Weights that do not have match from the pre-trained model.
-    not_load_layers = [
-        k for k in model_dict.keys() if k not in pre_train_dict_match.keys()
-    ]
+    not_load_layers = [k for k in model_dict.keys() if k not in pre_train_dict_match.keys()]
     # Log weights that are not loaded with the pre-trained weights.
     if not_load_layers:
         for k in not_load_layers:
@@ -277,12 +264,8 @@ def normal_to_sub_bn(checkpoint_sd, model_sd):
                 and model_blob_shape[0] % c2_blob_shape[0] == 0
             ):
                 before_shape = checkpoint_sd[key].shape
-                checkpoint_sd[key] = torch.cat(
-                    [checkpoint_sd[key]] * (model_blob_shape[0] // c2_blob_shape[0])
-                )
-                logger.info(
-                    "{} {} -> {}".format(key, before_shape, checkpoint_sd[key].shape)
-                )
+                checkpoint_sd[key] = torch.cat([checkpoint_sd[key]] * (model_blob_shape[0] // c2_blob_shape[0]))
+                logger.info("{} {} -> {}".format(key, before_shape, checkpoint_sd[key].shape))
     return checkpoint_sd
 
 
@@ -315,9 +298,7 @@ def load_test_checkpoint(cfg, model):
             None,
         )
     else:
-        logger.info(
-            "Unknown way of loading checkpoint. Using with random initialization, only for debugging."
-        )
+        logger.info("Unknown way of loading checkpoint. Using with random initialization, only for debugging.")
 
 
 def load_train_checkpoint(cfg, model, optimizer):
@@ -327,9 +308,7 @@ def load_train_checkpoint(cfg, model, optimizer):
     if cfg.TRAIN.AUTO_RESUME and has_checkpoint(cfg.OUTPUT_DIR):
         last_checkpoint = get_last_checkpoint(cfg.OUTPUT_DIR)
         logger.info("Load from last checkpoint, {}.".format(last_checkpoint))
-        checkpoint_epoch = load_checkpoint(
-            last_checkpoint, model, cfg.NUM_GPUS > 1, optimizer
-        )
+        checkpoint_epoch = load_checkpoint(last_checkpoint, model, cfg.NUM_GPUS > 1, optimizer)
         start_epoch = checkpoint_epoch + 1
     elif cfg.TRAIN.CHECKPOINT_FILE_PATH != "":
         logger.info("Load from given checkpoint file.")

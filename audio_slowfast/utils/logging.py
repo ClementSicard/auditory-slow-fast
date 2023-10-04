@@ -10,9 +10,9 @@ import functools
 import logging
 import os
 import sys
+
 import simplejson
 from fvcore.common.file_io import PathManager
-
 from loguru import logger
 
 import audio_slowfast.utils.distributed as du
@@ -89,10 +89,7 @@ def log_json_stats(stats):
     Args:
         stats (dict): a dictionary of statistical information to log.
     """
-    stats = {
-        k: decimal.Decimal("{:.5f}".format(v)) if isinstance(v, float) else v
-        for k, v in stats.items()
-    }
+    stats = {k: decimal.Decimal("{:.5f}".format(v)) if isinstance(v, float) else v for k, v in stats.items()}
     json_stats = simplejson.dumps(
         stats,
         sort_keys=True,

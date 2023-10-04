@@ -3,11 +3,11 @@
 
 """Wrapper to train and test an audio classification model."""
 
-from audio_slowfast.utils.misc import launch_job
-from audio_slowfast.utils.parser import load_config, parse_args
-
 from test_net import test
 from train_net import train
+
+from audio_slowfast.utils.misc import launch_job
+from audio_slowfast.utils.parser import load_config, parse_args
 
 
 def main():

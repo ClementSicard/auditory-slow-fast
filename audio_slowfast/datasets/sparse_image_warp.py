@@ -1,5 +1,5 @@
-import torch
 import numpy as np
+import torch
 
 
 def sparse_image_warp(
@@ -16,9 +16,7 @@ def sparse_image_warp(
     #     boundary_points_per_edge = num_boundary_points - 1
     batch_size, image_height, image_width = img_tensor.shape
     grid_locations = get_grid_locations(image_height, image_width)
-    flattened_grid_locations = torch.tensor(
-        flatten_grid_locations(grid_locations, image_height, image_width)
-    )
+    flattened_grid_locations = torch.tensor(flatten_grid_locations(grid_locations, image_height, image_width))
 
     #     flattened_grid_locations = constant_op.constant(
     #         _expand_to_minibatch(flattened_grid_locations, batch_size), image.dtype)
@@ -37,9 +35,7 @@ def sparse_image_warp(
         regularization_weight,
     )
 
-    dense_flows = create_dense_flows(
-        flattened_flows, batch_size, image_height, image_width
-    )
+    dense_flows = create_dense_flows(flattened_flows, batch_size, image_height, image_width)
 
     warped_image = dense_image_warp(img_tensor, dense_flows)
 
@@ -197,9 +193,7 @@ def apply_interpolation(query_points, train_points, w, v, order):
     query_points = query_points.unsqueeze(0)
     # First, compute the contribution from the rbf term.
     #     print(query_points.shape, train_points.shape)
-    pairwise_dists = cross_squared_distance_matrix(
-        query_points.float(), train_points.float()
-    )
+    pairwise_dists = cross_squared_distance_matrix(query_points.float(), train_points.float())
     #     print('Pairwise', pairwise_dists)
     phi_pairwise_dists = phi(pairwise_dists, order)
     #     print('Pairwise phi', phi_pairwise_dists)
@@ -258,9 +252,7 @@ def dense_image_warp(image, flow):
     #     print('batched_grid', batched_grid.shape)
 
     query_points_on_grid = batched_grid - flow
-    query_points_flattened = torch.reshape(
-        query_points_on_grid, [batch_size, height * width, 2]
-    )
+    query_points_flattened = torch.reshape(query_points_on_grid, [batch_size, height * width, 2])
     # Compute values at the query points, then reshape the result back to the
     # image grid.
     #     print('Query points', query_points_flattened, query_points_flattened.shape)
@@ -269,9 +261,7 @@ def dense_image_warp(image, flow):
     return interpolated
 
 
-def interpolate_bilinear(
-    grid, query_points, name="interpolate_bilinear", indexing="ij"
-):
+def interpolate_bilinear(grid, query_points, name="interpolate_bilinear", indexing="ij"):
     """Similar to Matlab's interp2 function.
     Finds values for query points on a grid using bilinear interpolation.
     Args:
@@ -340,9 +330,7 @@ def interpolate_bilinear(
         alphas.append(alpha)
 
     flattened_grid = torch.reshape(grid, [batch_size * height * width, channels])
-    batch_offsets = torch.reshape(
-        torch.arange(batch_size) * height * width, [batch_size, 1]
-    )
+    batch_offsets = torch.reshape(torch.arange(batch_size) * height * width, [batch_size, 1])
 
     # This wraps array_ops.gather. We reshape the image data such that the
     # batch, y, and x coordinates are pulled into the first dimension.

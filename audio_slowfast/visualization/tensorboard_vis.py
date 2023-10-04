@@ -3,14 +3,13 @@
 
 import logging as log
 import os
+
 import torch
+from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 
-import audio_slowfast.utils.logging as logging
 import audio_slowfast.visualization.utils as vis_utils
 from audio_slowfast.utils.misc import get_class_names
-
-from loguru import logger
 
 log.getLogger("matplotlib").setLevel(log.ERROR)
 
@@ -94,9 +93,7 @@ class TensorboardWriter(object):
         """
         cmtx = None
         if self.cfg.TENSORBOARD.CONFUSION_MATRIX.ENABLE:
-            cmtx = vis_utils.get_confusion_matrix(
-                preds, labels, self.cfg.MODEL.NUM_CLASSES[0]
-            )
+            cmtx = vis_utils.get_confusion_matrix(preds, labels, self.cfg.MODEL.NUM_CLASSES[0])
             # Add full confusion matrix.
             add_confusion_matrix(
                 self.writer,
@@ -136,9 +133,7 @@ class TensorboardWriter(object):
                     )
         if self.cfg.TENSORBOARD.HISTOGRAM.ENABLE:
             if cmtx is None:
-                cmtx = vis_utils.get_confusion_matrix(
-                    preds, labels, self.cfg.MODEL.NUM_CLASSES[0]
-                )
+                cmtx = vis_utils.get_confusion_matrix(preds, labels, self.cfg.MODEL.NUM_CLASSES[0])
             plot_hist(
                 self.writer,
                 cmtx,

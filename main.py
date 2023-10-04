@@ -1,9 +1,10 @@
-import torch
-from typing import Dict, Any
-from loguru import logger
 import os
+from typing import Any, Dict
+
 import librosa
-import pandas as pd
+import torch
+from loguru import logger
+
 from audio_slowfast import AudioSlowFast
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -50,9 +51,7 @@ def main(args: Dict[str, Any]) -> None:
         torch.argmax(postc, dim=-1),
     )
 
-    for v, n, pre, pos, i_v, i_n, i_pre, i_pos in zip(
-        verb, noun, prec, postc, i_vs, i_ns, i_pres, i_poss
-    ):
+    for v, n, pre, pos, i_v, i_n, i_pre, i_pos in zip(verb, noun, prec, postc, i_vs, i_ns, i_pres, i_poss):
         logger.debug(
             f"{vocab_verb[i_v]:>12}: ({v[i_v]:.2%})"
             f"{vocab_noun[i_n]:>12}: ({n[i_n]:.2%})"

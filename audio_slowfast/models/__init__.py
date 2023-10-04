@@ -2,4 +2,3 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 from .build import MODEL_REGISTRY, build_model  # noqa
-from .audio_model_builder import SlowFast, ResNet

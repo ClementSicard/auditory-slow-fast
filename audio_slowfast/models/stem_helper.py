@@ -88,9 +88,7 @@ class AudioModelStem(nn.Module):
             self.add_module("pathway{}_stem".format(pathway), stem)
 
     def forward(self, x):
-        assert (
-            len(x) == self.num_pathways
-        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
+        assert len(x) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)
         for pathway in range(len(x)):
             m = getattr(self, "pathway{}_stem".format(pathway))
             x[pathway] = m(x[pathway])
@@ -158,13 +156,9 @@ class ResNetBasicStem(nn.Module):
             padding=self.padding,
             bias=False,
         )
-        self.bn = norm_module(
-            num_features=dim_out, eps=self.eps, momentum=self.bn_mmt
-        )
+        self.bn = norm_module(num_features=dim_out, eps=self.eps, momentum=self.bn_mmt)
         self.relu = nn.ReLU(self.inplace_relu)
-        self.pool_layer = nn.MaxPool2d(
-            kernel_size=[3, 3], stride=[2, 2], padding=[1, 1]
-        )
+        self.pool_layer = nn.MaxPool2d(kernel_size=[3, 3], stride=[2, 2], padding=[1, 1])
 
     def forward(self, x):
         x = self.conv(x)

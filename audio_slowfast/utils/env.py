@@ -3,7 +3,6 @@
 
 """Set up Environment."""
 
-import audio_slowfast.utils.logging as logging
 
 _ENV_SETUP_DONE = False
 

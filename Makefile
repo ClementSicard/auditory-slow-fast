@@ -9,3 +9,8 @@ example:
 		-c $(CONFIG_PATH) \
 		-f $(INPUT_PATH)
 
+.PHONY: lint
+lint:
+	@ruff **/*.py --line-length 120 --fix
+	@isort **/*.py --filter-files --profile black
+	@black **/*.py -l 120

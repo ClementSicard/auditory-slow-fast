@@ -10,19 +10,19 @@ It was largely inspired by https://github.com/VIDA-NYU/ptg-server-ml/blob/main/p
 import os
 from typing import List, Optional
 
-import audio_slowfast.models.optimizer as optim
-import audio_slowfast.utils.checkpoint as cu
-from audio_slowfast.models.build import MODEL_REGISTRY
-import audio_slowfast.models.head_helper
 import librosa
 import numpy as np
 import pandas as pd
 import torch
-from audio_slowfast.config.defaults import get_cfg
 from fvcore.common.config import CfgNode
 from loguru import logger
 from torch import nn
-import pandas as pd
+
+import audio_slowfast.models.optimizer as optim
+import audio_slowfast.utils.checkpoint as cu
+from audio_slowfast.config.defaults import get_cfg
+from audio_slowfast.models.build import MODEL_REGISTRY
+
 from .custom_resnet_head import CustomResNetBasicHead
 
 MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
@@ -73,23 +73,15 @@ class AudioSlowFast(nn.Module):
         # Load pre-condition vocab
         self.vocab_prec = []
         if cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS:
-            self.vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)[
-                "attribute"
-            ].to_list()
-            logger.success(
-                f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}"
-            )
+            self.vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)["attribute"].to_list()
+            logger.success(f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}")
             self.cfg.MODEL.NUM_CLASSES.append(len(self.vocab_prec))
 
         # Load post-condition vocab
         self.vocab_postc = []
         if cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS:
-            self.vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)[
-                "attribute"
-            ].to_list()
-            logger.success(
-                f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}"
-            )
+            self.vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)["attribute"].to_list()
+            logger.success(f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}")
             self.cfg.MODEL.NUM_CLASSES.append(len(self.vocab_postc))
 
         # window params
@@ -114,9 +106,9 @@ class AudioSlowFast(nn.Module):
 
         if train:
             if cfg.BN.FREEZE:
-                self.model.module.freeze_fn(
+                self.model.module.freeze_fn("bn_parameters") if cfg.NUM_GPUS > 1 else self.model.freeze_fn(
                     "bn_parameters"
-                ) if cfg.NUM_GPUS > 1 else self.model.freeze_fn("bn_parameters")
+                )
 
             # Construct the optimizer.
             self.optimizer = optim.construct_optimizer(self.model, cfg)
@@ -163,9 +155,7 @@ class AudioSlowFast(nn.Module):
 
         npad = max(0, self.num_frames - spec.shape[-1])
         spec = np.pad(spec, ((0, npad), (0, 0)), "edge")
-        spec = librosa.util.frame(
-            spec, frame_length=self.num_frames, hop_length=int(self.num_frames // 4)
-        )
+        spec = librosa.util.frame(spec, frame_length=self.num_frames, hop_length=int(self.num_frames // 4))
         spec = spec.transpose((2, 1, 0))[:, None]
 
         spec = torch.tensor(spec, dtype=torch.float)  # mono to stereo
@@ -228,13 +218,9 @@ def build_model(cfg, gpu_id=None):
         gpu_id (Optional[int]): specify the gpu index to build model.
     """
     if torch.cuda.is_available():
-        assert (
-            cfg.NUM_GPUS <= torch.cuda.device_count()
-        ), "Cannot use more GPU devices than available"
+        assert cfg.NUM_GPUS <= torch.cuda.device_count(), "Cannot use more GPU devices than available"
     else:
-        assert (
-            cfg.NUM_GPUS == 0
-        ), "Cuda is not available. Please set `NUM_GPUS: 0 for running on CPUs."
+        assert cfg.NUM_GPUS == 0, "Cuda is not available. Please set `NUM_GPUS: 0 for running on CPUs."
 
     # Construct the model
     name = cfg.MODEL.MODEL_NAME

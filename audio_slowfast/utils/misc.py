@@ -2,25 +2,23 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import json
-import logging
 import math
-import numpy as np
 import os
 from datetime import datetime
+
+import numpy as np
 import psutil
 import torch
 from fvcore.common.file_io import PathManager
 from fvcore.nn.activation_count import activation_count
 from fvcore.nn.flop_count import flop_count
+from loguru import logger
 from matplotlib import pyplot as plt
 from torch import nn
 
-import audio_slowfast.utils.logging as logging
 import audio_slowfast.utils.multiprocessing as mpu
 from audio_slowfast.datasets.utils import pack_pathway_output
 from audio_slowfast.models.batchnorm_helper import SubBatchNorm2d
-
-from loguru import logger
 
 
 def check_nan_losses(loss):
@@ -296,11 +294,7 @@ def get_class_names(path, parent_path=None, subset_path=None):
         try:
             with PathManager.open(subset_path, "r") as f:
                 subset = f.read().split("\n")
-                subset_ids = [
-                    class2idx[name]
-                    for name in subset
-                    if class2idx.get(name) is not None
-                ]
+                subset_ids = [class2idx[name] for name in subset if class2idx.get(name) is not None]
         except EnvironmentError as err:
             print("Fail to load file from {} with error {}".format(subset_path, err))
             return

@@ -14,9 +14,7 @@ def get_trans_func(name):
         "bottleneck_transform": BottleneckTransform,
         "basic_transform": BasicTransform,
     }
-    assert (
-        name in trans_funcs.keys()
-    ), "Transformation function '{}' not supported".format(name)
+    assert name in trans_funcs.keys(), "Transformation function '{}' not supported".format(name)
     return trans_funcs[name]
 
 
@@ -76,9 +74,7 @@ class BasicTransform(nn.Module):
             padding=[int(self.temp_kernel_size // 2), 1],
             bias=False,
         )
-        self.a_bn = norm_module(
-            num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.a_bn = norm_module(num_features=dim_out, eps=self._eps, momentum=self._bn_mmt)
         self.a_relu = nn.ReLU(inplace=self._inplace_relu)
         # 1x3, BN.
         self.b = nn.Conv2d(
@@ -89,9 +85,7 @@ class BasicTransform(nn.Module):
             padding=[0, 1],
             bias=False,
         )
-        self.b_bn = norm_module(
-            num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.b_bn = norm_module(num_features=dim_out, eps=self._eps, momentum=self._bn_mmt)
         self.b_bn.transform_final_bn = True
 
     def forward(self, x):
@@ -184,9 +178,7 @@ class BottleneckTransform(nn.Module):
             padding=[int(self.temp_kernel_size // 2), 0],
             bias=False,
         )
-        self.a_bn = norm_module(
-            num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.a_bn = norm_module(num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt)
         self.a_relu = nn.ReLU(inplace=self._inplace_relu)
 
         # 1x3, BN, ReLU.
@@ -200,9 +192,7 @@ class BottleneckTransform(nn.Module):
             bias=False,
             dilation=[1, dilation],
         )
-        self.b_bn = norm_module(
-            num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.b_bn = norm_module(num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt)
         self.b_relu = nn.ReLU(inplace=self._inplace_relu)
 
         # 1x1, BN.
@@ -214,9 +204,7 @@ class BottleneckTransform(nn.Module):
             padding=[0, 0],
             bias=False,
         )
-        self.c_bn = norm_module(
-            num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.c_bn = norm_module(num_features=dim_out, eps=self._eps, momentum=self._bn_mmt)
         self.c_bn.transform_final_bn = True
 
     def forward(self, x):
@@ -329,9 +317,7 @@ class ResBlock(nn.Module):
                 bias=False,
                 dilation=1,
             )
-            self.branch1_bn = norm_module(
-                num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-            )
+            self.branch1_bn = norm_module(num_features=dim_out, eps=self._eps, momentum=self._bn_mmt)
         self.branch2 = trans_func(
             dim_in,
             dim_out,
@@ -418,12 +404,7 @@ class ResStage(nn.Module):
                  default is nn.BatchNorm2d.
         """
         super(ResStage, self).__init__()
-        assert all(
-            (
-                num_block_temp_kernel[i] <= num_blocks[i]
-                for i in range(len(temp_kernel_sizes))
-            )
-        )
+        assert all((num_block_temp_kernel[i] <= num_blocks[i] for i in range(len(temp_kernel_sizes))))
         self.num_blocks = num_blocks
         self.temp_kernel_sizes = [
             (temp_kernel_sizes[i] * num_blocks[i])[: num_block_temp_kernel[i]]

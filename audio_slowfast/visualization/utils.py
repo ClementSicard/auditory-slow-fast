@@ -2,14 +2,11 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 import itertools
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from sklearn.metrics import confusion_matrix
-
-import audio_slowfast.utils.logging as logging
-
-from loguru import logger
 
 
 def get_confusion_matrix(preds, labels, num_classes, normalize="true"):
@@ -38,9 +35,7 @@ def get_confusion_matrix(preds, labels, num_classes, normalize="true"):
     # Get the predicted class indices for examples.
     preds = torch.flatten(torch.argmax(preds, dim=-1))
     labels = torch.flatten(labels)
-    cmtx = confusion_matrix(
-        labels, preds, labels=list(range(num_classes)), normalize=normalize
-    )
+    cmtx = confusion_matrix(labels, preds, labels=list(range(num_classes)), normalize=normalize)
     return cmtx
 
 
@@ -58,7 +53,7 @@ def plot_confusion_matrix(cmtx, num_classes, class_names=None, figsize=None):
     Returns:
         img (figure): matplotlib figure.
     """
-    if class_names is None or type(class_names) != list:
+    if class_names is None or isinstance(class_names, list):
         class_names = [str(i) for i in range(num_classes)]
 
     figure = plt.figure(figsize=figsize)
