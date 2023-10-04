@@ -194,7 +194,6 @@ class AudioSlowFast(nn.Module):
         """
         z = self.model(specs)
         y = self.model.head.project_pre_post_conditions(z)
-        # y = self.model.head.project_verb_noun(z)
         if self.model.training:
             y = [x.view((len(x), -1, s)) for x, s in zip(y, self.num_classes)]
         if return_embedding:

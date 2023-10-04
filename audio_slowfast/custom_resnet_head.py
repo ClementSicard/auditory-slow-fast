@@ -1,4 +1,5 @@
 import audio_slowfast
+from audio_slowfast.utils import discretize
 import torch
 import torch.nn as nn
 from typing import List
@@ -70,55 +71,8 @@ class CustomResNetBasicHead(audio_slowfast.models.head_helper.ResNetBasicHead):
         # Apply tanh activation
         x_v = torch.tanh(x_v)
         # Discretize the output
-        x_v = self.discretize(x_v)
+        x_v = discretize(x_v)
         return x_v.view(x_v.shape[0], -1)
-
-    @staticmethod
-    def discretize(x: torch.Tensor) -> torch.Tensor:
-        """
-        Discretize the tensor values to {-1, 0, 1}.
-
-        Parameters
-        ----------
-        `x` : `torch.Tensor`
-            Input tensor.
-
-        Returns
-        -------
-        `torch.Tensor`
-            Discretized tensor.
-        """
-        # Define the thresholds
-        lower_threshold = -0.5
-        upper_threshold = 0.5
-
-        # Discretize the values
-        x_discrete = torch.zeros_like(x)
-        x_discrete[x < lower_threshold] = -1
-        x_discrete[x > upper_threshold] = 1
-
-        return x_discrete
-
-    def project_verb_noun(self, x: torch.Tensor) -> torch.Tensor | List[torch.Tensor]:
-        """
-        Project the input tensor to verb and noun classes.
-
-        Parameters
-        ----------
-        `x` : `torch.Tensor`
-            Input tensor.
-
-        Returns
-        -------
-        `torch.Tensor | List[torch.Tensor]`
-            Projected view of input tensor.
-        """
-        if isinstance(self.num_classes, (list, tuple)):
-            return (
-                self._proj(x, self.projection_verb),
-                self._proj(x, self.projection_noun),
-            )
-        return self._proj(x, self.projection)
 
     def project_pre_post_conditions(
         self, x: torch.Tensor
