@@ -20,14 +20,14 @@ import audio_slowfast.utils.metrics as metrics
 import audio_slowfast.utils.misc as misc
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast.datasets import loader
-from audio_slowfast.models import build_model
+from audio_slowfast.utils import discretize
 from audio_slowfast.utils.meters import (
     TrainMeter,
     ValMeter,
     EPICTrainMeter,
     EPICValMeter,
 )
-from audio_slowfast import AudioSlowFast, CustomResNetBasicHead
+from audio_slowfast import AudioSlowFast
 
 from loguru import logger
 import logging as lg
@@ -95,6 +95,21 @@ def train_epoch(
 
         preds = [pred.squeeze(1) for pred in preds]
 
+        preds_prec = discretize(
+            preds[2],
+            low_t=-0.5,
+            high_t=0.5,
+            low_p=0,
+            high_p=1,
+        )
+        preds_posts = discretize(
+            preds[3],
+            low_t=-0.5,
+            high_t=0.5,
+            low_p=0,
+            high_p=1,
+        )
+
         if isinstance(labels, (dict,)):
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
@@ -107,9 +122,10 @@ def train_epoch(
 
             loss_verb = loss_fun(preds[0], labels["verb"])
             loss_noun = loss_fun(preds[1], labels["noun"])
-            loss_prec = prec_loss_fun(preds[2], labels["precs"])
-            loss_postc = postc_loss_fun(preds[3], labels["posts"])
-            loss = 1 / 4 * (loss_verb + loss_noun + loss_prec + loss_postc)
+            loss_prec = prec_loss_fun(preds_prec, labels["precs"])
+            loss_postc = postc_loss_fun(preds_posts, labels["posts"])
+            loss_mask = 0  # TODO
+            loss = 1 / 5 * (loss_verb + loss_noun + loss_prec + loss_postc + loss_mask)
 
             logger.success(f"Loss: {loss}")
 
