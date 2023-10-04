@@ -99,15 +99,15 @@ def train_epoch(
             preds[2],
             low_t=-0.5,
             high_t=0.5,
-            low_p=0,
-            high_p=1,
+            low=0,
+            high=1,
         )
         preds_posts = discretize(
             preds[3],
             low_t=-0.5,
             high_t=0.5,
-            low_p=0,
-            high_p=1,
+            low=0,
+            high=1,
         )
 
         if isinstance(labels, (dict,)):
