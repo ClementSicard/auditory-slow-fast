@@ -10,10 +10,11 @@ import functools
 import logging
 import os
 import sys
-
+import pandas as pd
 import simplejson
 from fvcore.common.file_io import PathManager
 from loguru import logger
+from typing import Optional
 
 import audio_slowfast.utils.distributed as du
 
@@ -83,17 +84,33 @@ def get_logger(name):
     return logging.getLogger(name)
 
 
-def log_json_stats(stats):
+def log_json_stats(stats, it: Optional[int] = None):
     """
     Logs json stats.
     Args:
         stats (dict): a dictionary of statistical information to log.
     """
-    stats = {k: decimal.Decimal("{:.5f}".format(v)) if isinstance(v, float) else v for k, v in stats.items()}
+
+    stats = {
+        k: decimal.Decimal("{:.5f}".format(v)) if isinstance(v, float) else v
+        for k, v in stats.items()
+    }
     json_stats = simplejson.dumps(
         stats,
         sort_keys=True,
         use_decimal=True,
         indent=4 * " ",
     )
-    logger.debug(f"\n{json_stats}")
+
+    file_name = os.getenv("TRAIN_STATS")
+    if not file_name:
+        file_name = "logs/stats.json"
+        logger.warning(
+            f"Environment variable TRAIN_STATS is not set. Writing to '{file_name}' instead."
+        )
+
+    pd.DataFrame(stats, index=[0]).to_csv(
+        file_name,
+        mode="a",
+        header=False,
+    )
