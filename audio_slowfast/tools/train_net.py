@@ -75,9 +75,8 @@ def train_epoch(
     for cur_iter, (inputs, labels, _, _) in enumerate(
         tqdm(
             train_loader,
-            desc="Train epoch: {}/{}".format(cur_epoch + 1, cfg.SOLVER.MAX_EPOCH),
-            unit="iter",
-            total=math.ceil(data_size / cfg.TRAIN.BATCH_SIZE),
+            desc="Epoch: {}/{}".format(cur_epoch + 1, cfg.SOLVER.MAX_EPOCH),
+            unit="batch",
         ),
     ):
         # Transfer the data to the current GPU device.
