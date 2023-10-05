@@ -104,49 +104,24 @@ def train_epoch(
         if isinstance(labels, (dict,)):
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-            prec_loss_fun = losses.get_loss_func(cfg.MODEL.PRECS_LOSS_FUNC)(
-                reduction="mean"
-            )
-            postc_loss_fun = losses.get_loss_func(cfg.MODEL.POSTS_LOSS_FUNC)(
-                reduction="mean"
-            )
-
-            preds_prec = discretize(
-                preds[2],
-                low_t=-0.5,
-                high_t=0.5,
-                low=0,
-                high=1,
-            )
-            preds_posts = discretize(
-                preds[3],
-                low_t=-0.5,
-                high_t=0.5,
-                low=0,
-                high=1,
-            )
-
-            loss_prec_mask = compute_masked_loss(preds[2], labels["precs"])
-            loss_posts_mask = compute_masked_loss(preds[3], labels["posts"])
 
             loss_verb = loss_fun(preds[0], labels["verb"])
             loss_noun = loss_fun(preds[1], labels["noun"])
-            loss_prec = prec_loss_fun(preds_prec, labels["precs"])
-            loss_postc = postc_loss_fun(preds_posts, labels["posts"])
+            loss_prec_mask = compute_masked_loss(preds[2], labels["precs"])
+            loss_posts_mask = compute_masked_loss(preds[3], labels["posts"])
 
             # Use torch.mean to average the losses over all GPUs for logging purposes.
-            loss = (
-                1
-                / 6
-                * (
-                    loss_verb
-                    + loss_noun
-                    + loss_prec
-                    + loss_postc
-                    + loss_prec_mask
-                    + loss_posts_mask
-                )
+            losses = torch.stack(
+                [
+                    loss_verb,
+                    loss_noun,
+                    loss_prec_mask,
+                    loss_posts_mask,
+                ]
             )
+
+            loss = torch.mean(losses)
+
             # check Nan Loss.
             misc.check_nan_losses(loss)
         else:
@@ -843,12 +818,16 @@ def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tens
         preds.shape == labels.shape
     ), f"Shapes must match: {preds.shape=} {labels.shape=}"
 
-    # We use BCE loss since values are between 0 and 1
-    loss_fn = losses.get_loss_func("bce")(reduction="mean")
+    bce = losses.get_loss_func("bce")(reduction="mean")
+    mse = losses.get_loss_func("mse")(reduction="mean")
 
-    mask_labels = torch.abs(labels)
     abs_preds = torch.abs(preds)
+    abs_labels = torch.abs(labels)
 
-    # ? Do we want to multiply the preds by the mask?
+    # Get the indices where the abs_labels are 1
+    pos_mask_indices = abs_labels.nonzero(as_tuple=True)
 
-    return loss_fn(abs_preds, mask_labels)
+    bce_term = bce(abs_preds, abs_labels)
+    mse_term = mse(preds[pos_mask_indices], labels[pos_mask_indices])
+
+    return bce_term + mse_term
