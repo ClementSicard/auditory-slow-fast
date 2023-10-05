@@ -6,11 +6,13 @@
 import logging as lg
 import math
 import pprint
+import sys
 
 import numpy as np
 import torch
 import wandb
 from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
+from fvcore.common.config import CfgNode
 from loguru import logger
 from tqdm import tqdm
 
@@ -73,10 +75,12 @@ def train_epoch(
     data_size = len(train_loader)
 
     for cur_iter, (inputs, labels, _, _) in enumerate(
+        # Write to stderr
         tqdm(
             train_loader,
             desc="Epoch: {}/{}".format(cur_epoch + 1, cfg.SOLVER.MAX_EPOCH),
             unit="batch",
+            file=sys.stderr,
         ),
     ):
         # Transfer the data to the current GPU device.
@@ -102,28 +106,12 @@ def train_epoch(
         preds = [pred.squeeze(1) for pred in preds]
 
         if isinstance(labels, (dict,)):
-            # Explicitly declare reduction to mean.
-            loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-
-            loss_verb = loss_fun(preds[0], labels["verb"])
-            loss_noun = loss_fun(preds[1], labels["noun"])
-            loss_prec_mask = compute_masked_loss(preds[2], labels["precs"])
-            loss_posts_mask = compute_masked_loss(preds[3], labels["posts"])
-
-            # Use torch.mean to average the losses over all GPUs for logging purposes.
-            losses = torch.stack(
-                [
-                    loss_verb,
-                    loss_noun,
-                    loss_prec_mask,
-                    loss_posts_mask,
-                ]
+            loss, loss_verb, loss_noun, loss_precs, loss_posts = compute_loss(
+                preds,
+                labels,
+                cfg,
             )
 
-            loss = torch.mean(losses)
-
-            # check Nan Loss.
-            misc.check_nan_losses(loss)
         else:
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
@@ -209,8 +197,8 @@ def train_epoch(
                 loss=(
                     loss_verb,
                     loss_noun,
-                    loss_prec_mask.item(),
-                    loss_posts_mask.item(),
+                    loss_precs.item(),
+                    loss_posts.item(),
                     loss,
                 ),
                 lr=lr,
@@ -229,8 +217,8 @@ def train_epoch(
                         "Train/Top5_acc": action_top5_acc,
                         "Train/verb/loss": loss_verb,
                         "Train/noun/loss": loss_noun,
-                        "Train/prec/loss": loss_prec_mask,
-                        "Train/postc/loss": loss_posts_mask,
+                        "Train/prec/loss": loss_precs,
+                        "Train/postc/loss": loss_posts,
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
@@ -248,8 +236,8 @@ def train_epoch(
                         "Train/Top5_acc": action_top5_acc,
                         "Train/verb/loss": loss_verb,
                         "Train/noun/loss": loss_noun,
-                        "Train/prec/loss": loss_prec_mask,
-                        "Train/postc/loss": loss_posts_mask,
+                        "Train/prec/loss": loss_precs,
+                        "Train/postc/loss": loss_posts,
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
@@ -362,20 +350,11 @@ def eval_epoch(
         preds = model(inputs)
 
         if isinstance(labels, (dict,)):
-            prec_loss_fun = losses.get_loss_func(cfg.MODEL.PRECS_LOSS_FUNC)(
-                reduction="mean"
+            loss, loss_verb, loss_noun, loss_precs, loss_posts = compute_loss(
+                preds,
+                labels,
+                cfg,
             )
-            postc_loss_fun = losses.get_loss_func(cfg.MODEL.POSTS_LOSS_FUNC)(
-                reduction="mean"
-            )
-            loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-
-            # Compute the loss.
-            loss_verb = loss_fun(preds[0], labels["verb"])
-            loss_noun = loss_fun(preds[1], labels["noun"])
-            loss_prec = prec_loss_fun(preds[2], labels["precs"])
-            loss_postc = postc_loss_fun(preds[3], labels["posts"])
-            loss = 1 / 6 * (loss_verb + loss_noun + 2 * loss_prec + 2 * loss_postc)
 
             # Compute the verb accuracies.
             verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(
@@ -837,3 +816,32 @@ def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tens
     mse_term = mse(preds[pos_mask_indices], labels[pos_mask_indices])
 
     return bce_term + mse_term
+
+
+def compute_loss(
+    preds: torch.Tensor, labels: torch.Tensor, cfg: CfgNode
+) -> torch.Tensor:
+    # Explicitly declare reduction to mean.
+    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
+
+    loss_verb = loss_fun(preds[0], labels["verb"])
+    loss_noun = loss_fun(preds[1], labels["noun"])
+    loss_precs = compute_masked_loss(preds[2], labels["precs"])
+    loss_posts = compute_masked_loss(preds[3], labels["posts"])
+
+    # Use torch.mean to average the losses over all GPUs for logging purposes.
+    losses = torch.stack(
+        [
+            loss_verb,
+            loss_noun,
+            loss_precs,
+            loss_posts,
+        ]
+    )
+
+    loss = torch.mean(losses)
+
+    # check Nan Loss.
+    misc.check_nan_losses(loss)
+
+    return loss, loss_verb, loss_noun, loss_precs, loss_posts
