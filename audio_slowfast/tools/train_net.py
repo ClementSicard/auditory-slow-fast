@@ -149,7 +149,7 @@ def train_epoch(
                 )
             )
 
-            logger.success(f"Loss: {loss}")
+            logger.success(f"Loss: {loss.item():.5f}")
 
             # check Nan Loss.
             misc.check_nan_losses(loss)
