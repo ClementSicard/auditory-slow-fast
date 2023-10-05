@@ -112,5 +112,5 @@ def log_json_stats(stats, it: Optional[int] = None):
     pd.DataFrame(stats, index=[0]).to_csv(
         f"{file_name.replace('.log', '')}_stats.csv",
         mode="a",
-        header=True,
+        header=False,
     )
