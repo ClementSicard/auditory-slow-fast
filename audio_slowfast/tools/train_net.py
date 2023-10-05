@@ -830,7 +830,7 @@ def compute_loss(
     loss_posts = compute_masked_loss(preds[3], labels["posts"])
 
     # Use torch.mean to average the losses over all GPUs for logging purposes.
-    losses = torch.stack(
+    loss_vec = torch.stack(
         [
             loss_verb,
             loss_noun,
@@ -839,7 +839,7 @@ def compute_loss(
         ]
     )
 
-    loss = torch.mean(losses)
+    loss = torch.mean(loss_vec)
 
     # check Nan Loss.
     misc.check_nan_losses(loss)
