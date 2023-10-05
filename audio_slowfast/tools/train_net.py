@@ -130,6 +130,15 @@ def train_epoch(
             loss_prec_mask = compute_masked_loss(preds[2], labels["precs"])
             loss_posts_mask = compute_masked_loss(preds[3], labels["posts"])
 
+            logger.warning(f"{preds[0]=}")
+            logger.warning(f"{labels['verb']=}")
+            logger.warning(f"{preds[1]=}")
+            logger.warning(f"{labels['noun']=}")
+            logger.warning(f"{preds_prec=}")
+            logger.warning(f"{labels['precs']=}")
+            logger.warning(f"{preds_posts=}")
+            logger.warning(f"{labels['posts']=}")
+
             loss_verb = loss_fun(preds[0], labels["verb"])
             loss_noun = loss_fun(preds[1], labels["noun"])
             loss_prec = prec_loss_fun(preds_prec, labels["precs"])
