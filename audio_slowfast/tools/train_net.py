@@ -619,10 +619,10 @@ def eval_epoch(
             all_verb_labels = [label.cpu() for label in all_verb_labels]
             all_noun_preds = [pred.cpu() for pred in all_noun_preds]
             all_noun_labels = [label.cpu() for label in all_noun_labels]
-            all_prec_preds = [pred.cpu() for pred in all_prec_preds]
-            all_prec_labels = [label.cpu() for label in all_prec_labels]
-            all_postc_preds = [pred.cpu() for pred in all_postc_preds]
-            all_postc_labels = [label.cpu() for label in all_postc_labels]
+            all_precs_preds = [pred.cpu() for pred in all_precs_preds]
+            all_precs_labels = [label.cpu() for label in all_precs_labels]
+            all_posts_preds = [pred.cpu() for pred in all_posts_preds]
+            all_posts_labels = [label.cpu() for label in all_posts_labels]
 
         writer.plot_eval(
             preds=all_verb_preds, labels=all_verb_labels, global_step=cur_epoch
