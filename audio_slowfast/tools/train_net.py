@@ -149,6 +149,13 @@ def train_epoch(
                 )
             )
 
+            logger.warning(f"loss_verb: {loss_verb.item()}")
+            logger.warning(f"loss_noun: {loss_noun.item()}")
+            logger.warning(f"loss_prec: {loss_prec.item()}")
+            logger.warning(f"loss_postc: {loss_postc.item()}")
+            logger.warning(f"loss_prec_mask: {loss_prec_mask.item()}")
+            logger.warning(f"loss_posts_mask: {loss_posts_mask.item()}")
+
             # check Nan Loss.
             misc.check_nan_losses(loss)
         else:
