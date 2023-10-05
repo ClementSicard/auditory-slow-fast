@@ -30,7 +30,9 @@ class CustomResNetBasicHead(ResNetBasicHead):
         `torch.Tensor`
             Output tensor.
         """
-        assert len(inputs) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)
+        assert (
+            len(inputs) == self.num_pathways
+        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
         pool_out = []
         for pathway in range(self.num_pathways):
             m = getattr(self, "pathway{}_avgpool".format(pathway))
@@ -61,10 +63,13 @@ class CustomResNetBasicHead(ResNetBasicHead):
             Projected view of input tensor.
         """
         x_v = proj(x)
+
         # Performs fully convolutional inference.
+        x_v: torch.Tensor = self.act(x_v)
+
         if not self.training:
-            x_v: torch.Tensor = self.act(x_v)
             x_v = x_v.mean([1, 2])
+
         return x_v.view(x_v.shape[0], -1)
 
     def _proj_discrete(self, x: torch.Tensor, proj: nn.Module) -> torch.Tensor:
@@ -75,7 +80,9 @@ class CustomResNetBasicHead(ResNetBasicHead):
         x_v = discretize(x_v)
         return x_v.view(x_v.shape[0], -1)
 
-    def project_pre_post_conditions(self, x: torch.Tensor) -> torch.Tensor | List[torch.Tensor]:
+    def project_pre_post_conditions(
+        self, x: torch.Tensor
+    ) -> torch.Tensor | List[torch.Tensor]:
         """
         Project the input tensor to pre- and post-conditions respective classes.
 

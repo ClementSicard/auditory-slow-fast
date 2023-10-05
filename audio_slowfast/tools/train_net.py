@@ -130,7 +130,8 @@ def train_epoch(
             loss_prec_mask = compute_masked_loss(preds[2], labels["precs"])
             loss_posts_mask = compute_masked_loss(preds[3], labels["posts"])
 
-            logger.warning(f"{preds[0]=}")
+            logger.warning(f"{torch.all(preds[0] >= 0)=}")
+            logger.warning(f"{torch.all(preds[0] <= 1)=}")
             logger.warning(f"{labels['verb']=}")
             logger.warning(f"{preds[1]=}")
             logger.warning(f"{labels['noun']=}")
@@ -640,10 +641,10 @@ def eval_epoch(
             preds=all_noun_preds, labels=all_noun_labels, global_step=cur_epoch
         )
         writer.plot_eval(
-            preds=all_prec_preds, labels=all_prec_labels, global_step=cur_epoch
+            preds=all_precs_preds, labels=all_prec_labels, global_step=cur_epoch
         )
         writer.plot_eval(
-            preds=all_postc_preds, labels=all_postc_labels, global_step=cur_epoch
+            preds=all_posts_preds, labels=all_postc_labels, global_step=cur_epoch
         )
 
     if writer is not None and not wandb_log:
