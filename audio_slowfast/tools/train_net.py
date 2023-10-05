@@ -130,16 +130,6 @@ def train_epoch(
             loss_prec_mask = compute_masked_loss(preds[2], labels["precs"])
             loss_posts_mask = compute_masked_loss(preds[3], labels["posts"])
 
-            logger.warning(f"{torch.all(preds[0] >= 0)=}")
-            logger.warning(f"{torch.all(preds[0] <= 1)=}")
-            logger.warning(f"{labels['verb']=}")
-            logger.warning(f"{preds[1]=}")
-            logger.warning(f"{labels['noun']=}")
-            logger.warning(f"{preds_prec=}")
-            logger.warning(f"{labels['precs']=}")
-            logger.warning(f"{preds_posts=}")
-            logger.warning(f"{labels['posts']=}")
-
             loss_verb = loss_fun(preds[0], labels["verb"])
             loss_noun = loss_fun(preds[1], labels["noun"])
             loss_prec = prec_loss_fun(preds_prec, labels["precs"])
@@ -158,14 +148,6 @@ def train_epoch(
                     + loss_posts_mask
                 )
             )
-
-            logger.warning(f"loss_verb: {loss_verb.item()}")
-            logger.warning(f"loss_noun: {loss_noun.item()}")
-            logger.warning(f"loss_prec: {loss_prec.item()}")
-            logger.warning(f"loss_postc: {loss_postc.item()}")
-            logger.warning(f"loss_prec_mask: {loss_prec_mask.item()}")
-            logger.warning(f"loss_posts_mask: {loss_posts_mask.item()}")
-
             # check Nan Loss.
             misc.check_nan_losses(loss)
         else:
@@ -845,6 +827,8 @@ def train(cfg):
 
     if writer is not None:
         writer.close()
+
+    logger.success(f"Training complete! 🎉")
 
 
 def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
