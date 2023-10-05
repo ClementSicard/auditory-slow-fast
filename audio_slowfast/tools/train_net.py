@@ -600,13 +600,13 @@ def eval_epoch(
         all_noun_labels = [
             label.clone().detach() for label in val_meter.all_noun_labels
         ]
-        all_prec_preds = [pred.clone().detach() for pred in val_meter.all_prec_preds]
-        all_prec_labels = [
-            label.clone().detach() for label in val_meter.all_prec_labels
+        all_precs_preds = [pred.clone().detach() for pred in val_meter.all_precs_preds]
+        all_precs_labels = [
+            label.clone().detach() for label in val_meter.all_precs_labels
         ]
-        all_postc_preds = [pred.clone().detach() for pred in val_meter.all_postc_preds]
-        all_postc_labels = [
-            label.clone().detach() for label in val_meter.all_postc_labels
+        all_posts_preds = [pred.clone().detach() for pred in val_meter.all_posts_preds]
+        all_posts_labels = [
+            label.clone().detach() for label in val_meter.all_posts_labels
         ]
 
         if cfg.NUM_GPUS:
