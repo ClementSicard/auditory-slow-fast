@@ -592,12 +592,45 @@ def eval_epoch(
     is_best_epoch, top1_dict = val_meter.log_epoch_stats(cur_epoch)
     # write to tensorboard format if available.
     if writer is not None:
-        all_preds = [pred.clone().detach() for pred in val_meter.all_preds]
-        all_labels = [label.clone().detach() for label in val_meter.all_labels]
+        all_verb_preds = [pred.clone().detach() for pred in val_meter.all_verb_preds]
+        all_verb_labels = [
+            label.clone().detach() for label in val_meter.all_verb_labels
+        ]
+        all_noun_preds = [pred.clone().detach() for pred in val_meter.all_noun_preds]
+        all_noun_labels = [
+            label.clone().detach() for label in val_meter.all_noun_labels
+        ]
+        all_prec_preds = [pred.clone().detach() for pred in val_meter.all_prec_preds]
+        all_prec_labels = [
+            label.clone().detach() for label in val_meter.all_prec_labels
+        ]
+        all_postc_preds = [pred.clone().detach() for pred in val_meter.all_postc_preds]
+        all_postc_labels = [
+            label.clone().detach() for label in val_meter.all_postc_labels
+        ]
+
         if cfg.NUM_GPUS:
-            all_preds = [pred.cpu() for pred in all_preds]
-            all_labels = [label.cpu() for label in all_labels]
-        writer.plot_eval(preds=all_preds, labels=all_labels, global_step=cur_epoch)
+            all_verb_preds = [pred.cpu() for pred in all_verb_preds]
+            all_verb_labels = [label.cpu() for label in all_verb_labels]
+            all_noun_preds = [pred.cpu() for pred in all_noun_preds]
+            all_noun_labels = [label.cpu() for label in all_noun_labels]
+            all_prec_preds = [pred.cpu() for pred in all_prec_preds]
+            all_prec_labels = [label.cpu() for label in all_prec_labels]
+            all_postc_preds = [pred.cpu() for pred in all_postc_preds]
+            all_postc_labels = [label.cpu() for label in all_postc_labels]
+
+        writer.plot_eval(
+            preds=all_verb_preds, labels=all_verb_labels, global_step=cur_epoch
+        )
+        writer.plot_eval(
+            preds=all_noun_preds, labels=all_noun_labels, global_step=cur_epoch
+        )
+        writer.plot_eval(
+            preds=all_prec_preds, labels=all_prec_labels, global_step=cur_epoch
+        )
+        writer.plot_eval(
+            preds=all_postc_preds, labels=all_postc_labels, global_step=cur_epoch
+        )
 
     if writer is not None and not wandb_log:
         if "top1_acc" in top1_dict.keys():
