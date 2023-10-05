@@ -641,10 +641,10 @@ def eval_epoch(
             preds=all_noun_preds, labels=all_noun_labels, global_step=cur_epoch
         )
         writer.plot_eval(
-            preds=all_precs_preds, labels=all_prec_labels, global_step=cur_epoch
+            preds=all_precs_preds, labels=all_precs_labels, global_step=cur_epoch
         )
         writer.plot_eval(
-            preds=all_posts_preds, labels=all_postc_labels, global_step=cur_epoch
+            preds=all_posts_preds, labels=all_posts_labels, global_step=cur_epoch
         )
 
     if writer is not None and not wandb_log:
