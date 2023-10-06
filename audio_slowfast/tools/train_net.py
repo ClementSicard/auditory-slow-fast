@@ -440,8 +440,8 @@ def eval_epoch(
                         "Val/noun/loss": loss_noun,
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
-                        "Val/prec/loss": loss_prec,
-                        "Val/postc/loss": loss_postc,
+                        "Val/prec/loss": loss_precs,
+                        "Val/postc/loss": loss_posts,
                     },
                     global_step=len(val_loader) * cur_epoch + cur_iter,
                 )
@@ -458,8 +458,8 @@ def eval_epoch(
                         "Val/noun/loss": loss_noun,
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
-                        "Val/prec/loss": loss_prec,
-                        "Val/postc/loss": loss_postc,
+                        "Val/prec/loss": loss_precs,
+                        "Val/postc/loss": loss_posts,
                         "val_step": len(val_loader) * cur_epoch + cur_iter,
                     },
                 )
