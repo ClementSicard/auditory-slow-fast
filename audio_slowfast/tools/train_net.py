@@ -11,6 +11,7 @@ import sys
 import numpy as np
 import torch
 import wandb
+from wandb import AlertLevel
 from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
 from fvcore.common.config import CfgNode
 from loguru import logger
@@ -85,12 +86,12 @@ def train_epoch(
     ):
         # Transfer the data to the current GPU device.
         if cfg.NUM_GPUS:
-            if isinstance(inputs, (list,)):
+            if isinstance(inputs, list):
                 for i in range(len(inputs)):
                     inputs[i] = inputs[i].cuda(non_blocking=True)
             else:
                 inputs = inputs.cuda(non_blocking=True)
-            if isinstance(labels, (dict,)):
+            if isinstance(labels, dict):
                 labels = {k: v.cuda() for k, v in labels.items()}
             else:
                 labels = labels.cuda()
@@ -102,14 +103,29 @@ def train_epoch(
         train_meter.data_toc()
 
         preds = model(inputs)
-
         preds = [pred.squeeze(1) for pred in preds]
 
-        if isinstance(labels, (dict,)):
+        if check_prediction(pred=preds[2], threshold=0.1):
+            text = f"Precs < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
+            wandb.alert(
+                title="Pre-conditions looking strange",
+                text=text,
+                level=AlertLevel.WARN,
+            )
+
+        if check_prediction(pred=preds[3], threshold=0.1):
+            text = f"Posts < 0.1\n\nPreds:{preds[3]}\nLabels:{labels[3]}"
+            wandb.alert(
+                title="Post-conditions looking strange",
+                text=text,
+                level=AlertLevel.WARN,
+            )
+
+        if isinstance(labels, dict):
             loss, loss_verb, loss_noun, loss_precs, loss_posts = compute_loss(
-                preds,
-                labels,
-                cfg,
+                preds=preds,
+                labels=labels,
+                cfg=cfg,
             )
 
         else:
@@ -845,3 +861,7 @@ def compute_loss(
     misc.check_nan_losses(loss)
 
     return loss, loss_verb, loss_noun, loss_precs, loss_posts
+
+
+def check_prediction(pred: torch.tensor, threshold: float = 0.1) -> bool:
+    return torch.all(torch.abs(pred) <= threshold)
