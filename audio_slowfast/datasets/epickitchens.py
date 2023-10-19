@@ -79,7 +79,9 @@ class Epickitchens(torch.utils.data.Dataset):
                 for idx in range(self._num_clips):
                     self._audio_records.append(EpicKitchensAudioRecord(tup))
                     self._temporal_idx.append(idx)
-        assert len(self._audio_records) > 0, "Failed to load EPIC-KITCHENS split {} from {}".format(
+        assert (
+            len(self._audio_records) > 0
+        ), "Failed to load EPIC-KITCHENS split {} from {}".format(
             self.mode, path_annotations_pickle
         )
         logger.info(
