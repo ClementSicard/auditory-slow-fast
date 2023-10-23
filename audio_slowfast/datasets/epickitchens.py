@@ -7,6 +7,8 @@ import torch.utils.data
 from fvcore.common.file_io import PathManager
 from loguru import logger
 
+from src.transforms import get_transforms
+
 from . import utils as utils
 from .audio_loader_epic import pack_audio
 from .build import DATASET_REGISTRY
@@ -33,6 +35,8 @@ class Epickitchens(torch.utils.data.Dataset):
         self.audio_dataset = None
         logger.info("Constructing EPIC-KITCHENS Audio {}...".format(mode))
         self._construct_loader()
+
+        self.transforms = get_transforms()
 
     def _construct_loader(self):
         """
@@ -111,7 +115,8 @@ class Epickitchens(torch.utils.data.Dataset):
         else:
             raise NotImplementedError("Does not support {} mode".format(self.mode))
 
-        self._audio_records[index].transformation
+        transformation = self._audio_records[index].transformation
+
         spectrogram = pack_audio(
             self.cfg,
             self.audio_dataset,
@@ -120,6 +125,11 @@ class Epickitchens(torch.utils.data.Dataset):
         )
         # Normalization.
         spectrogram = spectrogram.float()
+        if transformation is not None:
+            spectrogram = self.transforms[transformation](
+                spectrogram,
+                sample_rate=24_000,
+            )
         if self.mode in ["train", "train+val"]:
             # Data augmentation.
             # C T F -> C F T

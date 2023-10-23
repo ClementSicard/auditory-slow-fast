@@ -22,7 +22,7 @@ def prepare_dataset(
     pddl_problem_path: str,
     save_attributes_path: str,
     make_plots: bool = False,
-    augment: bool = False,
+    augment: bool = True,
 ) -> None:
     """
     Prepares the dataset by filtering it to keep only the verbs we want and
@@ -382,7 +382,6 @@ def augment_data(
                 transformation = np.random.choice(list(transforms.keys()))
                 aug_row = row.copy()
                 aug_row["transformation"] = transformation
-                aug_row["t_params"] = np.random.choice(range(19))
 
                 rows.append(aug_row)
 
@@ -394,7 +393,6 @@ def augment_data(
                 transformation = np.random.choice(list(transforms.keys()))
                 aug_row = row.copy()
                 aug_row["transformation"] = transformation
-                aug_row["t_params"] = np.random.choice(range(19))
 
                 rows.append(aug_row)
 
