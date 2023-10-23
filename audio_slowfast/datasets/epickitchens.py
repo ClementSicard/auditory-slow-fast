@@ -117,19 +117,21 @@ class Epickitchens(torch.utils.data.Dataset):
 
         transformation = self._audio_records[index].transformation
 
+        if transformation is not None:
+            logger.debug(f"Transforming spectrogram with {transformation}: {self.transforms[transformation]}")
+
         spectrogram = pack_audio(
-            self.cfg,
-            self.audio_dataset,
-            self._audio_records[index],
-            temporal_sample_index,
+            cfg=self.cfg,
+            audio_dataset=self.audio_dataset,
+            audio_record=self._audio_records[index],
+            temporal_sample_index=temporal_sample_index,
+            transform=self.transforms[transformation] if transformation is not None else None,
         )
+
+        logger.warning(f"spectrogram shape: {spectrogram.shape}")
         # Normalization.
         spectrogram = spectrogram.float()
-        if transformation is not None:
-            spectrogram = self.transforms[transformation](
-                spectrogram,
-                sample_rate=24_000,
-            )
+
         if self.mode in ["train", "train+val"]:
             # Data augmentation.
             # C T F -> C F T
@@ -141,6 +143,7 @@ class Epickitchens(torch.utils.data.Dataset):
         label = self._audio_records[index].label
         spectrogram = utils.pack_pathway_output(self.cfg, spectrogram)
         metadata = self._audio_records[index].metadata
+
         return spectrogram, label, index, metadata
 
     def __len__(self):

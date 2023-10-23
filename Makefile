@@ -7,8 +7,8 @@ EK_NAME := epic-kitchens-100
 OUTPUT_DIR := output
 DATA_DIR := data
 LOGS_DIR := logs
-VENV_DIR := $${SCRATCH}/venv
-REPO_DIR := $${SCRATCH}/marl-thesis
+VENV_DIR := slowfast
+REPO_DIR := $${SCRATCH}/auditory-slow-fast
 JOB_NAME := slowfast-training
 MAIL_ADDRESS := $${USER}@nyu.edu
 
@@ -36,6 +36,8 @@ data: # This target clones the repos only if they don't exist in the data direct
 	@if [ ! -d "$(DATA_DIR)/$(EK_DL_NAME)" ]; then \
 		cd $(DATA_DIR) && git submodule add https://github.com/epic-kitchens/$(EK_DL_NAME) ; \
 	fi
+
+	$(MAKE) update
 
 
 .PHONY: weights-asf
@@ -123,7 +125,8 @@ train:
 		--model audio_slowfast \
 		--config config.yaml \
 		--train \
-		--verbs break crush pat shake sharpen smell throw water
+		--verbs break crush pat shake sharpen smell throw water \
+		--augment
 
 .PHONY: reinstall-asf
 reinstall-asf:

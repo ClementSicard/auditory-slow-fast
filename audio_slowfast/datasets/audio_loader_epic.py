@@ -1,4 +1,11 @@
 import random
+from typing import Optional
+from loguru import logger
+from fvcore.common.config import CfgNode
+from h5py._hl.files import File
+from .epickitchens_record import EpicKitchensAudioRecord
+from audiomentations.core.transforms_interface import BaseWaveformTransform
+
 
 import numpy as np
 import torch
@@ -35,7 +42,35 @@ def get_start_end_idx(audio_size, clip_size, clip_idx, num_clips, start_sample=0
     return start_sample + start_idx, start_sample + end_idx
 
 
-def pack_audio(cfg, audio_dataset, audio_record, temporal_sample_index):
+def pack_audio(
+    cfg: CfgNode,
+    audio_dataset: File,
+    audio_record: EpicKitchensAudioRecord,
+    temporal_sample_index: int,
+    transform: Optional[BaseWaveformTransform] = None,
+) -> torch.Tensor:
+    """
+    Extracts sound features from audio samples of an Epic Kitchens audio record based on the given configuration and
+    temporal sample index.
+
+    Parameters
+    ----------
+    `cfg`: `CfgNode`
+        The configuration node.
+    `audio_dataset`: `File`
+        The HDF5 file containing the audio samples.
+    `audio_record`: `EpicKitchensAudioRecord`
+        The audio record.
+    `temporal_sample_index`: `int`
+        The temporal sample index.
+    `transform`: `Optional[BaseWaveformTransform]`
+        The audio transform. By default `None`.
+
+    Returns
+    -------
+    `torch.Tensor`
+        The sound features, transformed if `transform` is not `None`.
+    """
     samples = audio_dataset[audio_record.untrimmed_video_name][()]
     start_idx, end_idx = get_start_end_idx(
         audio_record.num_audio_samples,
@@ -44,7 +79,7 @@ def pack_audio(cfg, audio_dataset, audio_record, temporal_sample_index):
         cfg.TEST.NUM_ENSEMBLE_VIEWS,
         start_sample=audio_record.start_audio_sample,
     )
-    spectrogram = _extract_sound_feature(cfg, samples, audio_record, int(start_idx), int(end_idx))
+    spectrogram = _extract_sound_feature(cfg, samples, audio_record, int(start_idx), int(end_idx), transform=transform)
     return spectrogram
 
 
@@ -63,9 +98,46 @@ def _log_specgram(cfg, audio, window_size=10, step_size=5, eps=1e-6):
     return log_mel_spec.T
 
 
-def _extract_sound_feature(cfg, samples, audio_record, start_idx, end_idx):
+def _extract_sound_feature(
+    cfg: CfgNode,
+    samples: np.ndarray,
+    audio_record: EpicKitchensAudioRecord,
+    start_idx: int,
+    end_idx: int,
+    transform: Optional[BaseWaveformTransform] = None,
+):
+    """
+    Extracts sound features from audio samples of an Epic Kitchens audio record based on the given configuration,
+    start and end indices, and waveform transform object.
+
+    Parameters
+    ----------
+    `cfg`: `CfgNode`
+        The configuration node.
+    `samples`: `np.ndarray`
+        The audio samples **for the full video**.
+    `audio_record`: `EpicKitchensAudioRecord`
+        The audio record.
+    `start_idx`: `int`
+        The start index.
+    `end_idx`: `int`
+        The end index.
+    `transform`: `Optional[BaseWaveformTransform]`
+        The audio transform. By default `None`.
+
+    Returns
+    -------
+    `torch.Tensor`
+        The sound features, transformed if `transform` is not `None`.
+    """
+    logger.error(f"{type(samples)=}")
+
     if audio_record.num_audio_samples < int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)):
         samples = samples[audio_record.start_audio_sample : audio_record.end_audio_sample]
+        if transform is not None:
+            logger.warning(f"Transforming audio samples with {transform}")
+            samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
+        logger.error(f"{samples.shape=}")
         spectrogram = _log_specgram(
             cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH
         )
@@ -73,6 +145,10 @@ def _extract_sound_feature(cfg, samples, audio_record, start_idx, end_idx):
         spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), "edge")
     else:
         samples = samples[start_idx:end_idx]
+        if transform is not None:
+            logger.warning(f"Transforming audio samples with {transform}")
+            samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
+        logger.error(f"A{samples.shape=}")
         spectrogram = _log_specgram(
             cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH
         )

@@ -16,28 +16,7 @@ from audio_slowfast.utils.discretize import discretize
 from audio_slowfast.utils.misc import launch_job
 from src.dataset import prepare_dataset
 from src.pddl import Predicate
-
-
-def add_logger() -> None:
-    """
-    Adds a logger to the script. It will output the logs to the file
-    `logs/YYYY-MM-DD_HH-MM-SS.log`.
-    """
-    os.makedirs("logs", exist_ok=True, mode=0o744)
-    # Get date in the format YYYY-MM-DD_HH:MM:SS
-    date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"logs/{date}.log"
-    os.environ["TRAIN_STATS"] = file_name
-
-    logger.add(
-        file_name,
-        level="DEBUG",
-        colorize=True,
-        backtrace=True,
-        diagnose=True,
-    )
-
-    logger.info(f"Writing logs to '{file_name}'")
+import src.utils
 
 
 def load_config(config_path: str) -> Dict[str, Any]:
@@ -81,6 +60,7 @@ def parse_args() -> Dict[str, Any]:
     parser.add_argument("--example", type=str, default=None)
     parser.add_argument("--verbs", type=str, nargs="+", required=True)
     parser.add_argument("--make-plots", action="store_true")
+    parser.add_argument("--augment", action="store_true")
 
     args = parser.parse_args()
 
@@ -135,10 +115,9 @@ def main(args: Dict[str, Any]) -> None:
         pddl_domain_path=meta_config["dataset"]["epic"]["pddl_domain"],
         pddl_problem_path=meta_config["dataset"]["epic"]["pddl_problem"],
         save_attributes_path=meta_config["models"]["audio_slowfast"]["attributes_file"],
+        augment=args["augment"],
     )
-    attributes = pd.read_csv(
-        meta_config["models"]["audio_slowfast"]["attributes_file"]
-    )["attribute"].tolist()
+    attributes = pd.read_csv(meta_config["models"]["audio_slowfast"]["attributes_file"])["attribute"].tolist()
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -202,9 +181,7 @@ def example(
     logger.debug(f"Discrete pre: {discretize(i_pres)}")
     logger.debug(f"Discrete posts: {discretize(i_poss)}")
 
-    for v, n, _, _, i_v, i_n, i_pre, i_pos in zip(
-        verb, noun, prec, postc, i_vs, i_ns, prec, postc
-    ):
+    for v, n, _, _, i_v, i_n, i_pre, i_pos in zip(verb, noun, prec, postc, i_vs, i_ns, prec, postc):
         logger.debug(
             f"\nVerb: {vocab_verb[i_v]} ({v[i_v]:.2%})\n"
             f"Noun: {vocab_noun[i_n]} ({n[i_n]:.2%})\n"
@@ -214,7 +191,7 @@ def example(
 
 
 if __name__ == "__main__":
-    add_logger()
+    src.utils.add_logger()
     args = parse_args()
     validate_args(args=args)
     main(args=args)
