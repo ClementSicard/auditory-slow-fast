@@ -22,7 +22,7 @@ def prepare_dataset(
     pddl_problem_path: str,
     save_attributes_path: str,
     make_plots: bool = False,
-    augment: bool = True,
+    augment: bool = False,
 ) -> None:
     """
     Prepares the dataset by filtering it to keep only the verbs we want and
