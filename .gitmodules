@@ -1,0 +1,9 @@
+[submodule "data/epic-kitchens-100-annotations"]
+	path = data/epic-kitchens-100-annotations
+	url = https://github.com/epic-kitchens/epic-kitchens-100-annotations
+[submodule "data/epic-sounds-annotations"]
+	path = data/epic-sounds-annotations
+	url = https://github.com/epic-kitchens/epic-sounds-annotations
+[submodule "data/epic-kitchens-download-scripts"]
+	path = data/epic-kitchens-download-scripts
+	url = https://github.com/epic-kitchens/epic-kitchens-download-scripts
