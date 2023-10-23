@@ -23,6 +23,7 @@ def prepare_dataset(
     save_attributes_path: str,
     make_plots: bool = False,
     augment: bool = True,
+    factor: float = 1.0,
 ) -> None:
     """
     Prepares the dataset by filtering it to keep only the verbs we want and
@@ -41,6 +42,18 @@ def prepare_dataset(
         The path to the training annotations
     `val_path` : `str`
         The path to the validation annotations
+    `pddl_domain_path` : `str`
+        The path to the PDDL domain file
+    `pddl_problem_path` : `str`
+        The path to the PDDL problem file
+    `save_attributes_path` : `str`
+        The path to the file where to save the attributes
+    `make_plots` : `bool`, optional
+        Whether to make plots or not, by default `False`
+    `augment` : `bool`, optional
+        Whether to augment the dataset or not, by default `True`
+    `factor` : `float`, optional
+        The factor to use for augmentation, by default `1.0`.
     """
     logger.info(f"Preparing dataset with verbs: {verbs_from_args}")
     ids, map_ids_verbs, verbs_df = load_verbs(verbs_from_args=verbs_from_args, path=verbs_path)
@@ -107,12 +120,12 @@ def prepare_dataset(
         filtered_train_df = augment_data(
             df=filtered_train_df,
             transforms=transforms,
-            factor=2.0,
+            factor=3.0,
         )
         filtered_val_df = augment_data(
             df=filtered_val_df,
             transforms=transforms,
-            factor=2.0,
+            factor=3.0,
         )
         logger.success("Done augmenting dataset.")
         logger.debug(f"After:\n{filtered_train_df.verb_class.value_counts()=}")

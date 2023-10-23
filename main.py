@@ -61,6 +61,7 @@ def parse_args() -> Dict[str, Any]:
     parser.add_argument("--verbs", type=str, nargs="+", required=True)
     parser.add_argument("--make-plots", action="store_true")
     parser.add_argument("--augment", action="store_true")
+    parser.add_argument("--factor", type=float, default=1.0)
 
     args = parser.parse_args()
 
@@ -116,6 +117,7 @@ def main(args: Dict[str, Any]) -> None:
         pddl_problem_path=meta_config["dataset"]["epic"]["pddl_problem"],
         save_attributes_path=meta_config["models"]["audio_slowfast"]["attributes_file"],
         augment=args["augment"],
+        factor=args["factor"],
     )
     attributes = pd.read_csv(meta_config["models"]["audio_slowfast"]["attributes_file"])["attribute"].tolist()
 

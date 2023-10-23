@@ -133,7 +133,6 @@ def _extract_sound_feature(
     if audio_record.num_audio_samples < int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)):
         samples = samples[audio_record.start_audio_sample : audio_record.end_audio_sample]
         if transform is not None:
-            logger.warning(f"Transforming audio samples with {transform}")
             samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
         spectrogram = _log_specgram(
             cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH
@@ -143,7 +142,6 @@ def _extract_sound_feature(
     else:
         samples = samples[start_idx:end_idx]
         if transform is not None:
-            logger.warning(f"Transforming audio samples with {transform}")
             samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
         spectrogram = _log_specgram(
             cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH

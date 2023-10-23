@@ -126,7 +126,8 @@ train:
 		--config config.yaml \
 		--train \
 		--verbs break crush pat shake sharpen smell throw water \
-		--augment
+		--augment \
+		--factor 4.0
 
 .PHONY: reinstall-asf
 reinstall-asf:
@@ -149,7 +150,7 @@ job:
 	    --ntasks 1 \
 	    --cpus-per-task 4 \
 	    --gres gpu:1 \
-	    --time 12:00:00 \
+	    --time 24:00:00 \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
