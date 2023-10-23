@@ -371,6 +371,8 @@ def augment_data(
     verb_counts["t_per_sample"] = verb_counts["to_augment"] / verb_counts["count"]
     t_by_class = verb_counts.to_dict(orient="index")
 
+    df["transformation"] = "none"
+
     augmented_rows = []
     for _, row in df.iterrows():
         rows = [row.to_dict()]

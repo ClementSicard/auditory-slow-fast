@@ -130,14 +130,11 @@ def _extract_sound_feature(
     `torch.Tensor`
         The sound features, transformed if `transform` is not `None`.
     """
-    logger.error(f"{type(samples)=}")
-
     if audio_record.num_audio_samples < int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)):
         samples = samples[audio_record.start_audio_sample : audio_record.end_audio_sample]
         if transform is not None:
             logger.warning(f"Transforming audio samples with {transform}")
             samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
-        logger.error(f"{samples.shape=}")
         spectrogram = _log_specgram(
             cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH
         )
@@ -148,7 +145,6 @@ def _extract_sound_feature(
         if transform is not None:
             logger.warning(f"Transforming audio samples with {transform}")
             samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
-        logger.error(f"A{samples.shape=}")
         spectrogram = _log_specgram(
             cfg, samples, window_size=cfg.AUDIO_DATA.WINDOW_LENGTH, step_size=cfg.AUDIO_DATA.HOP_LENGTH
         )

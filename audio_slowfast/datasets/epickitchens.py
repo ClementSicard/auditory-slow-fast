@@ -117,18 +117,14 @@ class Epickitchens(torch.utils.data.Dataset):
 
         transformation = self._audio_records[index].transformation
 
-        if transformation is not None:
-            logger.debug(f"Transforming spectrogram with {transformation}: {self.transforms[transformation]}")
-
         spectrogram = pack_audio(
             cfg=self.cfg,
             audio_dataset=self.audio_dataset,
             audio_record=self._audio_records[index],
             temporal_sample_index=temporal_sample_index,
-            transform=self.transforms[transformation] if transformation is not None else None,
+            transform=self.transforms[transformation] if transformation != "none" else None,
         )
 
-        logger.warning(f"spectrogram shape: {spectrogram.shape}")
         # Normalization.
         spectrogram = spectrogram.float()
 
