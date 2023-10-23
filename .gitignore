@@ -3,6 +3,8 @@ data/
 logs/
 checkpoints/
 
+.ruff_cache/
+
 sftp-config*.json
 *.py[cod]
 /.idea/*
