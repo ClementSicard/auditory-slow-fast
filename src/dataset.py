@@ -124,7 +124,10 @@ def prepare_dataset(
     logger.success("Dataset prepared!")
 
 
-def load_verbs(verbs_from_args: List[str], path: str) -> Tuple[List[int], Dict[str, int], pd.DataFrame]:
+def load_verbs(
+    verbs_from_args: List[str],
+    path: str,
+) -> Tuple[List[int], Dict[str, int], pd.DataFrame]:
     """
     Checks that the selected verbs are in the list of actual verbs and returns both the IDs and
     the verbs, as well as all the verbs DataFrame.
