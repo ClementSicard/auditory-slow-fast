@@ -1,0 +1,13 @@
+models:
+  audio_slowfast:
+    weights: ./models/asf/weights/SLOWFAST_EPIC.pyth
+    config: ./models/asf/config/SLOWFAST_R50.local.yaml
+    attributes_file: ./models/asf/config/attributes.csv
+
+dataset:
+  epic:
+    verbs: ./data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
+    train: ./data/epic-kitchens-100-annotations/EPIC_100_train.pkl
+    val: ./data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
+    pddl_domain: ./pddl/domain.pddl
+    pddl_problem: ./pddl/problem.pddl

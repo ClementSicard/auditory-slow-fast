@@ -19,8 +19,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("audio_dir", help="Directory of EPIC-KITCHENS audio")
     parser.add_argument("output_dir", help="Directory to save the HDF5 audio dataset")
-    parser.add_argument("--sampling_rate", type=int, default=24000, help="Sampling rate of audio in EPIC-KITCHENS")
-    parser.add_argument("--processes", type=int, default=40, help="Number of processes for multiprocessing")
+    parser.add_argument(
+        "--sampling_rate",
+        type=int,
+        default=24000,
+        help="Sampling rate of audio in EPIC-KITCHENS",
+    )
+    parser.add_argument(
+        "--processes",
+        type=int,
+        default=40,
+        help="Number of processes for multiprocessing",
+    )
 
     args = parser.parse_args()
 

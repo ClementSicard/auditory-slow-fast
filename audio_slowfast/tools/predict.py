@@ -46,8 +46,8 @@ def main():
     noun_pred = preds[1].numpy().reshape((-1, 300))
     print(verb_pred.shape, noun_pred.shape)
 
-    verbs = read_labels("EPIC_100_verb_classes.csv")
-    nouns = read_labels("EPIC_100_noun_classes.csv")
+    verbs = read_labels("data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv")
+    nouns = read_labels("data/epic-kitchens-100-annotations/EPIC_100_noun_classes.csv")
 
     import matplotlib.pyplot as plt
 
