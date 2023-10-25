@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-from datetime import datetime
 from typing import Any, Dict, List
 
 import librosa
@@ -193,7 +192,7 @@ def example(
 
 
 if __name__ == "__main__":
-    src.utils.add_logger()
+    src.utils.setup_run()
     args = parse_args()
     validate_args(args=args)
     main(args=args)

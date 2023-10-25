@@ -149,7 +149,7 @@ job:
 	sbatch -N 1 \
 	    --ntasks 1 \
 	    --cpus-per-task 4 \
-	    --gres gpu:1 \
+		--gres=gpu:v100:1 \
 	    --time 24:00:00 \
 	    --mem 16G \
 	    --error $${LOG_FILE} \

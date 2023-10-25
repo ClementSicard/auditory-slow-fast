@@ -67,7 +67,6 @@ def setup_logging(output_dir=None):
         logger.addHandler(ch)
 
 
-
 def get_logger(name):
     """
     Retrieve the logger with the specified name or, if name is None, return a
@@ -85,26 +84,16 @@ def log_json_stats(stats, it: Optional[int] = None):
         stats (dict): a dictionary of statistical information to log.
     """
 
-    stats = {
-        k: decimal.Decimal("{:.5f}".format(v)) if isinstance(v, float) else v
-        for k, v in stats.items()
-    }
+    stats = {k: decimal.Decimal("{:.5f}".format(v)) if isinstance(v, float) else v for k, v in stats.items()}
     json_stats = simplejson.dumps(
         stats,
         sort_keys=True,
         use_decimal=True,
-        indent=4 * " ",
+        indent=2 * " ",
     )
+    logger.debug(f"Stats: {json_stats}")
 
     file_name = os.getenv("TRAIN_STATS")
     if not file_name:
         file_name = "logs/stats.json"
-        logger.warning(
-            f"Environment variable TRAIN_STATS is not set. Writing to '{file_name}' instead."
-        )
-
-    pd.DataFrame(stats, index=[0]).to_csv(
-        f"{file_name.replace('.log', '')}_stats.csv",
-        mode="a",
-        header=False,
-    )
+        logger.warning(f"Environment variable TRAIN_STATS is not set. Writing to '{file_name}' instead.")
