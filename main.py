@@ -9,13 +9,13 @@ import torch
 import yaml
 from loguru import logger
 
+import src.utils
 from audio_slowfast import test, train
 from audio_slowfast.config.defaults import get_cfg
 from audio_slowfast.utils.discretize import discretize
 from audio_slowfast.utils.misc import launch_job
 from src.dataset import prepare_dataset
 from src.pddl import Predicate
-import src.utils
 
 
 def load_config(config_path: str) -> Dict[str, Any]:
@@ -149,6 +149,7 @@ def main(args: Dict[str, Any]) -> None:
         cfg = get_cfg()
         cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
         launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=train)
+        launch_job(cfg=model.cfg, init_method="tcp://localhost:9999", func=test)
 
     elif args["test"]:
         launch_job(cfg=model.cfg, init_method="tcp://localhost:9999", func=test)
