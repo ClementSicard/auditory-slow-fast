@@ -89,7 +89,7 @@ class AudioSlowFast(nn.Module):
         step_size = cfg.AUDIO_DATA.HOP_LENGTH
         self.win_size = int(round(window_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
         self.hop_size = int(round(step_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
-        self.num_frames = 400  # cfg.AUDIO_DATA.NUM_FRAMES
+        self.num_frames = cfg.AUDIO_DATA.NUM_FRAMES
         self.num_classes = cfg.MODEL.NUM_CLASSES
 
         logger.info(f"Window size: {self.win_size}")
