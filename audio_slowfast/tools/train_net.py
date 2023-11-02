@@ -109,6 +109,7 @@ def train_epoch(
 
         if check_prediction(pred=preds[2], threshold=0.1):
             text = f"Precs < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
+            logger.warning(text)
             wandb.alert(
                 title="Pre-conditions looking strange",
                 text=text,
@@ -117,6 +118,7 @@ def train_epoch(
 
         if check_prediction(pred=preds[3], threshold=0.1):
             text = f"Posts < 0.1\n\nPreds:{preds[3]}\nLabels:{labels[3]}"
+            logger.warning(text)
             wandb.alert(
                 title="Post-conditions looking strange",
                 text=text,

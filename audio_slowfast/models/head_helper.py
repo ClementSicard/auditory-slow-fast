@@ -48,14 +48,6 @@ class ResNetBasicHead(nn.Module):
         assert len({len(pool_size), len(dim_in)}) == 1, "pathway dimensions are not consistent."
         self.num_pathways = len(pool_size)
 
-        # GRU Module
-        self.gru = nn.GRU(
-            input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
-            hidden_size=gru_hidden_size,
-            num_layers=gru_num_layers,
-            batch_first=True,  # Assuming that the first dimension of the input is the batch
-        )
-
         for pathway in range(self.num_pathways):
             avg_pool = nn.AvgPool2d(pool_size[pathway], stride=1)
             self.add_module("pathway{}_avgpool".format(pathway), avg_pool)
@@ -64,6 +56,15 @@ class ResNetBasicHead(nn.Module):
             self.dropout = nn.Dropout(dropout_rate)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
+
+        # GRU Module
+        self.gru = nn.GRU(
+            input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
+            hidden_size=gru_hidden_size,
+            num_layers=gru_num_layers,
+            batch_first=True,  # Assuming that the first dimension of the input is the batch
+        )
+
         if isinstance(num_classes, (list, tuple)):
             self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
             self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
