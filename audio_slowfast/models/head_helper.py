@@ -24,6 +24,8 @@ class ResNetBasicHead(nn.Module):
         pool_size,
         dropout_rate=0.0,
         act_func="softmax",
+        gru_hidden_size=256,
+        gru_num_layers=1,
     ):
         """
         The `__init__` method of any subclass should also contain these
@@ -54,6 +56,15 @@ class ResNetBasicHead(nn.Module):
             self.dropout = nn.Dropout(dropout_rate)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
+
+        # GRU Module
+        self.gru = nn.GRU(
+            input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
+            hidden_size=gru_hidden_size,
+            num_layers=gru_num_layers,
+            batch_first=True,  # Assuming that the first dimension of the input is the batch
+        )
+
         if isinstance(num_classes, (list, tuple)):
             self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
             self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
@@ -86,6 +97,10 @@ class ResNetBasicHead(nn.Module):
         # Perform dropout.
         if hasattr(self, "dropout"):
             x = self.dropout(x)
+
+        # Pass through GRU
+        x, _ = self.gru(x)
+
         if isinstance(self.num_classes, (list, tuple)):
             x_v = self.projection_verb(x)
             x_v = self.train_inference(x_v)

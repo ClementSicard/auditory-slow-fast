@@ -10,11 +10,11 @@ import sys
 import numpy as np
 import torch
 import wandb
-from wandb import AlertLevel
-from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
 from fvcore.common.config import CfgNode
+from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
 from loguru import logger
 from tqdm import tqdm
+from wandb import AlertLevel
 
 import audio_slowfast.models.losses as losses
 import audio_slowfast.models.optimizer as optim
@@ -26,7 +26,6 @@ import audio_slowfast.utils.misc as misc
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast import AudioSlowFast
 from audio_slowfast.datasets import loader
-from audio_slowfast.utils import discretize
 from audio_slowfast.utils.meters import (
     EPICTrainMeter,
     EPICValMeter,
@@ -96,6 +95,9 @@ def train_epoch(
             else:
                 labels = labels.cuda()
 
+            if cur_iter % cfg.LOG_PERIOD == 0:
+                display_gpu_info()
+
         # Update the learning rate.
         lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
         optim.set_lr(optimizer, lr)
@@ -107,6 +109,7 @@ def train_epoch(
 
         if check_prediction(pred=preds[2], threshold=0.1):
             text = f"Precs < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
+            logger.warning(text)
             wandb.alert(
                 title="Pre-conditions looking strange",
                 text=text,
@@ -115,6 +118,7 @@ def train_epoch(
 
         if check_prediction(pred=preds[3], threshold=0.1):
             text = f"Posts < 0.1\n\nPreds:{preds[3]}\nLabels:{labels[3]}"
+            logger.warning(text)
             wandb.alert(
                 title="Post-conditions looking strange",
                 text=text,
@@ -699,7 +703,7 @@ def train(cfg):
         # Shuffle the dataset.
         logger.info(f"Epoch {cur_epoch} started. Shuffling dataset.")
         loader.shuffle_dataset(train_loader, cur_epoch)
-        logger.success(f"Done!")
+        logger.success("Done!")
 
         logger.info(f"Training for epoch {cur_epoch}.")
         # Train for one epoch.
@@ -760,7 +764,7 @@ def train(cfg):
     if writer is not None:
         writer.close()
 
-    logger.success(f"Training complete! 🎉")
+    logger.success("Training complete! 🎉")
 
 
 def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
