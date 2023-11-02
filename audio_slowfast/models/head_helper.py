@@ -24,6 +24,8 @@ class ResNetBasicHead(nn.Module):
         pool_size,
         dropout_rate=0.0,
         act_func="softmax",
+        gru_hidden_size=256,
+        gru_num_layers=1,
     ):
         """
         The `__init__` method of any subclass should also contain these
@@ -45,6 +47,14 @@ class ResNetBasicHead(nn.Module):
         super(ResNetBasicHead, self).__init__()
         assert len({len(pool_size), len(dim_in)}) == 1, "pathway dimensions are not consistent."
         self.num_pathways = len(pool_size)
+
+        # GRU Module
+        self.gru = nn.GRU(
+            input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
+            hidden_size=gru_hidden_size,
+            num_layers=gru_num_layers,
+            batch_first=True,  # Assuming that the first dimension of the input is the batch
+        )
 
         for pathway in range(self.num_pathways):
             avg_pool = nn.AvgPool2d(pool_size[pathway], stride=1)
@@ -86,6 +96,10 @@ class ResNetBasicHead(nn.Module):
         # Perform dropout.
         if hasattr(self, "dropout"):
             x = self.dropout(x)
+
+        # Pass through GRU
+        x, _ = self.gru(x)
+
         if isinstance(self.num_classes, (list, tuple)):
             x_v = self.projection_verb(x)
             x_v = self.train_inference(x_v)
