@@ -306,7 +306,6 @@ class SlowFast(nn.Module):
         )
 
     def forward(self, x, bboxes=None):
-        logger.error("Coucou")
         x = self.s1(x)
         x = self.s1_fuse(x)
         x = self.s2(x)
