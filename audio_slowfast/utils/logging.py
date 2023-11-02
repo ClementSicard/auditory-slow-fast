@@ -10,11 +10,11 @@ import functools
 import logging
 import os
 import sys
-import pandas as pd
+from typing import Optional
+
 import simplejson
 from fvcore.common.file_io import PathManager
 from loguru import logger
-from typing import Optional
 
 import audio_slowfast.utils.distributed as du
 

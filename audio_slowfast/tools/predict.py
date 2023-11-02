@@ -103,12 +103,12 @@ def desc(*xs):
                 x.max() if nonzerodim else None,
             )
         except AttributeError:
-            l = ""
+            length = ""
             try:
-                l = len(x)
+                length = len(x)
             except Exception:
                 pass
-            print(type(x).__name__, l)
+            print(type(x).__name__, length)
 
 
 def parse_args():

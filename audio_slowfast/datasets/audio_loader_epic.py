@@ -1,14 +1,13 @@
 import random
 from typing import Optional
-from loguru import logger
-from fvcore.common.config import CfgNode
-from h5py._hl.files import File
-from .epickitchens_record import EpicKitchensAudioRecord
-from audiomentations.core.transforms_interface import BaseWaveformTransform
-
 
 import numpy as np
 import torch
+from audiomentations.core.transforms_interface import BaseWaveformTransform
+from fvcore.common.config import CfgNode
+from h5py._hl.files import File
+
+from .epickitchens_record import EpicKitchensAudioRecord
 
 
 def get_start_end_idx(audio_size, clip_size, clip_idx, num_clips, start_sample=0):

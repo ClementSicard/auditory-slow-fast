@@ -63,11 +63,7 @@ class TestMeter(object):
         if multi_label:
             self.audio_preds -= 1e10
 
-        self.audio_labels = (
-            torch.zeros((num_audios, num_cls))
-            if multi_label
-            else torch.zeros((num_audios)).long()
-        )
+        self.audio_labels = torch.zeros((num_audios, num_cls)) if multi_label else torch.zeros((num_audios)).long()
         self.clip_count = torch.zeros((num_audios)).long()
         self.topk_accs = []
         self.stats = {}
@@ -111,13 +107,9 @@ class TestMeter(object):
             if self.ensemble_method == "sum":
                 self.audio_preds[vid_id] += preds[ind]
             elif self.ensemble_method == "max":
-                self.audio_preds[vid_id] = torch.max(
-                    self.audio_preds[vid_id], preds[ind]
-                )
+                self.audio_preds[vid_id] = torch.max(self.audio_preds[vid_id], preds[ind])
             else:
-                raise NotImplementedError(
-                    "Ensemble Method {} is not supported".format(self.ensemble_method)
-                )
+                raise NotImplementedError("Ensemble Method {} is not supported".format(self.ensemble_method))
             self.audio_preds_clips[vid_id, clip_temporal_id] = preds[ind]
             self.clip_count[vid_id] += 1
 
@@ -164,26 +156,17 @@ class TestMeter(object):
         if not all(self.clip_count == self.num_clips):
             logger.warning(
                 "clip count {} ~= num clips {}".format(
-                    ", ".join(
-                        [
-                            "{}: {}".format(i, k)
-                            for i, k in enumerate(self.clip_count.tolist())
-                        ]
-                    ),
+                    ", ".join(["{}: {}".format(i, k) for i, k in enumerate(self.clip_count.tolist())]),
                     self.num_clips,
                 )
             )
 
         self.stats = {"split": "test_final"}
         if self.multi_label:
-            map = get_map(
-                self.audio_preds.cpu().numpy(), self.audio_labels.cpu().numpy()
-            )
+            map = get_map(self.audio_preds.cpu().numpy(), self.audio_labels.cpu().numpy())
             self.stats["map"] = map
         else:
-            num_topks_correct = metrics.topks_correct(
-                self.audio_preds, self.audio_labels, ks
-            )
+            num_topks_correct = metrics.topks_correct(self.audio_preds, self.audio_labels, ks)
             topks = [(x / self.audio_preds.size(0)) * 100.0 for x in num_topks_correct]
             assert len({len(ks), len(topks)}) == 1
             for k, topk in zip(ks, topks):
@@ -193,9 +176,7 @@ class TestMeter(object):
         return (
             self.audio_preds.numpy().copy(),
             self.audio_preds_clips.numpy().copy(),
-            F.one_hot(self.audio_labels, num_classes=self.audio_preds.shape[1])
-            .numpy()
-            .copy(),
+            F.one_hot(self.audio_labels, num_classes=self.audio_preds.shape[1]).numpy().copy(),
             None,
         )
 
@@ -343,9 +324,7 @@ class TrainMeter(object):
         """
         if (cur_iter + 1) % self._cfg.LOG_PERIOD != 0:
             return
-        eta_sec = self.iter_timer.seconds() * (
-            self.MAX_EPOCH - (cur_epoch * self.epoch_iters + cur_iter + 1)
-        )
+        eta_sec = self.iter_timer.seconds() * (self.MAX_EPOCH - (cur_epoch * self.epoch_iters + cur_iter + 1))
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         stats = {
             "_type": "train_iter",
@@ -370,9 +349,7 @@ class TrainMeter(object):
         Args:
             cur_epoch (int): the number of current epoch.
         """
-        eta_sec = self.iter_timer.seconds() * (
-            self.MAX_EPOCH - (cur_epoch + 1) * self.epoch_iters
-        )
+        eta_sec = self.iter_timer.seconds() * (self.MAX_EPOCH - (cur_epoch + 1) * self.epoch_iters)
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         stats = {
             "_type": "train_epoch",
@@ -694,9 +671,7 @@ class EPICTrainMeter(object):
         """
         if (cur_iter + 1) % self._cfg.LOG_PERIOD != 0:
             return
-        eta_sec = self.iter_timer.seconds() * (
-            self.MAX_EPOCH - (cur_epoch * self.epoch_iters + cur_iter + 1)
-        )
+        eta_sec = self.iter_timer.seconds() * (self.MAX_EPOCH - (cur_epoch * self.epoch_iters + cur_iter + 1))
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         stats = {
             "_type": "train_iter",
@@ -729,9 +704,7 @@ class EPICTrainMeter(object):
         Args:
             cur_epoch (int): the number of current epoch.
         """
-        eta_sec = self.iter_timer.seconds() * (
-            self.MAX_EPOCH - (cur_epoch + 1) * self.epoch_iters
-        )
+        eta_sec = self.iter_timer.seconds() * (self.MAX_EPOCH - (cur_epoch + 1) * self.epoch_iters)
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         verb_top1_acc = self.num_verb_top1_cor / self.num_samples
         verb_top5_acc = self.num_verb_top5_cor / self.num_samples
@@ -1115,16 +1088,10 @@ class EPICTestMeter(object):
                 self.precs_audio_labels[vid_id] += preds[2][ind]
                 self.posts_audio_labels[vid_id] += preds[3][ind]
             elif self.ensemble_method == "max":
-                self.verb_audio_preds[vid_id] = torch.max(
-                    self.verb_audio_preds[vid_id], preds[0][ind]
-                )
-                self.noun_audio_preds[vid_id] = torch.max(
-                    self.noun_audio_preds[vid_id], preds[1][ind]
-                )
+                self.verb_audio_preds[vid_id] = torch.max(self.verb_audio_preds[vid_id], preds[0][ind])
+                self.noun_audio_preds[vid_id] = torch.max(self.noun_audio_preds[vid_id], preds[1][ind])
             else:
-                raise NotImplementedError(
-                    "Ensemble Method {} is not supported".format(self.ensemble_method)
-                )
+                raise NotImplementedError("Ensemble Method {} is not supported".format(self.ensemble_method))
             self.verb_audio_preds_clips[vid_id, clip_temporal_id] = preds[0][ind]
             self.noun_audio_preds_clips[vid_id, clip_temporal_id] = preds[1][ind]
 
@@ -1182,22 +1149,13 @@ class EPICTestMeter(object):
         if not all(self.clip_count == self.num_clips):
             logger.warning(
                 "clip count {} ~= num clips {}".format(
-                    ", ".join(
-                        [
-                            "{}: {}".format(i, k)
-                            for i, k in enumerate(self.clip_count.tolist())
-                        ]
-                    ),
+                    ", ".join(["{}: {}".format(i, k) for i, k in enumerate(self.clip_count.tolist())]),
                     self.num_clips,
                 )
             )
 
-        verb_topks = metrics.topk_accuracies(
-            self.verb_audio_preds, self.verb_audio_labels, ks
-        )
-        noun_topks = metrics.topk_accuracies(
-            self.noun_audio_preds, self.noun_audio_labels, ks
-        )
+        verb_topks = metrics.topk_accuracies(self.verb_audio_preds, self.verb_audio_labels, ks)
+        noun_topks = metrics.topk_accuracies(self.noun_audio_preds, self.noun_audio_labels, ks)
 
         logger.warning("Check this!!!")
 
@@ -1205,13 +1163,9 @@ class EPICTestMeter(object):
         assert len({len(ks), len(noun_topks)}) == 1
         self.stats = {"split": "test_final"}
         for k, verb_topk in zip(ks, verb_topks):
-            self.stats["verb_top{}_acc".format(k)] = "{:.{prec}f}".format(
-                verb_topk, prec=2
-            )
+            self.stats["verb_top{}_acc".format(k)] = "{:.{prec}f}".format(verb_topk, prec=2)
         for k, noun_topk in zip(ks, noun_topks):
-            self.stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(
-                noun_topk, prec=2
-            )
+            self.stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(noun_topk, prec=2)
 
         logging.log_json_stats(self.stats)
         return (
