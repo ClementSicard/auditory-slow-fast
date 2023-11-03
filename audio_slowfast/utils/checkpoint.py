@@ -156,7 +156,23 @@ def load_checkpoint(
     with PathManager.open(path_to_checkpoint, "rb") as f:
         checkpoint = torch.load(f, map_location="cpu")
     model_state_dict = model.module.state_dict() if data_parallel else model.state_dict()
+    if len(model_state_dict.keys()) != len(checkpoint["model_state"].keys()):
+        logger.warning(f"1. The model state dict does not match!")
+        logger.debug(
+            f"Keys present in checkpoint but not in model_state: {sorted(set(checkpoint['model_state'].keys()).difference(set(model_state_dict.keys())))}"
+        )
+        logger.debug(
+            f"Keys present in model_state but not in checkpoint: {sorted(set(model_state_dict.keys()).difference(set(checkpoint['model_state'].keys())))}"
+        )
     checkpoint["model_state"] = normal_to_sub_bn(checkpoint["model_state"], model_state_dict)
+    if len(model_state_dict.keys()) != len(checkpoint["model_state"].keys()):
+        logger.warning(f"2. The model state dict does not match!")
+        logger.debug(
+            f"Keys present in checkpoint but not in model_state: {sorted(set(checkpoint['model_state'].keys()).difference(set(model_state_dict.keys())))}"
+        )
+        logger.debug(
+            f"Keys present in model_state but not in checkpoint: {sorted(set(model_state_dict.keys()).difference(set(checkpoint['model_state'].keys())))}"
+        )
     if clear_name_pattern:
         for item in clear_name_pattern:
             model_state_dict_new = OrderedDict()
@@ -169,6 +185,14 @@ def load_checkpoint(
                     model_state_dict_new[k] = checkpoint["model_state"][k]
             checkpoint["model_state"] = model_state_dict_new
 
+    if len(model_state_dict.keys()) != len(checkpoint["model_state"].keys()):
+        logger.warning(f"3. The model state dict does not match!")
+        logger.debug(
+            f"Keys present in checkpoint but not in model_state: {sorted(set(checkpoint['model_state'].keys()).difference(set(model_state_dict.keys())))}"
+        )
+        logger.debug(
+            f"Keys present in model_state but not in checkpoint: {sorted(set(model_state_dict.keys()).difference(set(checkpoint['model_state'].keys())))}"
+        )
     pre_train_dict = checkpoint["model_state"]
     model_dict = ms.state_dict()
     # Match pre-trained weights that have same shape as current model.
@@ -178,9 +202,10 @@ def load_checkpoint(
     # Weights that do not have match from the pre-trained model.
     not_load_layers = [k for k in model_dict.keys() if k not in pre_train_dict_match.keys()]
     # Log weights that are not loaded with the pre-trained weights.
+
     if not_load_layers:
         for k in not_load_layers:
-            logger.info("Network weights {} not loaded.".format(k))
+            logger.warning(f"Network weights {k} not loaded.")
     # Load pre-trained weights.
     ms.load_state_dict(pre_train_dict_match, strict=False)
 

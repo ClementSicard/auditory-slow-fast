@@ -29,7 +29,7 @@ MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "configs")
 DEFAULT_CONFIG = os.path.join(CONFIG_DIR, "EPIC-KITCHENS/SLOWFAST_R50.yaml")
-DEFAULT_MODEL = os.path.join(MODEL_DIR, "SLOWFAST_EPIC.pyth")
+DEFAULT_MODEL = os.path.join(MODEL_DIR, "SLOWFAST_EPIC_fixed.pyth")
 
 
 class AudioSlowFast(nn.Module):
@@ -100,7 +100,7 @@ class AudioSlowFast(nn.Module):
         logger.info(f"Number of classes: {self.num_classes}")
 
         # build and load model
-        cfg.TEST.CHECKPOINT_FILE_PATH = checkpoint
+        # cfg.TEST.CHECKPOINT_FILE_PATH = checkpoint
         cfg.NUM_GPUS = min(cfg.NUM_GPUS, torch.cuda.device_count())
         self.model = build_model(cfg)
 
@@ -111,11 +111,11 @@ class AudioSlowFast(nn.Module):
                 )
 
             # Construct the optimizer.
-            self.optimizer = optim.construct_optimizer(self.model, cfg)
+            self.optimizer = optim.construct_optimizer(self, cfg)
             # Load a checkpoint to resume training if applicable.
-            self.start_epoch = cu.load_train_checkpoint(cfg, self.model, self.optimizer)
+            self.start_epoch = cu.load_train_checkpoint(cfg, self, self.optimizer)
         else:
-            cu.load_test_checkpoint(cfg, self.model)
+            cu.load_test_checkpoint(cfg, self)
 
         self.model.head.__class__ = CustomResNetBasicHead
 

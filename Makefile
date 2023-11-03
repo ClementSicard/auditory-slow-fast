@@ -56,19 +56,19 @@ update:
 bash:
 	@echo "Running interactive bash session"
 	@srun --job-name "interactive bash" \
-		--cpus-per-task 8 \
+		--cpus-per-task 4 \
 		--mem 16G \
-		--time 12:00:00 \
+		--time 2:00:00 \
 		--pty bash
 
 .PHONY: bash-gpu
 bash-gpu:
 	@echo "Running interactive bash session"
 	@srun --job-name "interactive bash" \
-		--cpus-per-task 4 \
+		--cpus-per-task 8 \
 		--mem 16G \
 		--gres gpu:1 \
-		--time 12:00:00 \
+		--time 4:00:00 \
 		--pty bash
 
 .PHONY: queue
@@ -110,8 +110,8 @@ lint: # This target runs the formatter (black), linter (ruff) and sorts imports 
 	@black . --force-exclude ./$(DATA_DIR) --line-length 120 --color
 
 
-.PHONY: test
-test:
+.PHONY: test-code
+test-code:
 	@pytest --ignore-glob $(DATA_DIR) -v --code-highlight yes --capture no
 
 .PHONY: update-deps
@@ -129,6 +129,17 @@ train:
 		--augment \
 		--factor 4.0
 
+.PHONY: test
+test:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	python main.py \
+		--model audio_slowfast \
+		--config config.yaml \
+		--test \
+		--verbs break crush pat shake sharpen smell throw water \
+		--augment \
+		--factor 4.0
+
 .PHONY: reinstall-asf
 reinstall-asf:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
@@ -141,14 +152,14 @@ reload:
 	@rm -rf checkpoints/
 	$(MAKE) train
 
-.PHONY: job
-job:
+.PHONY: job-train
+job-train:
 	@mkdir -p $(LOGS_DIR)
 	@DATE=$$(date +"%Y_%m_%d-%T"); \
 	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-slowfast-train.log"; \
 	sbatch -N 1 \
 	    --ntasks 1 \
-	    --cpus-per-task 4 \
+	    --cpus-per-task 8 \
 		--gres=gpu:v100:1 \
 	    --time 24:00:00 \
 	    --mem 16G \
@@ -159,3 +170,22 @@ job:
 	    --mail-type "BEGIN,END" \
 		--mail-user $(MAIL_ADDRESS) \
 	    --wrap "cd $(REPO_DIR) && make train"
+
+.PHONY: job-test
+job-test:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-slowfast-train.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:v100:1 \
+	    --time 12:00:00 \
+	    --mem 16G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $(JOB_NAME) \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test"

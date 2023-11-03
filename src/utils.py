@@ -40,11 +40,12 @@ def display_gpu_info() -> None:
     command is ran every 2 minutes during training.
     """
     try:
-        used, available = torch.cuda.mem_get_info()
+        free, available = torch.cuda.mem_get_info()
+        used = available - free
         gpu_name = torch.cuda.get_device_name(0)
         logger.warning(
-            f"{gpu_name} - vRAM used: {used / 1024 / 1024:.2f} MB\tvRAM available: "
-            f"{available / 1024 / 1024:.2f} MB ({used / available * 100:.2f}%))"
+            f"{gpu_name}\tvRAM used: {used / 1024 / 1024:.2f} MB\tvRAM available: "
+            f"{free / 1_024 / 1_024:.2f}/{available / 1024 / 1024:.2f} MB ({free / available * 100:.2f}%))"
         )
 
     except Exception as e:

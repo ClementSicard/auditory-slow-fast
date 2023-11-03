@@ -149,10 +149,12 @@ def main(args: Dict[str, Any]) -> None:
         cfg = get_cfg()
         cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
         launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=train)
-        launch_job(cfg=model.cfg, init_method="tcp://localhost:9999", func=test)
+        launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=test)
 
     elif args["test"]:
-        launch_job(cfg=model.cfg, init_method="tcp://localhost:9999", func=test)
+        cfg = get_cfg()
+        cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
+        launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=test)
 
 
 def example(

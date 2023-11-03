@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from fvcore.common.file_io import PathManager
 from loguru import logger
+from audio_slowfast.audio_slowfast import AudioSlowFast
 
 import audio_slowfast.utils.checkpoint as cu
 import audio_slowfast.utils.distributed as du
@@ -184,7 +185,8 @@ def test(cfg):
     logger.info(cfg)
 
     # Build the audio model and print model statistics.
-    model = build_model(cfg)
+    model = AudioSlowFast(cfg=cfg)
+
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
 
