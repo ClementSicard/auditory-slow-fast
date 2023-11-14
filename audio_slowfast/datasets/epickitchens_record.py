@@ -1,6 +1,8 @@
 import time
 from datetime import timedelta
 
+import numpy as np
+
 from .audio_record import AudioRecord
 
 
@@ -14,9 +16,10 @@ def timestamp_to_sec(timestamp):
 
 
 class EpicKitchensAudioRecord(AudioRecord):
-    def __init__(self, tup):
+    def __init__(self, tup, sr=24_000):
         self._index = str(tup[0])
         self._series = tup[1]
+        self._sampling_rate = sr
 
     @property
     def participant(self):
@@ -28,11 +31,11 @@ class EpicKitchensAudioRecord(AudioRecord):
 
     @property
     def start_audio_sample(self):
-        return int(round(timestamp_to_sec(self._series["start_timestamp"]) * 24000))
+        return int(round(timestamp_to_sec(self._series["start_timestamp"]) * self._sampling_rate))
 
     @property
     def end_audio_sample(self):
-        return int(round(timestamp_to_sec(self._series["stop_timestamp"]) * 24000))
+        return int(round(timestamp_to_sec(self._series["stop_timestamp"]) * self._sampling_rate))
 
     @property
     def num_audio_samples(self):
@@ -41,6 +44,18 @@ class EpicKitchensAudioRecord(AudioRecord):
     @property
     def transformation(self):
         return self._series["transformation"]
+
+    @property
+    def num_spectrograms(self):
+        """
+        Calculate the number of 2-second spectrograms needed for the audio segment
+        with a 1-second overlap between consecutive spectrograms.
+        """
+        audio_length = timestamp_to_sec(self._series["stop_timestamp"]) - timestamp_to_sec(
+            self._series["start_timestamp"]
+        )
+        # Calculate the number of spectrograms (each 2 seconds with 1-second overlap)
+        return np.ceil(max((audio_length - 1) / 1, 1))
 
     @property
     def label(self):

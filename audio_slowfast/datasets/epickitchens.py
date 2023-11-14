@@ -77,11 +77,17 @@ class Epickitchens(torch.utils.data.Dataset):
 
         self._audio_records = []
         self._temporal_idx = []
+
+        # Add num spectrograms per audio_segments
+        self._num_spectrograms_list = []
+
         for file in path_annotations_pickle:
             file_df = pd.read_pickle(file)
             for tup in file_df.iterrows():
                 for idx in range(self._num_clips):
-                    self._audio_records.append(EpicKitchensAudioRecord(tup))
+                    self._audio_records.append(
+                        EpicKitchensAudioRecord(tup, sr=self.cfg.AUDIO_DATA.SAMPLING_RATE),
+                    )
                     self._temporal_idx.append(idx)
         assert len(self._audio_records) > 0, "Failed to load EPIC-KITCHENS split {} from {}".format(
             self.mode, path_annotations_pickle

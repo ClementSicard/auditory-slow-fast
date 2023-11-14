@@ -233,6 +233,8 @@ _C.AUDIO_DATA.NUM_FRAMES = 256
 # Number of frequencies of the input spectrogram
 _C.AUDIO_DATA.NUM_FREQUENCIES = 128
 
+# Overlap duration of two consecutive spectrograms, in seconds.
+_C.AUDIO_DATA.SPECTROGRAM_OVERLAP = 1
 
 # ---------------------------------------------------------------------------- #
 # Optimizer options
