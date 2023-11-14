@@ -120,12 +120,12 @@ def prepare_dataset(
         filtered_train_df = augment_data(
             df=filtered_train_df,
             transforms=transforms,
-            factor=3.0,
+            factor=factor,
         )
         filtered_val_df = augment_data(
             df=filtered_val_df,
             transforms=transforms,
-            factor=3.0,
+            factor=factor,
         )
         logger.success("Done augmenting dataset.")
         logger.debug(f"After:\n{filtered_train_df.verb_class.value_counts()=}")

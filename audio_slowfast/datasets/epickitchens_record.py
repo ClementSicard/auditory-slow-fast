@@ -7,11 +7,7 @@ from .audio_record import AudioRecord
 def timestamp_to_sec(timestamp):
     x = time.strptime(timestamp, "%H:%M:%S.%f")
     sec = (
-        float(
-            timedelta(
-                hours=x.tm_hour, minutes=x.tm_min, seconds=x.tm_sec
-            ).total_seconds()
-        )
+        float(timedelta(hours=x.tm_hour, minutes=x.tm_min, seconds=x.tm_sec).total_seconds())
         + float(timestamp.split(".")[-1]) / 100
     )
     return sec

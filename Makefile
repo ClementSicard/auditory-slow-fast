@@ -140,12 +140,6 @@ test:
 		--augment \
 		--factor 4.0
 
-.PHONY: reinstall-asf
-reinstall-asf:
-	@$(CONDA_ACTIVATE) $(VENV_DIR)
-	@pip uninstall audio-slowfast -y
-	@pip install -U --no-cache-dir git+https://github.com/ClementSicard/auditory-slow-fast.git@main
-
 .PHONY: reload
 reload:
 	$(MAKE) reinstall-asf
