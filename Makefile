@@ -58,7 +58,7 @@ bash:
 	@srun --job-name "interactive bash" \
 		--cpus-per-task 4 \
 		--mem 16G \
-		--time 2:00:00 \
+		--time 4:00:00 \
 		--pty bash
 
 .PHONY: bash-gpu

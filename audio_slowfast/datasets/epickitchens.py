@@ -86,7 +86,7 @@ class Epickitchens(torch.utils.data.Dataset):
             for tup in file_df.iterrows():
                 for idx in range(self._num_clips):
                     self._audio_records.append(
-                        EpicKitchensAudioRecord(tup, sr=self.cfg.AUDIO_DATA.SAMPLING_RATE),
+                        EpicKitchensAudioRecord(tup, cfg=self.cfg),
                     )
                     self._temporal_idx.append(idx)
         assert len(self._audio_records) > 0, "Failed to load EPIC-KITCHENS split {} from {}".format(
@@ -123,30 +123,50 @@ class Epickitchens(torch.utils.data.Dataset):
 
         transformation = self._audio_records[index].transformation
 
-        spectrogram = pack_audio(
-            cfg=self.cfg,
-            audio_dataset=self.audio_dataset,
-            audio_record=self._audio_records[index],
-            temporal_sample_index=temporal_sample_index,
-            transform=self.transforms[transformation] if transformation != "none" else None,
-        )
+        slow_spectrograms = []
+        fast_spectrograms = []
 
-        # Normalization.
-        spectrogram = spectrogram.float()
+        num_spectrograms = self._audio_records[index].num_spectrograms
 
-        if self.mode in ["train", "train+val"]:
-            # Data augmentation.
-            # C T F -> C F T
-            spectrogram = spectrogram.permute(0, 2, 1)
-            # SpecAugment
-            spectrogram = combined_transforms(spectrogram)
-            # C F T -> C T F
-            spectrogram = spectrogram.permute(0, 2, 1)
+        for i in range(num_spectrograms):
+            spectrogram = pack_audio(
+                cfg=self.cfg,
+                audio_dataset=self.audio_dataset,
+                audio_record=self._audio_records[index],
+                temporal_sample_index=temporal_sample_index,
+                transform=self.transforms[transformation] if transformation != "none" else None,
+                start_offset=i,
+            )
+
+            # Normalization.
+            spectrogram = spectrogram.float()
+            if self.mode in ["train", "train+val"]:
+                # Data augmentation.
+                # C T F -> C F T
+                spectrogram = spectrogram.permute(0, 2, 1)
+                # SpecAugment
+                spectrogram = combined_transforms(spectrogram)
+                # C F T -> C T F
+                spectrogram = spectrogram.permute(0, 2, 1)
+
+            # Of shape (1, 400, 128), (1, 100, 128)
+            slow_spectrogram, fast_spectrogram = utils.pack_pathway_output(self.cfg, spectrogram)
+
+            slow_spectrograms.append(slow_spectrogram)
+            fast_spectrograms.append(fast_spectrogram)
+
+        stacked_slow_spectrograms = torch.stack(slow_spectrograms, dim=0)
+        stacked_fast_spectrograms = torch.stack(fast_spectrograms, dim=0)
+
+        logger.warning(f"Stacked slow spectrogram shape: {stacked_slow_spectrograms.shape}")
+        logger.warning(f"Stacked fast spectrogram shape: {stacked_fast_spectrograms.shape}")
+
+        spectrograms = [stacked_slow_spectrograms, stacked_fast_spectrograms]
+
         label = self._audio_records[index].label
-        spectrogram = utils.pack_pathway_output(self.cfg, spectrogram)
         metadata = self._audio_records[index].metadata
 
-        return spectrogram, label, index, metadata
+        return spectrograms, label, index, metadata
 
     def __len__(self):
         return len(self._audio_records)

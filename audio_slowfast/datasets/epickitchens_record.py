@@ -4,6 +4,8 @@ from datetime import timedelta
 import numpy as np
 
 from .audio_record import AudioRecord
+from .utils import get_num_spectrogram_frames
+from fvcore.common.config import CfgNode
 
 
 def timestamp_to_sec(timestamp):
@@ -16,10 +18,13 @@ def timestamp_to_sec(timestamp):
 
 
 class EpicKitchensAudioRecord(AudioRecord):
-    def __init__(self, tup, sr=24_000):
+    def __init__(self, tup, cfg: CfgNode):
+        self.cfg = cfg
         self._index = str(tup[0])
         self._series = tup[1]
-        self._sampling_rate = sr
+        self._sampling_rate = cfg.AUDIO_DATA.SAMPLING_RATE
+        self._spectrogram_overlap = cfg.AUDIO_DATA.SPECTROGRAM_OVERLAP
+        self._num_overlap_frames = get_num_spectrogram_frames(self._spectrogram_overlap, self.cfg)
 
     @property
     def participant(self):
@@ -42,20 +47,30 @@ class EpicKitchensAudioRecord(AudioRecord):
         return self.end_audio_sample - self.start_audio_sample
 
     @property
+    def length_in_s(self):
+        return self.num_audio_samples / self._sampling_rate
+
+    @property
     def transformation(self):
         return self._series["transformation"]
 
     @property
     def num_spectrograms(self):
         """
-        Calculate the number of 2-second spectrograms needed for the audio segment
-        with a 1-second overlap between consecutive spectrograms.
+        Calculate the number of `cfg.AUDIO_DATA.CLIP_SECS`-second spectrograms needed for the audio segment
+        with a `cfg.AUDIO_DATA.SPECTROGRAM_OVERLAP`-second overlap between consecutive spectrograms.
+
+        Also include
         """
-        audio_length = timestamp_to_sec(self._series["stop_timestamp"]) - timestamp_to_sec(
-            self._series["start_timestamp"]
+        return int(
+            np.ceil(
+                max(
+                    (self.length_in_s - self._spectrogram_overlap)
+                    / (self.cfg.AUDIO_DATA.CLIP_SECS - self._spectrogram_overlap),
+                    1,
+                )
+            )
         )
-        # Calculate the number of spectrograms (each 2 seconds with 1-second overlap)
-        return np.ceil(max((audio_length - 1) / 1, 1))
 
     @property
     def label(self):

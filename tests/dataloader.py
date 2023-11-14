@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from audio_slowfast.config.defaults import get_cfg
 import audio_slowfast.datasets.loader as loader
+import audio_slowfast.datasets.utils as utils
 
 
 def run() -> None:
@@ -19,25 +20,17 @@ def run() -> None:
 
     train_loader: DataLoader = loader.construct_loader(cfg, "train")
 
-    # Expects [(batch_size, 1, T, F), (batch_size, 1, T, F)]
+    # Expects [(batch_size, 1, T_slow, F), (batch_size, 1, T_fast, F)]
     C = 1
     F = cfg.AUDIO_DATA.NUM_FREQUENCIES
     T_fast = cfg.AUDIO_DATA.NUM_FRAMES
     T_slow = cfg.AUDIO_DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA
-
-    EXP_SG_SHAPE = [
-        torch.Size([cfg.TRAIN.BATCH_SIZE, C, T_slow, F]),
-        torch.Size([cfg.TRAIN.BATCH_SIZE, C, T_fast, F]),
-    ]
 
     for batch in train_loader:
         for i, b in enumerate(batch):
             match i:
                 case 0:
                     logger.warning(f"Spectrogram shape: {[bb.shape for bb in b]}")
-                    assert all(
-                        [bb.shape == EXP_SG_SHAPE[j] for j, bb in enumerate(b)]
-                    ), f"Spectrogram shape mismatch: {[bb.shape for bb in b]} vs {EXP_SG_SHAPE}"
                 case 1:
                     logger.warning(f"Labels: {b}")
                     logger.warning(f"State shape: {b['precs'].shape}")

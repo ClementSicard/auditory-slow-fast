@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import logging
+import numpy as np
 
 import torch
 from torch.utils.data.distributed import DistributedSampler
-
-logger = logging.getLogger(__name__)
+from fvcore.common.config import CfgNode
+from loguru import logger
 
 
 def pack_pathway_output(cfg, spectrogram):
@@ -64,3 +65,17 @@ def loader_worker_init_fn(dataset):
         dataset (torch.utils.data.Dataset): the given dataset.
     """
     return None
+
+
+def get_num_spectrogram_frames(duration: float, cfg: CfgNode) -> int:
+    window_length_ms = cfg.AUDIO_DATA.WINDOW_LENGTH  # in milliseconds
+    hop_length_ms = cfg.AUDIO_DATA.HOP_LENGTH  # in milliseconds
+    sampling_rate = cfg.AUDIO_DATA.SAMPLING_RATE  # samples per second
+
+    # Convert window length and hop length to samples
+    window_length_samples = int(window_length_ms / 1000 * sampling_rate)
+    hop_length_samples = int(hop_length_ms / 1000 * sampling_rate)
+
+    # Calculate the number of frames
+    num_frames = (duration * sampling_rate + 1 - window_length_samples) / hop_length_samples + 1
+    return int(np.ceil(num_frames))

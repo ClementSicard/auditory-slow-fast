@@ -211,6 +211,8 @@ _C.DATA.MULTI_LABEL = False
 # Method to perform the ensemble, options include "sum" and "max".
 _C.DATA.ENSEMBLE_METHOD = "sum"
 
+_C.DATA.ONLY_SYMBOLIC_STATE = False
+
 
 # -----------------------------------------------------------------------------
 # Audio data options
@@ -234,7 +236,7 @@ _C.AUDIO_DATA.NUM_FRAMES = 256
 _C.AUDIO_DATA.NUM_FREQUENCIES = 128
 
 # Overlap duration of two consecutive spectrograms, in seconds.
-_C.AUDIO_DATA.SPECTROGRAM_OVERLAP = 1
+_C.AUDIO_DATA.SPECTROGRAM_OVERLAP = 1.0
 
 # ---------------------------------------------------------------------------- #
 # Optimizer options

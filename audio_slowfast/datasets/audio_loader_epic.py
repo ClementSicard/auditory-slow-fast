@@ -47,6 +47,7 @@ def pack_audio(
     audio_record: EpicKitchensAudioRecord,
     temporal_sample_index: int,
     transform: Optional[BaseWaveformTransform] = None,
+    start_offset: float = 0.0,
 ) -> torch.Tensor:
     """
     Extracts sound features from audio samples of an Epic Kitchens audio record based on the given configuration and
@@ -64,6 +65,8 @@ def pack_audio(
         The temporal sample index.
     `transform`: `Optional[BaseWaveformTransform]`
         The audio transform. By default `None`.
+    `start_offset`: `float`
+        The start offset. By default `0.0`.
 
     Returns
     -------
@@ -71,12 +74,13 @@ def pack_audio(
         The sound features, transformed if `transform` is not `None`.
     """
     samples = audio_dataset[audio_record.untrimmed_video_name][()]
+    start_sample = audio_record.start_audio_sample + start_offset * cfg.AUDIO_DATA.SAMPLING_RATE
     start_idx, end_idx = get_start_end_idx(
         audio_record.num_audio_samples,
         int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)),
         temporal_sample_index,
         cfg.TEST.NUM_ENSEMBLE_VIEWS,
-        start_sample=audio_record.start_audio_sample,
+        start_sample=start_sample,
     )
     spectrogram = _extract_sound_feature(cfg, samples, audio_record, int(start_idx), int(end_idx), transform=transform)
     return spectrogram
