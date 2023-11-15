@@ -63,6 +63,7 @@ class ResNetBasicHead(nn.Module):
             hidden_size=gru_hidden_size,
             num_layers=gru_num_layers,
             batch_first=True,  # Assuming that the first dimension of the input is the batch
+            bidirectional=True,  # To fight hallucinations
         )
 
         if isinstance(num_classes, (list, tuple)):

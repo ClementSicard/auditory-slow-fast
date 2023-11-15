@@ -33,7 +33,6 @@ def run() -> None:
                     logger.warning(f"Spectrogram shape: {[bb.shape for bb in b]}")
                 case 1:
                     logger.warning(f"Labels: {b}")
-                    logger.warning(f"State shape: {b['precs'].shape}")
                 case 2:
                     logger.warning(f"Indices shape: {b}")
                 case 3:

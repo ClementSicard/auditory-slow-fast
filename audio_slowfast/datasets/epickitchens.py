@@ -158,9 +158,6 @@ class Epickitchens(torch.utils.data.Dataset):
         stacked_slow_spectrograms = torch.stack(slow_spectrograms, dim=0)
         stacked_fast_spectrograms = torch.stack(fast_spectrograms, dim=0)
 
-        logger.warning(f"Stacked slow spectrogram shape: {stacked_slow_spectrograms.shape}")
-        logger.warning(f"Stacked fast spectrogram shape: {stacked_fast_spectrograms.shape}")
-
         spectrograms = [stacked_slow_spectrograms, stacked_fast_spectrograms]
 
         label = self._audio_records[index].label

@@ -4,12 +4,48 @@
 """Data loader."""
 
 
+from loguru import logger
 import torch
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data.sampler import RandomSampler
 
 from . import utils as utils
 from .build import build_dataset
+
+
+def epickitchens_collate_fn(batch):
+    # Unzip the batch into separate lists
+    spectrograms, labels, indices, metadata = zip(*batch)
+
+    slow_spectrograms, fast_spectrograms = zip(*spectrograms)
+
+    # Find the maximum num_spectrogram for each type of spectrogram
+    max_num_spectrogram_slow = max([s.shape[0] for s in slow_spectrograms])
+    max_num_spectrogram_fast = max([s.shape[0] for s in fast_spectrograms])
+
+    assert (
+        max_num_spectrogram_slow == max_num_spectrogram_fast
+    ), f"{max_num_spectrogram_slow=} != {max_num_spectrogram_fast=}"
+
+    # 0-pad the first dimension to be of length max_num_spectrogram
+    padded_spectrograms1 = torch.zeros(
+        (len(slow_spectrograms), max_num_spectrogram_slow, *slow_spectrograms[0].shape[1:])
+    )
+    padded_spectrograms2 = torch.zeros(
+        (len(fast_spectrograms), max_num_spectrogram_fast, *fast_spectrograms[0].shape[1:])
+    )
+
+    for i, (s1, s2) in enumerate(zip(slow_spectrograms, fast_spectrograms)):
+        padded_spectrograms1[i, : s1.shape[0], :, :] = s1
+        padded_spectrograms2[i, : s2.shape[0], :, :] = s2
+
+    # Combine padded spectrograms into a tuple
+    padded_spectrograms = (padded_spectrograms1, padded_spectrograms2)
+
+    # Convert other elements of the batch to tensors or appropriate formats
+    indices = torch.tensor(indices)
+
+    return padded_spectrograms, labels, indices, metadata
 
 
 def construct_loader(cfg, split):
@@ -52,7 +88,7 @@ def construct_loader(cfg, split):
         num_workers=cfg.DATA_LOADER.NUM_WORKERS,
         pin_memory=cfg.DATA_LOADER.PIN_MEMORY,
         drop_last=drop_last,
-        collate_fn=None,
+        collate_fn=epickitchens_collate_fn if split in ["train", "train+val"] else None,
         worker_init_fn=utils.loader_worker_init_fn(dataset),
     )
     return loader
