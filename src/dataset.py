@@ -356,7 +356,7 @@ def extend_data(
     copy_df.loc[:, "posts_vec"] = verb_classes.map(lambda vc: vectors[vc]["posts_vec"])
 
     # Add CLIP embeddings for nouns
-    copy_df.loc[:, "noun_clip_embedding"] = copy_df["noun_class"].map(lambda n: clip_embeddings[n]["embedding"])
+    copy_df.loc[:, "noun_embedding"] = copy_df["noun_class"].map(lambda n: clip_embeddings[n]["embedding"])
 
     return copy_df
 
