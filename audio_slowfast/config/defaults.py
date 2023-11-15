@@ -139,6 +139,8 @@ _C.MODEL = CfgNode()
 # Model architecture.
 _C.MODEL.ARCH = "slowfast"
 
+_C.MODEL.CLIP_MODEL = "ViT-B/32"
+
 # Model name
 _C.MODEL.MODEL_NAME = "SlowFast"
 

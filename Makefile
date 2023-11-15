@@ -140,11 +140,6 @@ test:
 		--augment \
 		--factor 4.0
 
-.PHONY: reload
-reload:
-	$(MAKE) reinstall-asf
-	@rm -rf checkpoints/
-	$(MAKE) train
 
 .PHONY: job-train
 job-train:

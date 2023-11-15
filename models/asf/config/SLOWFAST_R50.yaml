@@ -58,6 +58,10 @@ MODEL:
   PRECS_LOSS_FUNC: mse
   POSTS_LOSS_FUNC: mse
   DROPOUT_RATE: 0.5
+
+  # Adds CLIP
+  CLIP_MODEL: ViT-B/32
+
 TEST:
   ENABLE: False
   DATASET: epickitchens

@@ -1,12 +1,14 @@
 import os
 from typing import Any, Callable, Dict, List, Tuple
-
+import clip
+from clip.model import CLIP
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 from loguru import logger
-
+import torch
+from tqdm import tqdm
 from src.pddl import parse_pddl
 from src.transforms import get_transforms
 
@@ -16,6 +18,7 @@ pio.kaleido.scope.mathjax = None
 def prepare_dataset(
     verbs_from_args: List[str],
     verbs_path: str,
+    nouns_path: str,
     train_path: str,
     val_path: str,
     pddl_domain_path: str,
@@ -81,6 +84,12 @@ def prepare_dataset(
     filtered_train_df = train_df[train_df.verb_class.isin(ids)]
     filtered_val_df = val_df[val_df.verb_class.isin(ids)]
 
+    # Load nouns and compute their CLIP embeddings
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    clip_model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
+    nouns = load_nouns(path=nouns_path)
+    clip_embeddings = get_nouns_clip_embeddings(nouns=nouns, model=clip_model)
+
     # Load PDDL domain
     actions, attributes = parse_pddl(domain_path=pddl_domain_path, problem_path=pddl_problem_path)
     assert set(map_ids_verbs.values()).issubset(
@@ -100,23 +109,22 @@ def prepare_dataset(
         for action in actions
     }
 
-    logger.warning(f"Vectors: {vectors}")
     filtered_train_df = extend_data(
         df=filtered_train_df,
         map_ids_verbs=map_ids_verbs,
         vectors=vectors,
+        clip_embeddings=clip_embeddings,
     )
     filtered_val_df = extend_data(
         df=filtered_val_df,
         map_ids_verbs=map_ids_verbs,
         vectors=vectors,
+        clip_embeddings=clip_embeddings,
     )
 
     if augment:
-        logger.warning("Augmenting dataset to balance selected classes...")
-        transforms = get_transforms(p=1.0)
-        logger.debug(f"Before:\n{filtered_train_df.verb_class.value_counts()=}")
-        logger.debug(f"Before:\n{filtered_val_df.verb_class.value_counts()=}")
+        logger.info("Augmenting dataset to balance selected classes...")
+        transforms = get_transforms(p=1.0)  # p = 1.0 to always apply the transforms
         filtered_train_df = augment_data(
             df=filtered_train_df,
             transforms=transforms,
@@ -128,8 +136,6 @@ def prepare_dataset(
             factor=factor,
         )
         logger.success("Done augmenting dataset.")
-        logger.debug(f"After:\n{filtered_train_df.verb_class.value_counts()=}")
-        logger.debug(f"After:\n{filtered_val_df.verb_class.value_counts()=}")
 
     # Save the filtered datasets
     filtered_train_df.to_pickle(os.path.join(os.path.dirname(train_path), "filtered_train.pkl"))
@@ -321,6 +327,7 @@ def extend_data(
     df: pd.DataFrame,
     map_ids_verbs: Dict[int, str],
     vectors: Dict[str, Any],
+    clip_embeddings: Dict[str, torch.Tensor],
 ) -> pd.DataFrame:
     """
     Extends dataset with vectorized pre- and post-conditions for each action.
@@ -333,6 +340,8 @@ def extend_data(
         The mapping between verb IDs and verb classes
     `vectors` : `Dict[str, Any]`
         The vectors for each action
+    `clip_embeddings` : `Dict[str, torch.Tensor]`
+        The CLIP embeddings for each noun
 
     Returns
     -------
@@ -345,6 +354,9 @@ def extend_data(
     copy_df.loc[:, "posts"] = verb_classes.map(lambda vc: vectors[vc]["posts"])
     copy_df.loc[:, "precs_vec"] = verb_classes.map(lambda vc: vectors[vc]["precs_vec"])
     copy_df.loc[:, "posts_vec"] = verb_classes.map(lambda vc: vectors[vc]["posts_vec"])
+
+    # Add CLIP embeddings for nouns
+    copy_df.loc[:, "noun_clip_embedding"] = copy_df["noun_class"].map(lambda n: clip_embeddings[n]["embedding"])
 
     return copy_df
 
@@ -387,7 +399,7 @@ def augment_data(
     df["transformation"] = "none"
 
     augmented_rows = []
-    for _, row in df.iterrows():
+    for _, row in tqdm(df.iterrows(), total=len(df), unit="row"):
         rows = [row.to_dict()]
         c = row["verb_class"]
         t_per_row = t_by_class[c]["t_per_sample"]
@@ -417,6 +429,62 @@ def augment_data(
         augmented_rows.extend(rows)
 
     augmented_df = pd.DataFrame(augmented_rows)
-    logger.debug(f"Augmented dataset class counts:\n{augmented_df.verb_class.value_counts()}")
 
     return augmented_df
+
+
+def load_nouns(path: str) -> pd.DataFrame:
+    """
+    Loads the nouns from the given path and returns a list of them.
+
+    Parameters
+    ----------
+    `path` : `str`
+        The path to the nouns file.
+
+    Returns
+    -------
+    `pd.DataFrame`
+        The list of nouns.
+    """
+    logger.info(f"Loading nouns from {path}")
+    nouns_df = pd.read_csv(path, header=0, index_col=0)
+
+    return nouns_df.key
+
+
+def get_nouns_clip_embeddings(nouns: pd.DataFrame, model: CLIP) -> Dict[str, torch.Tensor]:
+    """
+    Returns the CLIP embeddings for the given nouns.
+
+    Parameters
+    ----------
+    `nouns` : `pd.DataFrame`
+        The list of nouns to get the embeddings for.
+    `model` : `CLIP`
+        The CLIP model.
+
+    Returns
+    -------
+    `Dict[str, torch.Tensor]`
+        The embeddings for the given nouns.
+    """
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Put the embeddings in a dictionary, with the index as key and (name, embedding) as value
+    logger.info("Computing CLIP embeddings for nouns...")
+    with torch.no_grad():
+        noun_embeddings = {
+            i: {
+                "noun": n,
+                "embedding": model.encode_text(clip.tokenize([n]).to(device)),
+            }
+            for i, n in tqdm(
+                nouns.items(),
+                total=len(nouns),
+                unit="noun",
+            )
+        }
+    logger.success("Done computing CLIP embeddings for nouns.")
+
+    return noun_embeddings

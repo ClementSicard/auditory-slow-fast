@@ -7,6 +7,7 @@ models:
 dataset:
   epic:
     verbs: ./data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
+    nouns: ./data/epic-kitchens-100-annotations/EPIC_100_noun_classes.csv
     train: ./data/epic-kitchens-100-annotations/EPIC_100_train.pkl
     val: ./data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
     pddl_domain: ./pddl/domain.pddl
