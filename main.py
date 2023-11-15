@@ -119,7 +119,7 @@ def main(args: Dict[str, Any]) -> None:
         augment=args["augment"],
         factor=args["factor"],
     )
-    exit(0)
+
     attributes = pd.read_csv(meta_config["models"]["audio_slowfast"]["attributes_file"])["attribute"].tolist()
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
