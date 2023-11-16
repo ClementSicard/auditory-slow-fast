@@ -74,7 +74,7 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    for cur_iter, (inputs, labels, _, _) in enumerate(
+    for cur_iter, (inputs, labels, _, noun_embeddings, _) in enumerate(
         # Write to stderr
         tqdm(
             train_loader,
@@ -107,23 +107,8 @@ def train_epoch(
         preds = model(inputs)
         preds = [pred.squeeze(1) for pred in preds]
 
-        if check_prediction(pred=preds[2], threshold=0.1):
-            text = f"Precs < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
-            logger.warning(text)
-            wandb.alert(
-                title="Pre-conditions looking strange",
-                text=text,
-                level=AlertLevel.WARN,
-            )
-
-        if check_prediction(pred=preds[3], threshold=0.1):
-            text = f"Posts < 0.1\n\nPreds:{preds[3]}\nLabels:{labels[3]}"
-            logger.warning(text)
-            wandb.alert(
-                title="Post-conditions looking strange",
-                text=text,
-                level=AlertLevel.WARN,
-            )
+        # Check if the predictions look good or are weird. In this case, send an alert.
+        check_predictions(preds=preds, labels=labels, threshold=0.1)
 
         if isinstance(labels, dict):
             loss, loss_verb, loss_noun, loss_precs, loss_posts = compute_loss(
@@ -351,7 +336,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
 
         preds = model(inputs)
 
-        if check_prediction(pred=preds[2], threshold=0.1):
+        if _check_prediction(pred=preds[2], threshold=0.1):
             text = f"Precs < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
             wandb.alert(
                 title="Val: Pre-conditions looking strange",
@@ -359,7 +344,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
                 level=AlertLevel.WARN,
             )
 
-        if check_prediction(pred=preds[3], threshold=0.1):
+        if _check_prediction(pred=preds[3], threshold=0.1):
             text = f"Posts < 0.1\n\nPreds:{preds[3]}\nLabels:{labels[3]}"
             wandb.alert(
                 title="Val: Post-conditions looking strange",
@@ -820,5 +805,39 @@ def compute_loss(preds: torch.Tensor, labels: torch.Tensor, cfg: CfgNode) -> tor
     return loss, loss_verb, loss_noun, loss_precs, loss_posts
 
 
-def check_prediction(pred: torch.tensor, threshold: float = 0.1) -> bool:
+def _check_prediction(pred: torch.Tensor, threshold: float = 0.1) -> bool:
     return torch.all(torch.abs(pred) <= threshold)
+
+
+def check_predictions(preds: torch.Tensor, labels: torch.Tensor, threshold: float = 0.1):
+    """
+    Check if the predictions are within the threshold and actually look like something.
+
+    Parameters
+    ----------
+    `preds`: `torch.Tensor`
+        The predictions from the model.
+
+    `labels`: `torch.Tensor`
+        The labels for the predictions.
+
+    `threshold`: `float`
+        The threshold to check the predictions against.
+    """
+    if _check_prediction(pred=preds[2], threshold=threshold):
+        text = f"Precs < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
+        logger.warning(text)
+        wandb.alert(
+            title="Pre-conditions looking strange",
+            text=text,
+            level=AlertLevel.WARN,
+        )
+
+    if _check_prediction(pred=preds[3], threshold=threshold):
+        text = f"Posts < 0.1\n\nPreds:{preds[3]}\nLabels:{labels[3]}"
+        logger.warning(text)
+        wandb.alert(
+            title="Post-conditions looking strange",
+            text=text,
+            level=AlertLevel.WARN,
+        )

@@ -45,7 +45,10 @@ def epickitchens_collate_fn(batch):
     # Convert other elements of the batch to tensors or appropriate formats
     indices = torch.tensor(indices)
 
-    return padded_spectrograms, labels, indices, torch.stack(noun_embeddings, dim=0), metadata
+    # Stack noun embeddings
+    stacked_noun_embeddings = torch.stack(noun_embeddings, dim=0)
+
+    return padded_spectrograms, labels, indices, stacked_noun_embeddings, metadata
 
 
 def construct_loader(cfg, split):

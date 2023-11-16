@@ -24,8 +24,8 @@ class ResNetBasicHead(nn.Module):
         pool_size,
         dropout_rate=0.0,
         act_func="softmax",
-        gru_hidden_size=256,
-        gru_num_layers=1,
+        gru_hidden_size=512,
+        gru_num_layers=2,
     ):
         """
         The `__init__` method of any subclass should also contain these

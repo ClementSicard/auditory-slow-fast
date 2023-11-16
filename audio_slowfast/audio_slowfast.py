@@ -164,16 +164,18 @@ class AudioSlowFast(nn.Module):
 
     def forward(
         self,
-        specs,
+        specs: torch.Tensor,
         return_embedding: bool = False,
+        noun_embeddings: Optional[torch.Tensor] = None,
     ) -> torch.Tensor | List[torch.Tensor]:
         """
         Wrapper around the model's forward function.
 
         Parameters
         ----------
-        `specs` : `np.ndarray`
+        `specs` : `torch.Tensor`
             The prepared audio signal.
+
         `return_embedding` : `bool`, optional
             Flag to return the embedding or not, by default `False`
 
@@ -184,10 +186,13 @@ class AudioSlowFast(nn.Module):
         """
         z = self.model(specs)
         y = self.model.head.project_pre_post_conditions(z)
+
         if self.model.training:
             y = [x.view((len(x), -1, s)) for x, s in zip(y, self.num_classes)]
+
         if return_embedding:
             return y, z[:, 0, 0]
+
         return y
 
 
