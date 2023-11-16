@@ -163,7 +163,9 @@ class Epickitchens(torch.utils.data.Dataset):
         label = self._audio_records[index].label
         metadata = self._audio_records[index].metadata
 
-        return spectrograms, label, index, metadata
+        noun_embedding = self._audio_records[index].noun_embedding
+
+        return spectrograms, label, index, noun_embedding, metadata
 
     def __len__(self):
         return len(self._audio_records)

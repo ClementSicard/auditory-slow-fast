@@ -75,11 +75,15 @@ class EpicKitchensAudioRecord(AudioRecord):
     @property
     def label(self):
         return {
-            "verb": self._series["verb_class"] if "verb_class" in self._series else -1,
-            "noun": self._series["noun_class"] if "noun_class" in self._series else -1,
-            "precs": self._series["precs_vec"] if "precs_vec" in self._series else -1,
-            "posts": self._series["posts_vec"] if "posts_vec" in self._series else -1,
+            "verb": self._series["verb_class"],
+            "noun": self._series["noun_class"],
+            "precs": self._series["precs_vec"],
+            "posts": self._series["posts_vec"],
         }
+
+    @property
+    def noun_embedding(self):
+        return self._series["noun_embedding"].reshape(-1)  # (1, 512) -> (512,)
 
     @property
     def metadata(self):

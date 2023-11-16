@@ -112,7 +112,7 @@ lint: # This target runs the formatter (black), linter (ruff) and sorts imports 
 
 .PHONY: test-code
 test-code:
-	@pytest --ignore-glob $(DATA_DIR) -v --code-highlight yes --capture no
+	@JUPYTER_PLATFORM_DIRS=1 pytest --ignore-glob $(DATA_DIR) --ignore-glob audio_slowfast --code-highlight yes -v
 
 .PHONY: update-deps
 update-deps:

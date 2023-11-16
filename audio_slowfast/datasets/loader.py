@@ -15,7 +15,7 @@ from .build import build_dataset
 
 def epickitchens_collate_fn(batch):
     # Unzip the batch into separate lists
-    spectrograms, labels, indices, metadata = zip(*batch)
+    spectrograms, labels, indices, noun_embeddings, metadata = zip(*batch)
 
     slow_spectrograms, fast_spectrograms = zip(*spectrograms)
 
@@ -45,7 +45,7 @@ def epickitchens_collate_fn(batch):
     # Convert other elements of the batch to tensors or appropriate formats
     indices = torch.tensor(indices)
 
-    return padded_spectrograms, labels, indices, metadata
+    return padded_spectrograms, labels, indices, torch.stack(noun_embeddings, dim=0), metadata
 
 
 def construct_loader(cfg, split):

@@ -6,7 +6,9 @@ import argparse
 from loguru import logger
 
 
-def test(text: str) -> str:
+def test() -> str:
+    text = "a photo of a cat"
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
 
