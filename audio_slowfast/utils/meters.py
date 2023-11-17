@@ -542,10 +542,8 @@ class EPICTrainMeter(object):
         self.loss_noun = ScalarMeter(cfg.LOG_PERIOD)
         self.loss_noun_total = 0.0
 
-        self.loss_precs = ScalarMeter(cfg.LOG_PERIOD)
-        self.loss_precs_total = 0.0
-        self.loss_posts = ScalarMeter(cfg.LOG_PERIOD)
-        self.loss_posts_total = 0.0
+        self.loss_state = ScalarMeter(cfg.LOG_PERIOD)
+        self.loss_state_total = 0.0
 
         self.lr = None
         # Current minibatch accuracies (smoothed over a window).
@@ -579,10 +577,8 @@ class EPICTrainMeter(object):
         self.loss_noun.reset()
         self.loss_noun_total = 0.0
 
-        self.loss_precs.reset()
-        self.loss_precs_total = 0.0
-        self.loss_posts.reset()
-        self.loss_posts_total = 0.0
+        self.loss_state.reset()
+        self.loss_state_total = 0.0
 
         self.lr = None
         self.mb_top1_acc.reset()
@@ -641,9 +637,8 @@ class EPICTrainMeter(object):
 
         self.loss_verb.add_value(loss[0])
         self.loss_noun.add_value(loss[1])
-        self.loss_precs.add_value(loss[2])
-        self.loss_posts.add_value(loss[3])
-        self.loss.add_value(loss[4])
+        self.loss_state.add_value(loss[2])
+        self.loss.add_value(loss[3])
         self.lr = lr
 
         # Aggregate stats
@@ -656,9 +651,8 @@ class EPICTrainMeter(object):
         self.num_top5_cor += top5_acc[2] * mb_size
         self.loss_verb_total += loss[0] * mb_size
         self.loss_noun_total += loss[1] * mb_size
-        self.loss_precs_total += loss[2] * mb_size
-        self.loss_posts_total += loss[3] * mb_size
-        self.loss_total += loss[4] * mb_size
+        self.loss_state_total += loss[2] * mb_size
+        self.loss_total += loss[3] * mb_size
         self.num_samples += mb_size
 
     # Done for pre-post ✅
@@ -689,8 +683,7 @@ class EPICTrainMeter(object):
             "top5_acc": self.mb_top5_acc.get_win_median(),
             "verb_loss": self.loss_verb.get_win_median(),
             "noun_loss": self.loss_noun.get_win_median(),
-            "prec_loss": self.loss_precs.get_win_median(),
-            "post_loss": self.loss_posts.get_win_median(),
+            "state_loss": self.loss_state.get_win_median(),
             "loss": self.loss.get_win_median(),
             "lr": self.lr,
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
@@ -714,8 +707,7 @@ class EPICTrainMeter(object):
         top5_acc = self.num_top5_cor / self.num_samples
         avg_loss_verb = self.loss_verb_total / self.num_samples
         avg_loss_noun = self.loss_noun_total / self.num_samples
-        avg_loss_precs = self.loss_precs_total / self.num_samples
-        avg_loss_posts = self.loss_posts_total / self.num_samples
+        avg_loss_state = self.loss_state_total / self.num_samples
         avg_loss = self.loss_total / self.num_samples
         stats = {
             "_type": "train_epoch",
@@ -732,8 +724,7 @@ class EPICTrainMeter(object):
             "top5_acc": top5_acc,
             "verb_loss": avg_loss_verb,
             "noun_loss": avg_loss_noun,
-            "prec_loss": avg_loss_precs,
-            "post_loss": avg_loss_posts,
+            "state_loss": avg_loss_state,
             "loss": avg_loss,
             "lr": self.lr,
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
@@ -789,10 +780,8 @@ class EPICValMeter(object):
         self.all_verb_labels = []
         self.all_noun_preds = []
         self.all_noun_labels = []
-        self.all_precs_preds = []
-        self.all_precs_labels = []
-        self.all_posts_preds = []
-        self.all_posts_labels = []
+        self.all_state_preds = []
+        self.all_state_labels = []
         self.output_dir = cfg.OUTPUT_DIR
 
     # Done for pre-post ✅
@@ -820,10 +809,8 @@ class EPICValMeter(object):
         self.all_verb_labels = []
         self.all_noun_preds = []
         self.all_noun_labels = []
-        self.all_precs_preds = []
-        self.all_precs_labels = []
-        self.all_posts_preds = []
-        self.all_posts_labels = []
+        self.all_state_preds = []
+        self.all_state_labels = []
 
     # Done for pre-post ✅
     def iter_tic(self):
@@ -882,10 +869,8 @@ class EPICValMeter(object):
         self.all_verb_labels.append(labels[0])
         self.all_noun_preds.append(preds[1])
         self.all_noun_labels.append(labels[1])
-        self.all_precs_preds.append(preds[2])
-        self.all_precs_labels.append(labels[2])
-        self.all_posts_preds.append(preds[3])
-        self.all_posts_labels.append(labels[3])
+        self.all_state_preds.append(preds[2])
+        self.all_state_labels.append(labels[2])
 
     # Done for pre-post ✅
     def log_iter_stats(self, cur_epoch, cur_iter):
@@ -996,7 +981,7 @@ class EPICTestMeter(object):
                 include "sum", and "max".
         """
 
-        # num_cls -> 0: verb, 1: noun, 2: precs, 3: posts
+        # num_cls -> 0: verb, 1: noun, 2: state, 3: total loss
         self.iter_timer = Timer()
         self.data_timer = Timer()
         self.net_timer = Timer()
@@ -1006,20 +991,17 @@ class EPICTestMeter(object):
         # Initialize tensors.
         self.verb_audio_preds = torch.zeros((num_audios, num_cls[0]))
         self.noun_audio_preds = torch.zeros((num_audios, num_cls[1]))
-        self.precs_audio_preds = torch.zeros((num_audios, num_cls[2]))
-        self.posts_audio_preds = torch.zeros((num_audios, num_cls[3]))
+        self.state_audio_preds = torch.zeros((num_audios, num_cls[2]))
 
         self.verb_audio_preds_clips = torch.zeros((num_audios, num_clips, num_cls[0]))
         self.noun_audio_preds_clips = torch.zeros((num_audios, num_clips, num_cls[1]))
-        self.precs_audio_preds_clips = torch.zeros((num_audios, num_clips, num_cls[2]))
-        self.posts_audio_preds_clips = torch.zeros((num_audios, num_clips, num_cls[3]))
+        self.state_audio_preds_clips = torch.zeros((num_audios, num_clips, num_cls[2]))
 
         self.verb_audio_labels = torch.zeros((num_audios)).long()
         self.noun_audio_labels = torch.zeros((num_audios)).long()
 
         # (num_audios, num_cls[2]) -> to store the vectors as labels instead of a scalar label
-        self.precs_audio_labels = torch.zeros((num_audios, num_cls[2])).long()
-        self.posts_audio_labels = torch.zeros((num_audios, num_cls[3])).long()
+        self.state_audio_labels = torch.zeros((num_audios, num_cls[2])).long()
 
         self.metadata = np.zeros(num_audios, dtype=object)
         self.clip_count = torch.zeros((num_audios)).long()
@@ -1042,12 +1024,9 @@ class EPICTestMeter(object):
         self.noun_audio_preds_clips.zero_()
         self.noun_audio_labels.zero_()
 
-        self.precs_audio_preds.zero_()
-        self.precs_audio_preds_clips.zero_()
-        self.precs_audio_labels.zero_()
-        self.posts_audio_preds.zero_()
-        self.posts_audio_preds_clips.zero_()
-        self.posts_audio_labels.zero_()
+        self.state_audio_preds.zero_()
+        self.state_audio_preds_clips.zero_()
+        self.state_audio_labels.zero_()
 
         self.metadata.fill(0)
 
@@ -1079,14 +1058,12 @@ class EPICTestMeter(object):
                 )
             self.verb_audio_labels[vid_id] = labels[0][ind]
             self.noun_audio_labels[vid_id] = labels[1][ind]
-            self.precs_audio_labels[vid_id] = labels[2][ind]
-            self.posts_audio_labels[vid_id] = labels[3][ind]
+            self.state_audio_labels[vid_id] = labels[2][ind]
 
             if self.ensemble_method == "sum":
                 self.verb_audio_preds[vid_id] += preds[0][ind]
                 self.noun_audio_preds[vid_id] += preds[1][ind]
-                self.precs_audio_labels[vid_id] += preds[2][ind]
-                self.posts_audio_labels[vid_id] += preds[3][ind]
+                self.state_audio_labels[vid_id] += preds[2][ind]
             elif self.ensemble_method == "max":
                 self.verb_audio_preds[vid_id] = torch.max(self.verb_audio_preds[vid_id], preds[0][ind])
                 self.noun_audio_preds[vid_id] = torch.max(self.noun_audio_preds[vid_id], preds[1][ind])
@@ -1095,8 +1072,7 @@ class EPICTestMeter(object):
             self.verb_audio_preds_clips[vid_id, clip_temporal_id] = preds[0][ind]
             self.noun_audio_preds_clips[vid_id, clip_temporal_id] = preds[1][ind]
 
-            self.precs_audio_preds_clips[vid_id, clip_temporal_id] = preds[2][ind]
-            self.posts_audio_preds_clips[vid_id, clip_temporal_id] = preds[3][ind]
+            self.state_audio_preds_clips[vid_id, clip_temporal_id] = preds[2][ind]
 
             self.metadata[vid_id] = metadata["narration_id"][ind]
             self.clip_count[vid_id] += 1
@@ -1172,20 +1148,17 @@ class EPICTestMeter(object):
             (
                 self.verb_audio_preds.numpy().copy(),
                 self.noun_audio_preds.numpy().copy(),
-                self.precs_audio_preds.numpy().copy(),
-                self.posts_audio_preds.numpy().copy(),
+                self.state_audio_preds.numpy().copy(),
             ),
             (
                 self.verb_audio_preds_clips.numpy().copy(),
                 self.noun_audio_preds_clips.numpy().copy(),
-                self.precs_audio_preds_clips.numpy().copy(),
-                self.posts_audio_preds_clips.numpy().copy(),
+                self.state_audio_preds_clips.numpy().copy(),
             ),
             (
                 self.verb_audio_labels.numpy().copy(),
                 self.noun_audio_labels.numpy().copy(),
-                self.precs_audio_labels.numpy().copy(),
-                self.posts_audio_labels.numpy().copy(),
+                self.state_audio_labels.numpy().copy(),
             ),
             self.metadata.copy(),
         )

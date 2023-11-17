@@ -5,11 +5,12 @@
 
 import torch
 import torch.nn as nn
+import pandas as pd
 from loguru import logger
 
 import audio_slowfast.utils.weight_init_helper as init_helper
 from audio_slowfast.models.batchnorm_helper import get_norm
-from audio_slowfast.custom_resnet_head import GRUResNetBasicHead
+from audio_slowfast.models.gru_head_helper import GRUResNetBasicHead
 
 from . import head_helper, resnet_helper, stem_helper
 from .build import MODEL_REGISTRY
@@ -365,7 +366,15 @@ class AudioSlowFastGRU(nn.Module):
         """
         super(AudioSlowFastGRU, self).__init__()
         self.norm_module = get_norm(cfg)
-        self.num_pathways = 2
+
+        if cfg.MODEL.PDDL_ATTRIBUTES:
+            self.pddl_attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].to_list()
+            logger.success(f"Loaded PDDL attributes from {cfg.MODEL.PDDL_ATTRIBUTES}")
+            cfg.MODEL.NUM_CLASSES.append(len(self.pddl_attributes))
+        else:
+            logger.warning("No PDDL attributes specified. Using default model.")
+
+        self.num_pathways = 2  # Slow and Fast
         self._construct_network(cfg)
         init_helper.init_weights(self, cfg.MODEL.FC_INIT_STD, cfg.RESNET.ZERO_INIT_FINAL_BN)
 
@@ -539,8 +548,34 @@ class AudioSlowFastGRU(nn.Module):
             act_func=cfg.MODEL.HEAD_ACT,
         )
 
-    def forward(self, x, bboxes=None):
-        x = self.s1(x)
+    def forward(
+        self,
+        x: torch.Tensor,
+        noun_embeddings: torch.Tensor,
+        bboxes=None,
+    ):
+        """
+        Similar to the original `forward()` method in AudioSlowFast, but with the addition of the noun embeddings.
+        They are used to initialize the hidden state of the GRU at each step.
+        """
+        # Reshape x for each pathway
+        reshaped_x = []
+        for pathway_x in x:
+            B, N, C, T, F = pathway_x.shape  # Extract dimensions
+            logger.debug(f"{B=}, {N=}, {C=}, {T=}, {F=}")
+            # Reshape to (batch_size * n_sequence, channels, time, frequency)
+            pathway_x_reshaped = pathway_x.view(B * N, C, T, F)
+            reshaped_x.append(pathway_x_reshaped)
+            assert pathway_x_reshaped.shape == (
+                B * N,
+                C,
+                T,
+                F,
+            ), f"Expected {B * N, C, T, F}, got {pathway_x_reshaped.shape}"
+
+        logger.warning([xx.shape for xx in reshaped_x])
+
+        x = self.s1(reshaped_x)
         x = self.s1_fuse(x)
         x = self.s2(x)
         x = self.s2_fuse(x)
@@ -552,7 +587,7 @@ class AudioSlowFastGRU(nn.Module):
         x = self.s4(x)
         x = self.s4_fuse(x)
         x = self.s5(x)
-        x = self.head(x)
+        x = self.head(x, noun_embeddings=noun_embeddings)
         return x
 
     def freeze_fn(self, freeze_mode):

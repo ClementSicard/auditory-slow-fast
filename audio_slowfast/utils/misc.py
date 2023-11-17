@@ -85,19 +85,33 @@ def _get_model_analysis_input(cfg):
         inputs: the input for model analysis.
     """
     spectrogram_dimension = 1
-    input_tensors = torch.rand(
-        spectrogram_dimension,
-        cfg.AUDIO_DATA.NUM_FRAMES,
-        cfg.AUDIO_DATA.NUM_FREQUENCIES,
-    )
-    model_inputs = pack_pathway_output(cfg, input_tensors)
+    n_spectrograms = 4
+    input_tensors = [
+        torch.rand(
+            n_spectrograms,
+            spectrogram_dimension,
+            cfg.AUDIO_DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA,
+            cfg.AUDIO_DATA.NUM_FREQUENCIES,
+        ),
+        torch.rand(
+            n_spectrograms,
+            spectrogram_dimension,
+            cfg.AUDIO_DATA.NUM_FRAMES,
+            cfg.AUDIO_DATA.NUM_FREQUENCIES,
+        ),
+    ]
+
+    # Add an extra 3rd dimension for n_spectrograms
+    model_inputs = input_tensors.copy()
+
     for i in range(len(model_inputs)):
         model_inputs[i] = model_inputs[i].unsqueeze(0)
         if cfg.NUM_GPUS:
             model_inputs[i] = model_inputs[i].cuda(non_blocking=True)
 
-    inputs = (model_inputs,)
-    return inputs
+    logger.warning(f"{[xx.shape for xx in model_inputs]}")
+
+    return model_inputs
 
 
 def get_model_stats(model, cfg, mode):
@@ -127,7 +141,7 @@ def get_model_stats(model, cfg, mode):
     model_mode = model.training
     model.eval()
     inputs = _get_model_analysis_input(cfg)
-    count_dict, *_ = model_stats_fun(model, inputs)
+    count_dict, *_ = model_stats_fun(model, (inputs, torch.zeros((10, 512))))
     count = sum(count_dict.values())
     model.train(model_mode)
     return count

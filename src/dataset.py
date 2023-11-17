@@ -24,6 +24,7 @@ def prepare_dataset(
     pddl_domain_path: str,
     pddl_problem_path: str,
     save_attributes_path: str,
+    nouns_embeddings_path: str,
     make_plots: bool = False,
     augment: bool = True,
     factor: float = 1.0,
@@ -37,24 +38,40 @@ def prepare_dataset(
 
     Parameters
     ----------
+
     `verbs_from_args` : `List[str]`
         The list of verbs to keep, passed by CLI arguments.
+
     `verbs_path` : `str`
         The path to the verbs file.
+
+    `nouns_path` : `str`
+        The path to the nouns file
+
     `train_path` : `str`
         The path to the training annotations
+
     `val_path` : `str`
         The path to the validation annotations
+
     `pddl_domain_path` : `str`
         The path to the PDDL domain file
+
     `pddl_problem_path` : `str`
         The path to the PDDL problem file
+
     `save_attributes_path` : `str`
         The path to the file where to save the attributes
+
+    `nouns_embeddings_path` : `str`
+        The path to the file where to save the nouns embeddings
+
     `make_plots` : `bool`, optional
         Whether to make plots or not, by default `False`
+
     `augment` : `bool`, optional
         Whether to augment the dataset or not, by default `True`
+
     `factor` : `float`, optional
         The factor to use for augmentation, by default `1.0`.
     """
@@ -88,7 +105,7 @@ def prepare_dataset(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     clip_model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
     nouns = load_nouns(path=nouns_path)
-    clip_embeddings = get_nouns_clip_embeddings(nouns=nouns, model=clip_model)
+    clip_embeddings = get_nouns_clip_embeddings(nouns=nouns, model=clip_model, path=nouns_embeddings_path)
 
     # Load PDDL domain
     actions, attributes = parse_pddl(domain_path=pddl_domain_path, problem_path=pddl_problem_path)
@@ -453,7 +470,7 @@ def load_nouns(path: str) -> pd.DataFrame:
     return nouns_df.key
 
 
-def get_nouns_clip_embeddings(nouns: pd.DataFrame, model: CLIP) -> Dict[str, torch.Tensor]:
+def get_nouns_clip_embeddings(nouns: pd.DataFrame, model: CLIP, path: str) -> Dict[str, torch.Tensor]:
     """
     Returns the CLIP embeddings for the given nouns.
 
@@ -469,6 +486,10 @@ def get_nouns_clip_embeddings(nouns: pd.DataFrame, model: CLIP) -> Dict[str, tor
     `Dict[str, torch.Tensor]`
         The embeddings for the given nouns.
     """
+    if os.path.exists(path):
+        logger.info(f"Loading CLIP embeddings for nouns from {path}")
+        return pd.read_pickle(path).to_dict(orient="index")
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Put the embeddings in a dictionary, with the index as key and (name, embedding) as value
@@ -485,6 +506,9 @@ def get_nouns_clip_embeddings(nouns: pd.DataFrame, model: CLIP) -> Dict[str, tor
                 unit="noun",
             )
         }
-    logger.success("Done computing CLIP embeddings for nouns.")
+
+    # Save the embeddings
+    pd.DataFrame.from_dict(noun_embeddings, orient="index").to_pickle(path)
+    logger.success(f"Done computing CLIP embeddings for nouns. Saved to '{path}'")
 
     return noun_embeddings

@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 from typing import Any, Dict, List
-
+from time import sleep
 import librosa
 import pandas as pd
 import torch
@@ -105,21 +105,21 @@ def main(args: Dict[str, Any]) -> None:
     """
     meta_config = load_config(args["config"])
 
-    # Prepare the dataset
-    prepare_dataset(
-        verbs_from_args=args["verbs"],
-        nouns_path=meta_config["dataset"]["epic"]["nouns"],
-        verbs_path=meta_config["dataset"]["epic"]["verbs"],
-        train_path=meta_config["dataset"]["epic"]["train"],
-        val_path=meta_config["dataset"]["epic"]["val"],
-        make_plots=args["make_plots"],
-        pddl_domain_path=meta_config["dataset"]["epic"]["pddl_domain"],
-        pddl_problem_path=meta_config["dataset"]["epic"]["pddl_problem"],
-        save_attributes_path=meta_config["models"]["audio_slowfast"]["attributes_file"],
-        augment=args["augment"],
-        factor=args["factor"],
-    )
-    exit(1)
+    # # Prepare the dataset
+    # prepare_dataset(
+    #     verbs_from_args=args["verbs"],
+    #     nouns_path=meta_config["dataset"]["epic"]["nouns"],
+    #     verbs_path=meta_config["dataset"]["epic"]["verbs"],
+    #     train_path=meta_config["dataset"]["epic"]["train"],
+    #     val_path=meta_config["dataset"]["epic"]["val"],
+    #     make_plots=args["make_plots"],
+    #     pddl_domain_path=meta_config["dataset"]["epic"]["pddl_domain"],
+    #     pddl_problem_path=meta_config["dataset"]["epic"]["pddl_problem"],
+    #     save_attributes_path=meta_config["models"]["audio_slowfast"]["attributes_file"],
+    #     nouns_embeddings_path=meta_config["dataset"]["epic"]["nouns_embeddings"],
+    #     augment=args["augment"],
+    #     factor=args["factor"],
+    # )
 
     attributes = pd.read_csv(meta_config["models"]["audio_slowfast"]["attributes_file"])["attribute"].tolist()
 
@@ -151,6 +151,13 @@ def main(args: Dict[str, Any]) -> None:
     elif args["train"]:
         cfg = get_cfg()
         cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
+
+        if not torch.cuda.is_available():
+            logger.warning("No GPU found. Running on CPU. Also deactivating WandB reports.")
+            cfg.NUM_GPUS = 0
+            cfg.WANDB.ENABLE = False
+
+        sleep(1)
         launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=train)
 
     elif args["test"]:

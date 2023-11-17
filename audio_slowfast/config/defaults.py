@@ -151,8 +151,7 @@ _C.MODEL.NUM_CLASSES = [
 
 # The vocab files.
 _C.MODEL.VOCAB_FILE = ""
-_C.MODEL.VOCAB_PDDL_PRE_CONDITIONS = ""
-_C.MODEL.VOCAB_PDDL_POST_CONDITIONS = ""
+_C.MODEL.PDDL_ATTRIBUTES = ""
 
 # Loss function.
 _C.MODEL.LOSS_FUNC = "cross_entropy"

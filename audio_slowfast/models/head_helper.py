@@ -24,8 +24,6 @@ class ResNetBasicHead(nn.Module):
         pool_size,
         dropout_rate=0.0,
         act_func="softmax",
-        gru_hidden_size=512,
-        gru_num_layers=2,
     ):
         """
         The `__init__` method of any subclass should also contain these
@@ -56,27 +54,6 @@ class ResNetBasicHead(nn.Module):
             self.dropout = nn.Dropout(dropout_rate)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
-
-        # GRU Module
-        self.gru = nn.GRU(
-            input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
-            hidden_size=gru_hidden_size,
-            num_layers=gru_num_layers,
-            batch_first=True,  # Assuming that the first dimension of the input is the batch
-            bidirectional=True,  # To fight hallucinations
-        )
-
-        if isinstance(num_classes, (list, tuple)):
-            self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
-            self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
-
-            if len(num_classes) == 4:
-                logger.info("Using 4 classification heads")
-
-                self.projection_prec = nn.Linear(sum(dim_in), num_classes[2], bias=True)
-                self.projection_postc = nn.Linear(sum(dim_in), num_classes[3], bias=True)
-        else:
-            self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
         self.num_classes = num_classes
         # Softmax for evaluation and testing.
         if act_func == "softmax":
@@ -85,6 +62,12 @@ class ResNetBasicHead(nn.Module):
             self.act = nn.Sigmoid()
         else:
             raise NotImplementedError("{} is not supported as an activation" "function.".format(act_func))
+
+        if isinstance(num_classes, (list, tuple)):
+            self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
+            self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
+        else:
+            self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
 
     def forward(self, inputs):
         assert len(inputs) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)

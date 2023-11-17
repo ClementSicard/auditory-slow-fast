@@ -1,4 +1,5 @@
 from typing import List
+from loguru import logger
 
 import torch
 import torch.nn as nn
@@ -8,7 +9,7 @@ from audio_slowfast.utils import discretize
 from .models.head_helper import ResNetBasicHead
 
 
-class CustomResNetBasicHead(ResNetBasicHead):
+class GRUResNetBasicHead(ResNetBasicHead):
     """
     ResNet basic head for audio classification.
 
@@ -16,7 +17,39 @@ class CustomResNetBasicHead(ResNetBasicHead):
     auditory_slow_fast/audio_slowfast/models/head_helper.py
     """
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def __init__(
+        self,
+        dim_in,
+        num_classes,
+        pool_size,
+        dropout_rate=0.0,
+        act_func="softmax",
+        gru_hidden_size=512,
+        gru_num_layers=2,
+    ) -> None:
+        super(GRUResNetBasicHead, self).__init__(
+            dim_in=dim_in,
+            num_classes=num_classes,
+            pool_size=pool_size,
+            dropout_rate=dropout_rate,
+            act_func=act_func,
+        )
+        # GRU Module
+        self.gru = nn.GRU(
+            input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
+            hidden_size=gru_hidden_size,
+            num_layers=gru_num_layers,
+            batch_first=True,  # Assuming that the first dimension of the input is the batch
+            bidirectional=True,  # To fight hallucinations
+        )
+
+        if len(num_classes) == 4:
+            logger.info("Using 4 classification heads")
+
+            self.projection_prec = nn.Linear(sum(dim_in), num_classes[2], bias=True)
+            self.projection_postc = nn.Linear(sum(dim_in), num_classes[3], bias=True)
+
+    def forward(self, inputs: torch.Tensor, noun_embeddings: torch.Tensor) -> torch.Tensor:
         """
         Forward function for the ResNet basic head.
 
@@ -24,6 +57,9 @@ class CustomResNetBasicHead(ResNetBasicHead):
         ----------
         `inputs` : `list` of `torch.Tensor`
             List of input tensors.
+
+        `noun_embeddings` : `torch.Tensor`
+            Noun embeddings.
 
         Returns
         -------
@@ -41,6 +77,9 @@ class CustomResNetBasicHead(ResNetBasicHead):
         # Perform dropout.
         if hasattr(self, "dropout"):
             x = self.dropout(x)
+
+        # Pass through GRU
+        x, _ = self.gru(x)
 
         return x
 

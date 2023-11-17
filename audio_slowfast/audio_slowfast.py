@@ -23,7 +23,7 @@ import audio_slowfast.utils.checkpoint as cu
 from audio_slowfast.config.defaults import get_cfg
 from audio_slowfast.models.build import MODEL_REGISTRY
 
-from .custom_resnet_head import CustomResNetBasicHead
+from .custom_resnet_head import GRUResNetBasicHead
 
 MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
 
@@ -70,19 +70,12 @@ class AudioSlowFast(nn.Module):
             self.vocab = json.load(open(cfg.MODEL.VOCAB_FILE))
             logger.success(f"Loaded vocab from {cfg.MODEL.VOCAB_FILE}")
 
-        # Load pre-condition vocab
-        self.vocab_prec = []
-        if cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS:
-            self.vocab_prec = pd.read_csv(cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS)["attribute"].to_list()
-            logger.success(f"Loaded pre-conditions vocab from {cfg.MODEL.VOCAB_PDDL_PRE_CONDITIONS}")
-            self.cfg.MODEL.NUM_CLASSES.append(len(self.vocab_prec))
-
-        # Load post-condition vocab
-        self.vocab_postc = []
-        if cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS:
-            self.vocab_postc = pd.read_csv(cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS)["attribute"].to_list()
-            logger.success(f"Loaded post-conditions vocab from {cfg.MODEL.VOCAB_PDDL_POST_CONDITIONS}")
-            self.cfg.MODEL.NUM_CLASSES.append(len(self.vocab_postc))
+        # Load PDDL attributes
+        self.pddl_attributes = []
+        if cfg.MODEL.PDDL_ATTRIBUTES:
+            self.pddl_attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].to_list()
+            logger.success(f"Loaded PDDL attributes from {cfg.MODEL.PDDL_ATTRIBUTES}")
+            self.cfg.MODEL.NUM_CLASSES.append(len(self.pddl_attributes))
 
         # window params
         window_size = cfg.AUDIO_DATA.WINDOW_LENGTH
@@ -117,7 +110,7 @@ class AudioSlowFast(nn.Module):
         else:
             cu.load_test_checkpoint(cfg, self)
 
-        self.model.head.__class__ = CustomResNetBasicHead
+        self.model.head.__class__ = GRUResNetBasicHead
 
     def prepare_audio(self, y: np.ndarray, sr: int = 24_000) -> np.ndarray:
         """

@@ -50,10 +50,9 @@ SOLVER:
 MODEL:
   NUM_CLASSES: [97, 300] # This will be updated by the pre conditions and post conditions files into a 4-element list
   VOCAB_FILE: models/asf/config/vocab.txt
-  VOCAB_PDDL_PRE_CONDITIONS: models/asf/config/attributes.csv
-  VOCAB_PDDL_POST_CONDITIONS: models/asf/config/attributes.csv
+  PDDL_ATTRIBUTES: models/asf/config/attributes.csv
   ARCH: slowfast
-  MODEL_NAME: SlowFast
+  MODEL_NAME: AudioSlowFastGRU
   LOSS_FUNC: cross_entropy
   PRECS_LOSS_FUNC: mse
   POSTS_LOSS_FUNC: mse
@@ -78,9 +77,9 @@ EPICKITCHENS:
 TENSORBOARD:
   ENABLE: True
   LOG_DIR: tensorboard
-NUM_GPUS: 1
+NUM_GPUS: 0 # MODIFY
 NUM_SHARDS: 1
 RNG_SEED: 0
 OUTPUT_DIR: .
 WANDB:
-  ENABLE: True
+  ENABLE: False # MODIFY

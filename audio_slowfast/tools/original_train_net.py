@@ -3,58 +3,29 @@
 
 """Train an audio classification model."""
 
-from typing import Tuple
-import logging as lg
-import pprint
-import sys
-
 import numpy as np
-import torch
+from scipy.stats import gmean
+import pprint
 import wandb
-from fvcore.common.config import CfgNode
+import torch
 from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
-from loguru import logger
-from tqdm import tqdm
-from wandb import AlertLevel
-from audio_slowfast.models.build import build_model
 
-import audio_slowfast.models.losses as losses
-import audio_slowfast.models.optimizer as optim
-import audio_slowfast.utils.checkpoint as cu
-import audio_slowfast.utils.distributed as du
-import audio_slowfast.utils.logging as logging
-import audio_slowfast.utils.metrics as metrics
-import audio_slowfast.utils.misc as misc
-import audio_slowfast.visualization.tensorboard_vis as tb
-from audio_slowfast.datasets import loader
-from audio_slowfast.utils.meters import (
-    EPICTrainMeter,
-    EPICValMeter,
-    TrainMeter,
-    ValMeter,
-)
-from src.utils import display_gpu_info
+import slowfast.models.losses as losses
+import slowfast.models.optimizer as optim
+import slowfast.utils.checkpoint as cu
+import slowfast.utils.distributed as du
+import slowfast.utils.logging as logging
+import slowfast.utils.metrics as metrics
+import slowfast.utils.misc as misc
+import slowfast.visualization.tensorboard_vis as tb
+from slowfast.datasets import loader
+from slowfast.models import build_model
+from slowfast.utils.meters import TrainMeter, ValMeter, EPICTrainMeter, EPICValMeter
 
-numba_logger = lg.getLogger("numba")
-numba_logger.setLevel(lg.WARNING)
-
-jit_logger = lg.getLogger("fvcore.nn.jit_analysis")
-jit_logger.setLevel(lg.ERROR)
-
-bn_logger = lg.getLogger("fvcore.nn.precise_bn")
-bn_logger.setLevel(lg.ERROR)
+logger = logging.get_logger(__name__)
 
 
-def train_epoch(
-    train_loader,
-    model,
-    optimizer,
-    train_meter,
-    cur_epoch,
-    cfg,
-    writer=None,
-    wandb_log=False,
-):
+def train_epoch(train_loader, model, optimizer, train_meter, cur_epoch, cfg, writer=None, wandb_log=False):
     """
     Perform the audio training for one epoch.
     Args:
@@ -77,29 +48,18 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    for cur_iter, (inputs, labels, _, noun_embeddings, _) in enumerate(
-        # Write to stderr
-        tqdm(
-            train_loader,
-            desc="Epoch: {}/{}".format(cur_epoch + 1, cfg.SOLVER.MAX_EPOCH),
-            unit="batch",
-            file=sys.stderr,
-        ),
-    ):
+    for cur_iter, (inputs, labels, _, _) in enumerate(train_loader):
         # Transfer the data to the current GPU device.
         if cfg.NUM_GPUS:
-            if isinstance(inputs, list):
+            if isinstance(inputs, (list,)):
                 for i in range(len(inputs)):
                     inputs[i] = inputs[i].cuda(non_blocking=True)
             else:
                 inputs = inputs.cuda(non_blocking=True)
-            if isinstance(labels, dict):
+            if isinstance(labels, (dict,)):
                 labels = {k: v.cuda() for k, v in labels.items()}
             else:
                 labels = labels.cuda()
-
-            if cur_iter % cfg.LOG_PERIOD == 0:
-                display_gpu_info()
 
         # Update the learning rate.
         lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
@@ -108,18 +68,18 @@ def train_epoch(
         train_meter.data_toc()
 
         preds = model(inputs)
-        preds = [pred.squeeze(1) for pred in preds]
 
-        # Check if the predictions look good or are weird. In this case, send an alert.
-        check_predictions(preds=preds, labels=labels, threshold=0.1)
+        if isinstance(labels, (dict,)):
+            # Explicitly declare reduction to mean.
+            loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
 
-        if isinstance(labels, dict):
-            loss, loss_verb, loss_noun, loss_state = compute_loss(
-                preds=preds,
-                labels=labels,
-                cfg=cfg,
-            )
+            # Compute the loss.
+            loss_verb = loss_fun(preds[0], labels["verb"])
+            loss_noun = loss_fun(preds[1], labels["noun"])
+            loss = 0.5 * (loss_verb + loss_noun)
 
+            # check Nan Loss.
+            misc.check_nan_losses(loss)
         else:
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
@@ -182,24 +142,11 @@ def train_epoch(
 
             # Update and log stats.
             train_meter.update_stats(
-                top1_acc=(
-                    verb_top1_acc,
-                    noun_top1_acc,
-                    action_top1_acc,
-                ),
-                top5_acc=(
-                    verb_top5_acc,
-                    noun_top5_acc,
-                    action_top5_acc,
-                ),
-                loss=(
-                    loss_verb,
-                    loss_noun,
-                    loss_state.item(),
-                    loss,
-                ),
-                lr=lr,
-                mb_size=inputs[0].size(0)
+                (verb_top1_acc, noun_top1_acc, action_top1_acc),
+                (verb_top5_acc, noun_top5_acc, action_top5_acc),
+                (loss_verb, loss_noun, loss),
+                lr,
+                inputs[0].size(0)
                 * max(cfg.NUM_GPUS, 1),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
             )
             # write to tensorboard format if available.
@@ -212,7 +159,6 @@ def train_epoch(
                         "Train/Top5_acc": action_top5_acc,
                         "Train/verb/loss": loss_verb,
                         "Train/noun/loss": loss_noun,
-                        "Train/state/loss": loss_state,
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
@@ -230,7 +176,6 @@ def train_epoch(
                         "Train/Top5_acc": action_top5_acc,
                         "Train/verb/loss": loss_verb,
                         "Train/noun/loss": loss_noun,
-                        "Train/state/loss": loss_state,
                         "Train/verb/Top1_acc": verb_top1_acc,
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
@@ -336,14 +281,14 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
 
         preds = model(inputs)
 
-        check_predictions(preds=preds, labels=labels, threshold=0.1)
+        if isinstance(labels, (dict,)):
+            # Explicitly declare reduction to mean.
+            loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
 
-        if isinstance(labels, dict):
-            loss, loss_verb, loss_noun, loss_state = compute_loss(
-                preds,
-                labels,
-                cfg,
-            )
+            # Compute the loss.
+            loss_verb = loss_fun(preds[0], labels["verb"])
+            loss_noun = loss_fun(preds[1], labels["noun"])
+            loss = 0.5 * (loss_verb + loss_noun)
 
             # Compute the verb accuracies.
             verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(preds[0], labels["verb"], (1, 5))
@@ -367,7 +312,11 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
                 loss_noun, noun_top1_acc, noun_top5_acc = du.all_reduce([loss_noun, noun_top1_acc, noun_top5_acc])
 
             # Copy the errors from GPU to CPU (sync point).
-            loss_noun, noun_top1_acc, noun_top5_acc = loss_noun.item(), noun_top1_acc.item(), noun_top5_acc.item()
+            loss_noun, noun_top1_acc, noun_top5_acc = (
+                loss_noun.item(),
+                noun_top1_acc.item(),
+                noun_top5_acc.item(),
+            )
 
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
@@ -387,17 +336,9 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
             val_meter.iter_toc()
             # Update and log stats.
             val_meter.update_stats(
-                top1_acc=(
-                    verb_top1_acc,
-                    noun_top1_acc,
-                    action_top1_acc,
-                ),
-                top5_acc=(
-                    verb_top5_acc,
-                    noun_top5_acc,
-                    action_top5_acc,
-                ),
-                mb_size=inputs[0].size(0)
+                (verb_top1_acc, noun_top1_acc, action_top1_acc),
+                (verb_top5_acc, noun_top5_acc, action_top5_acc),
+                inputs[0].size(0)
                 * max(cfg.NUM_GPUS, 1),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
             )
             # write to tensorboard format if available.
@@ -413,7 +354,6 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
                         "Val/noun/loss": loss_noun,
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
-                        "Val/state/loss": loss_state,
                     },
                     global_step=len(val_loader) * cur_epoch + cur_iter,
                 )
@@ -430,23 +370,11 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
                         "Val/noun/loss": loss_noun,
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
-                        "Val/state/loss": loss_state,
                         "val_step": len(val_loader) * cur_epoch + cur_iter,
                     },
                 )
 
-            val_meter.update_predictions(
-                preds=(
-                    preds[0],
-                    preds[1],
-                    preds[2],
-                ),
-                labels=(
-                    labels["verb"],
-                    labels["noun"],
-                    labels["state"],
-                ),
-            )
+            val_meter.update_predictions((preds[0], preds[1]), (labels["verb"], labels["noun"]))
 
         else:
             # Explicitly declare reduction to mean.
@@ -513,24 +441,12 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
     is_best_epoch, top1_dict = val_meter.log_epoch_stats(cur_epoch)
     # write to tensorboard format if available.
     if writer is not None:
-        all_verb_preds = [pred.clone().detach() for pred in val_meter.all_verb_preds]
-        all_verb_labels = [label.clone().detach() for label in val_meter.all_verb_labels]
-        all_noun_preds = [pred.clone().detach() for pred in val_meter.all_noun_preds]
-        all_noun_labels = [label.clone().detach() for label in val_meter.all_noun_labels]
-        all_state_preds = [pred.clone().detach() for pred in val_meter.all_state_preds]
-        all_state_labels = [label.clone().detach() for label in val_meter.all_state_labels]
-
+        all_preds = [pred.clone().detach() for pred in val_meter.all_preds]
+        all_labels = [label.clone().detach() for label in val_meter.all_labels]
         if cfg.NUM_GPUS:
-            all_verb_preds = [pred.cpu() for pred in all_verb_preds]
-            all_verb_labels = [label.cpu() for label in all_verb_labels]
-            all_noun_preds = [pred.cpu() for pred in all_noun_preds]
-            all_noun_labels = [label.cpu() for label in all_noun_labels]
-            all_state_preds = [pred.cpu() for pred in all_state_preds]
-            all_state_labels = [label.cpu() for label in all_state_labels]
-
-        writer.plot_eval(preds=all_verb_preds, labels=all_verb_labels, global_step=cur_epoch)
-        writer.plot_eval(preds=all_noun_preds, labels=all_noun_labels, global_step=cur_epoch)
-        writer.plot_eval(preds=all_state_preds, labels=all_state_labels, global_step=cur_epoch)
+            all_preds = [pred.cpu() for pred in all_preds]
+            all_labels = [label.cpu() for label in all_labels]
+        writer.plot_eval(preds=all_preds, labels=all_labels, global_step=cur_epoch)
 
     if writer is not None and not wandb_log:
         if "top1_acc" in top1_dict.keys():
@@ -613,9 +529,7 @@ def train(cfg):
     logger.info(pprint.pformat(cfg))
 
     # Build the audio model and print model statistics.
-    # model = AudioSlowFast(cfg=cfg, train=True)
     model = build_model(cfg)
-    logger.warning(model)
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
 
@@ -640,11 +554,11 @@ def train(cfg):
 
     # Create meters.
     if cfg.TRAIN.DATASET == "epickitchens":
-        train_meter = EPICTrainMeter(epoch_iters=len(train_loader), cfg=cfg)
-        val_meter = EPICValMeter(max_iter=len(val_loader), cfg=cfg)
+        train_meter = EPICTrainMeter(len(train_loader), cfg)
+        val_meter = EPICValMeter(len(val_loader), cfg)
     else:
-        train_meter = TrainMeter(epoch_iters=len(train_loader), cfg=cfg)
-        val_meter = ValMeter(max_iter=len(val_loader), cfg=cfg)
+        train_meter = TrainMeter(len(train_loader), cfg)
+        val_meter = ValMeter(len(val_loader), cfg)
 
     # set up writer for logging to Tensorboard format.
     if cfg.TENSORBOARD.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
@@ -655,12 +569,7 @@ def train(cfg):
     if cfg.WANDB.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
         wandb_log = True
         if cfg.TRAIN.AUTO_RESUME and cfg.WANDB.RUN_ID != "":
-            wandb.init(
-                project="slowfast",
-                config=cfg,
-                sync_tensorboard=True,
-                resume=cfg.WANDB.RUN_ID,
-            )
+            wandb.init(project="slowfast", config=cfg, sync_tensorboard=True, resume=cfg.WANDB.RUN_ID)
         else:
             wandb.init(project="slowfast", config=cfg, sync_tensorboard=True)
         wandb.watch(model)
@@ -673,23 +582,10 @@ def train(cfg):
 
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
         # Shuffle the dataset.
-        logger.info(f"Epoch {cur_epoch} started. Shuffling dataset.")
         loader.shuffle_dataset(train_loader, cur_epoch)
-        logger.success("Done!")
 
-        logger.info(f"Training for epoch {cur_epoch}.")
         # Train for one epoch.
-        train_epoch(
-            train_loader,
-            model,
-            model.optimizer,
-            train_meter,
-            cur_epoch,
-            cfg,
-            writer,
-            wandb_log,
-        )
-        logger.success(f"Done training for epoch {cur_epoch}!")
+        train_epoch(train_loader, model, optimizer, train_meter, cur_epoch, cfg, writer, wandb_log)
 
         is_checkp_epoch = cu.is_checkpoint_epoch(
             cfg,
@@ -702,125 +598,22 @@ def train(cfg):
 
         # Compute precise BN stats.
         if (is_checkp_epoch or is_eval_epoch) and cfg.BN.USE_PRECISE_STATS and len(get_bn_modules(model)) > 0:
-            logger.info(f"Computing precise BN stats for epoch {cur_epoch}.")
             calculate_and_update_precise_bn(
                 precise_bn_loader,
                 model,
                 min(cfg.BN.NUM_BATCHES_PRECISE, len(precise_bn_loader)),
                 cfg.NUM_GPUS > 0,
             )
-            logger.info(f"Computing precise BN stats for epoch {cur_epoch}.")
         _ = misc.aggregate_sub_bn_stats(model)
 
         # Save a checkpoint.
         if is_checkp_epoch:
-            logger.info(f"Saving a checkpoint for epoch {cur_epoch}.")
             cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg)
-            logger.success(f"Done saving a checkpoint for epoch {cur_epoch}.")
         # Evaluate the model on validation set.
         if is_eval_epoch:
-            logger.info(f"Evaluating the model for epoch {cur_epoch}.")
             is_best_epoch, _ = eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer, wandb_log)
-            logger.success(f"Done evaluating the model for epoch {cur_epoch}!")
             if is_best_epoch:
-                logger.success(f"Saving a best checkpoint for epoch {cur_epoch}.")
-                cu.save_checkpoint(
-                    cfg.OUTPUT_DIR,
-                    model,
-                    optimizer,
-                    cur_epoch,
-                    cfg,
-                    is_best_epoch=is_best_epoch,
-                )
+                cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg, is_best_epoch=is_best_epoch)
 
     if writer is not None:
         writer.close()
-
-    logger.success("Training complete! 🎉")
-
-
-"""
-Custom code for the new loss involving state.
-"""
-
-
-def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-    """
-    Compute the loss for the given predictions and labels.
-    Args:
-        preds (tensor): the logits from the model output.
-        labels (tensor): the labels.
-    Returns:
-        loss (tensor): the loss.
-    """
-    assert preds.shape == labels.shape, f"Shapes must match: {preds.shape=} {labels.shape=}"
-
-    bce = losses.get_loss_func("bce")(reduction="mean")
-    mse = losses.get_loss_func("mse")(reduction="mean")
-
-    abs_preds = torch.abs(preds)
-    abs_labels = torch.abs(labels)
-
-    # Get the indices where the abs_labels are 1
-    pos_mask_indices = abs_labels.nonzero(as_tuple=True)
-
-    bce_term = bce(abs_preds, abs_labels)
-    mse_term = mse(preds[pos_mask_indices], labels[pos_mask_indices])
-
-    return bce_term + mse_term
-
-
-def compute_loss(preds: torch.Tensor, labels: torch.Tensor, cfg: CfgNode) -> Tuple[torch.Tensor, ...]:
-    # Explicitly declare reduction to mean.
-    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-
-    loss_verb = loss_fun(preds[0], labels["verb"])
-    loss_noun = loss_fun(preds[1], labels["noun"])
-
-    #! TODO
-    loss_state = compute_masked_loss(preds[2], ...)
-
-    # Use torch.mean to average the losses over all GPUs for logging purposes.
-    loss_vec = torch.stack(
-        [
-            loss_verb,
-            loss_noun,
-            loss_state,
-        ]
-    )
-
-    loss = torch.mean(loss_vec)
-
-    # check Nan Loss.
-    misc.check_nan_losses(loss)
-
-    return loss, loss_verb, loss_noun, loss_state
-
-
-def _check_prediction(pred: torch.Tensor, threshold: float = 0.1) -> bool:
-    return torch.all(torch.abs(pred) <= threshold)
-
-
-def check_predictions(preds: torch.Tensor, labels: torch.Tensor, threshold: float = 0.1):
-    """
-    Check if the state predictions are within the threshold and actually look like something.
-
-    Parameters
-    ----------
-    `preds`: `torch.Tensor`
-        The predictions from the model.
-
-    `labels`: `torch.Tensor`
-        The labels for the predictions.
-
-    `threshold`: `float`
-        The threshold to check the predictions against.
-    """
-    if _check_prediction(pred=preds[2], threshold=threshold):
-        text = f"State < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
-        logger.warning(text)
-        wandb.alert(
-            title="State looking strange",
-            text=text,
-            level=AlertLevel.WARN,
-        )
