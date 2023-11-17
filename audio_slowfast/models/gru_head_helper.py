@@ -1,4 +1,3 @@
-from typing import List
 from loguru import logger
 
 import torch
@@ -65,6 +64,9 @@ class GRUResNetBasicHead(nn.Module):
             bidirectional=True,  # To prevent labelling of empty frames
         )
 
+        # Project back the GRU output to the number features of the input
+        self.project_to_clip_space = nn.Linear(gru_hidden_size * 2, gru_hidden_size, bias=True)
+        self.project_to_dim_in = nn.Linear(gru_hidden_size, sum(dim_in), bias=True)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
         assert (
@@ -90,7 +92,12 @@ class GRUResNetBasicHead(nn.Module):
         # State vectors use tanh activation to fall in the range [-1, 1]
         self.state_act = nn.Tanh()
 
-    def forward(self, inputs: torch.Tensor, noun_embeddings: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        noun_embeddings: torch.Tensor,
+        initial_batch_shape: torch.Size,
+    ) -> torch.Tensor:
         """
         Forward function for the GRU ResNet head. It first passes the spectrograms embeddings through the GRU to output
         a temporal sequence. The GRU is initialized with the nouns CLIP embeddings to focus attention to specific objects.
@@ -113,19 +120,9 @@ class GRUResNetBasicHead(nn.Module):
         if hasattr(self, "dropout"):
             x = self.dropout(x)
 
-        # GRU Module
-        # Reshape noun_embeddings to be (2 * num_gpu_layers, batch_size, embedding_size)
-        bidirectional_coef = 2 if self.gru.bidirectional else 1
-        hidden_state_init = noun_embeddings.unsqueeze(0).repeat(bidirectional_coef * self.gru_num_layers, 1, 1)
+        self._gru(x=x, noun_embeddings=noun_embeddings, initial_batch_shape=initial_batch_shape)
 
-        # Feed each spectrogram to the GRU, with the initial hidden state being the noun embeddings.
-        # The GRU expects a tensor of the shape (batch, seq_len, n_features)
-
-        # x is of shape (batch * seq_len, 1, 1, n_features_asf)
-        logger.debug(f"GRU input shape: {x.shape}")
-
-        x, _ = self.gru(x, hx=hidden_state_init)
-
+        logger.info(f"Projection input shape: {x.shape}")
         if isinstance(self.num_classes, (list, tuple)):
             x_v = self.projection_verb(x)
             x_n = self.projection_noun(x)
@@ -150,4 +147,71 @@ class GRUResNetBasicHead(nn.Module):
             x = x.mean([1, 2])
 
         x = x.view(x.shape[0], -1)
+        return x
+
+    def _gru(
+        self,
+        x: torch.Tensor,
+        noun_embeddings: torch.Tensor,
+        initial_batch_shape: torch.Size,
+    ) -> torch.Tensor:
+        """
+        From Table 1 of the paper (https://arxiv.org/pdf/2103.03516.pdf), n_features_asf = 2304
+        (2048 (Slow) + 256 (Fast)) just before pooling, concatenation and FC layers for classification.
+
+        - The GRU expects a tensor of the shape $(B, N, n_features_asf)$, but in the
+        forward function of the model, we reshape the input tensor of shape (B, N, C=1, T, F)
+        to a tensor of shape (B*N, C=1, T, F). We then need to reshape it back to (B, N, n_features_asf)
+        before passing it to the GRU.
+        - n_features_asf is the number of features at the output of the ResNet module, which is 2304.
+
+        The input vector of the GRUResNetBasicHead is of shape (B*N, 1, 1, n_features_asf). We perform
+        the following operations:
+
+        1. Squeeze it: (B*N, 1, 1, n_features_asf) -> (B*N, n_features_asf)
+        2. View it: (B*N, n_features_asf) -> (B, N, n_features_asf)
+        3. Pass it through the GRU. Output of the GRU is (B, N, D * gru_hidden_size) = (B, N, 2 * 512)
+        4. Reshape it back: (B, N, 1024) -> (B*N, 1024)
+        5. Unsqueeze it to add the channel dimension: (B*N, 1024) -> (B*N, 1, 1, 1024)
+        6. Project it back to CLIP embedding space: (B*N, 1, 1, 1024) -> (B*N, 1, 1, 512)
+        7. Project it back to the number of features of the input:
+           (B*N, 1, 1, 512) -> (B*N, 1, 1, n_features_asf)
+        """
+        # Reshape noun_embeddings to be (2 * num_gpu_layers, batch_size, embedding_size)
+        B, N = initial_batch_shape
+        D = 2 if self.gru.bidirectional else 1
+
+        logger.warning(f"Initial noun embedding shape: {noun_embeddings.shape}")
+        h_0 = noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1)
+        logger.warning(f"h_0 shape: {h_0.shape}")
+
+        # x is of shape (batch * seq_len, 1, 1, n_features_asf)
+        logger.debug(f"GRU input shape: {x.shape}")
+
+        # (B*N, 1, 1, n_features_asf) -> (B*N, n_features_asf)
+        x = x.squeeze()
+
+        # (B*N, n_features_asf) -> (B, N, n_features_asf)
+        x = x.view(B, N, *x.shape[1:])
+        logger.debug(f"GRU input shape after view: {x.shape}")
+
+        # Pass the transformed batch through the GRU
+        # (B, N, D * gru_hidden_size) = (B, N, 2 * 512)
+        x, _ = self.gru(x, hx=h_0)
+
+        # (B, N, 1024) -> (B*N, 1024)
+        x = x.view(B * N, *x.shape[2:])
+        logger.debug(f"GRU output shape: {x.shape}")
+
+        # (B*N, 1024) -> (B*N, 1, 1, 1024)
+        x = x.unsqueeze(1).unsqueeze(1)
+
+        # Project it back to CLIP embedding space
+        # (B*N, 1, 1, 1024) -> (B*N, 1, 1, 512)
+        x = self.project_to_clip_space(x)
+
+        # Project it back to the number of features of the input
+        # (B*N, 1, 1, 512) -> (B*N, 1, 1, n_features_asf)
+        x = self.project_to_dim_in(x)
+
         return x

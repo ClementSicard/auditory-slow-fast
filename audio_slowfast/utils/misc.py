@@ -84,30 +84,28 @@ def _get_model_analysis_input(cfg):
     Returns:
         inputs: the input for model analysis.
     """
-    spectrogram_dimension = 1
-    n_spectrograms = 4
+    N = 4  # Number of spectrograms
+    C = 1
+    T_slow = cfg.AUDIO_DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA
+    T_fast = cfg.AUDIO_DATA.NUM_FRAMES
+    F = cfg.AUDIO_DATA.NUM_FREQUENCIES
     input_tensors = [
-        torch.rand(
-            n_spectrograms,
-            spectrogram_dimension,
-            cfg.AUDIO_DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA,
-            cfg.AUDIO_DATA.NUM_FREQUENCIES,
-        ),
-        torch.rand(
-            n_spectrograms,
-            spectrogram_dimension,
-            cfg.AUDIO_DATA.NUM_FRAMES,
-            cfg.AUDIO_DATA.NUM_FREQUENCIES,
-        ),
+        torch.rand(N, C, T_slow, F),
+        torch.rand(N, C, T_fast, F),
     ]
 
-    # Add an extra 3rd dimension for n_spectrograms
     model_inputs = input_tensors.copy()
 
     for i in range(len(model_inputs)):
+        # Create an extra dimension for batch size B (here B=1)
         model_inputs[i] = model_inputs[i].unsqueeze(0)
         if cfg.NUM_GPUS:
             model_inputs[i] = model_inputs[i].cuda(non_blocking=True)
+
+    """
+    We have a list of batches of shape 
+    [(B=1, N, C, T_slow, F), (B=1, N, C, T_fast, F)].
+    """
 
     logger.warning(f"{[xx.shape for xx in model_inputs]}")
 
@@ -141,7 +139,7 @@ def get_model_stats(model, cfg, mode):
     model_mode = model.training
     model.eval()
     inputs = _get_model_analysis_input(cfg)
-    count_dict, *_ = model_stats_fun(model, (inputs, torch.zeros((10, 512))))
+    count_dict, *_ = model_stats_fun(model, (inputs, torch.zeros(512).unsqueeze(0)))
     count = sum(count_dict.values())
     model.train(model_mode)
     return count

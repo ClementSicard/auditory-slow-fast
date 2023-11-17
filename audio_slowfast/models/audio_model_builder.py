@@ -587,7 +587,7 @@ class AudioSlowFastGRU(nn.Module):
         x = self.s4(x)
         x = self.s4_fuse(x)
         x = self.s5(x)
-        x = self.head(x, noun_embeddings=noun_embeddings)
+        x = self.head(x, noun_embeddings=noun_embeddings, initial_batch_shape=(B, N))
         return x
 
     def freeze_fn(self, freeze_mode):

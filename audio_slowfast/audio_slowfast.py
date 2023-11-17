@@ -29,7 +29,7 @@ MODEL_DIR = os.getenv("MODEL_DIR") or "models/asf/weights"
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "configs")
 DEFAULT_CONFIG = os.path.join(CONFIG_DIR, "EPIC-KITCHENS/SLOWFAST_R50.yaml")
-DEFAULT_MODEL = os.path.join(MODEL_DIR, "SLOWFAST_EPIC_fixed.pyth")
+DEFAULT_MODEL = os.path.join(MODEL_DIR, "SLOWFAST_EPIC.pyth")
 
 
 class AudioSlowFast(nn.Module):

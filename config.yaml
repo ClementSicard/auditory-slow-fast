@@ -1,6 +1,6 @@
 models:
   audio_slowfast:
-    weights: ./models/asf/weights/SLOWFAST_EPIC_fixed.pyth
+    weights: ./models/asf/weights/SLOWFAST_EPIC.pyth
     config: ./models/asf/config/SLOWFAST_R50.yaml
     attributes_file: ./models/asf/config/attributes.csv
 
