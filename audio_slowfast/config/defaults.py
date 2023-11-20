@@ -53,6 +53,9 @@ _C.TRAIN.DATASET = "vggsound"
 # Total mini-batch size.
 _C.TRAIN.BATCH_SIZE = 64
 
+# The state label, currently "half" because half of the
+_C.TRAIN.SUPERVISION_TYPE = "half"
+
 # Evaluate model on test data every eval period epochs.
 _C.TRAIN.EVAL_PERIOD = 10
 
@@ -145,9 +148,11 @@ _C.MODEL.CLIP_MODEL = "ViT-B/32"
 _C.MODEL.MODEL_NAME = "SlowFast"
 
 # The number of classes to predict for the model.
-_C.MODEL.NUM_CLASSES = [
-    400,
-]
+_C.MODEL.NUM_CLASSES = [400]
+
+
+_C.MODEL.GRU_HIDDEN_SIZE = 512
+_C.MODEL.GRU_NUM_LAYERS = 2
 
 # The vocab files.
 _C.MODEL.VOCAB_FILE = ""
@@ -155,8 +160,7 @@ _C.MODEL.PDDL_ATTRIBUTES = ""
 
 # Loss function.
 _C.MODEL.LOSS_FUNC = "cross_entropy"
-_C.MODEL.PRECS_LOSS_FUNC = "mse"
-_C.MODEL.POSTS_LOSS_FUNC = "mse"
+_C.MODEL.STATE_LOSS_FUNC = "masked_loss"
 
 # Model architectures that has one single pathway.
 _C.MODEL.SINGLE_PATHWAY_ARCH = ["slow", "fast"]

@@ -4,7 +4,9 @@
 """Data loader."""
 
 
+from typing import Any, List
 from loguru import logger
+import pandas as pd
 import torch
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data.sampler import RandomSampler
@@ -13,7 +15,7 @@ from . import utils as utils
 from .build import build_dataset
 
 
-def epickitchens_collate_fn(batch):
+def epickitchens_collate_fn(batch: List[Any], supervision: str = "half"):
     # Unzip the batch into separate lists
     spectrograms, labels, indices, noun_embeddings, metadata = zip(*batch)
 
@@ -33,9 +35,22 @@ def epickitchens_collate_fn(batch):
     # Stack noun embeddings
     stacked_noun_embeddings = torch.stack(noun_embeddings, dim=0)
 
-    logger.error(f"Labels: {labels=}")
+    # Create a pandas DataFrame for labels
+    grouped_labels = {
+        k: torch.stack(v, dim=0) if isinstance(v[0], torch.Tensor) else torch.tensor(v)
+        for k, v in pd.DataFrame(labels).to_dict("list").items()
+    }
 
-    return padded_spectrograms, lengths, labels, indices, stacked_noun_embeddings, metadata
+    return_tuple = (
+        padded_spectrograms,
+        lengths,
+        grouped_labels,
+        indices,
+        stacked_noun_embeddings,
+        metadata,
+    )
+
+    return return_tuple
 
 
 def construct_loader(cfg, split):
@@ -69,6 +84,7 @@ def construct_loader(cfg, split):
 
     # Create a sampler for multi-process training
     sampler = utils.create_sampler(dataset, shuffle, cfg)
+
     # Create a loader
     loader = torch.utils.data.DataLoader(
         dataset,
@@ -78,9 +94,13 @@ def construct_loader(cfg, split):
         num_workers=cfg.DATA_LOADER.NUM_WORKERS,
         pin_memory=cfg.DATA_LOADER.PIN_MEMORY,
         drop_last=drop_last,
-        collate_fn=epickitchens_collate_fn if split in ["train", "train+val"] else None,
+        collate_fn=lambda batch: epickitchens_collate_fn(
+            batch=batch,
+            supervision=cfg.TRAIN.SUPERVISION_TYPE,
+        ),
         worker_init_fn=utils.loader_worker_init_fn(dataset),
     )
+
     return loader
 
 

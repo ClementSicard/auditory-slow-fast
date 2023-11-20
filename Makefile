@@ -114,6 +114,10 @@ lint: # This target runs the formatter (black), linter (ruff) and sorts imports 
 test-code:
 	@JUPYTER_PLATFORM_DIRS=1 pytest --ignore-glob $(DATA_DIR) --ignore-glob audio_slowfast --code-highlight yes -v
 
+.PHONY: test-dataloader
+test-dataloader:
+	@JUPYTER_PLATFORM_DIRS=1 pytest --ignore-glob $(DATA_DIR) --ignore-glob audio_slowfast --code-highlight yes -v
+
 .PHONY: update-deps
 update-deps:
 	@pip install -U -r requirements.txt

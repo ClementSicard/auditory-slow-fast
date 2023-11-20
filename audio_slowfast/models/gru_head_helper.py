@@ -23,6 +23,7 @@ class GRUResNetBasicHead(nn.Module):
         act_func="softmax",
         gru_hidden_size=512,
         gru_num_layers=2,
+        num_frames=400,
     ):
         """
         The `__init__` method of any subclass should also contain these
@@ -48,6 +49,7 @@ class GRUResNetBasicHead(nn.Module):
         self.num_pathways = len(pool_size)
         self.gru_hidden_size = gru_hidden_size
         self.gru_num_layers = gru_num_layers
+        self.num_frames = num_frames
 
         for pathway in range(self.num_pathways):
             avg_pool = nn.AvgPool2d(pool_size[pathway], stride=1)
@@ -66,7 +68,7 @@ class GRUResNetBasicHead(nn.Module):
         )
 
         # Project back the GRU output to the number features of the input
-        self.project_to_dim_in = nn.Linear(gru_hidden_size * 2, sum(dim_in), bias=True)
+        self.projection_to_dim_in = nn.Linear(gru_hidden_size * 2, sum(dim_in), bias=True)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
         assert (
@@ -75,20 +77,27 @@ class GRUResNetBasicHead(nn.Module):
         self.num_classes = num_classes
         self.dim_in = dim_in
 
+        # At this stage, a batch has shape (B * N_s, 1, )
+
         if isinstance(self.num_classes, (list, tuple)):
             self.projection_verb = nn.Linear(sum(self.dim_in), self.num_classes[0], bias=True)
             self.projection_noun = nn.Linear(sum(self.dim_in), self.num_classes[1], bias=True)
-            self.projection_state = nn.Linear(sum(dim_in), self.num_classes[2], bias=True)
+
+            # Will project to [B * N_s, num_frames * num_predicates]
+            self.projection_state = nn.Linear(sum(self.dim_in), self.num_frames * self.num_classes[2], bias=True)
         else:
-            self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
+            self.projection = nn.Linear(sum(self.dim_in), num_classes, bias=True)
         # Softmax for evaluation and testing.
         if act_func == "softmax":
+            # Dimension 3 is the size of the embedding space before the projection.
+            # A batch has the shape (B * N_s, 1, 1, 2304) -> 2304
             self.act = nn.Softmax(dim=3)
         elif act_func == "sigmoid":
             self.act = nn.Sigmoid()
 
         else:
-            raise NotImplementedError("{} is not supported as an activation" "function.".format(act_func))
+            raise NotImplementedError(f"{act_func} is not supported as an activation function")
+
         # State vectors use tanh activation to fall in the range [-1, 1]
         self.state_act = nn.Tanh()
 
@@ -106,6 +115,7 @@ class GRUResNetBasicHead(nn.Module):
 
         "Projecting" here means that we are reducing the dimensionality of the input tensor to the number of classes.
         """
+
         assert len(inputs) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)
         pool_out = []
         for pathway in range(self.num_pathways):
@@ -113,9 +123,12 @@ class GRUResNetBasicHead(nn.Module):
             pool_out.append(m(inputs[pathway]))
 
         x = torch.cat(pool_out, 1)
-
         # (N, C, T, H) -> (N, T, H, C).
         x = x.permute((0, 2, 3, 1))
+
+        """
+        Starting from here, x has shape (B * N_s, 1, 1, n_features_asf)
+        """
 
         # Perform dropout.
         if hasattr(self, "dropout"):
@@ -137,6 +150,22 @@ class GRUResNetBasicHead(nn.Module):
             x_n = self.fc_inference(x_n, self.act)
             # State vectors use tanh activation to fall in the range [-1, 1]
             x_s = self.fc_inference(x_s, self.state_act)
+
+            # Recover N
+            N = initial_batch_shape[1]
+
+            # Reshape each output to (B, N, num_classes)
+            x_v = x_v.view(-1, N, self.num_classes[0])
+            x_n = x_n.view(-1, N, self.num_classes[1])
+            x_s = x_s.view(-1, N, self.num_frames, self.num_classes[2])
+
+            # Average accross dim-1 (0-indexed) for x_v and x_n
+            x_v = x_v.mean(dim=1)
+            x_n = x_n.mean(dim=1)
+
+            logger.error(f"x_v.shape: {x_v.shape}")
+            logger.error(f"x_n.shape: {x_n.shape}")
+            logger.error(f"x_s.shape: {x_s.shape}")
 
             return (x_v, x_n, x_s)
         else:
@@ -204,6 +233,6 @@ class GRUResNetBasicHead(nn.Module):
         # (B, N, 1024) -> (B*N, 1024)
         x = x.view(B * N, *x.shape[2:])
         x = x.unsqueeze(1).unsqueeze(1)
-        x = self.project_to_dim_in(x)
+        x = self.projection_to_dim_in(x)
 
         return x

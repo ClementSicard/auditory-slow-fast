@@ -369,7 +369,7 @@ class AudioSlowFastGRU(nn.Module):
 
         if cfg.MODEL.PDDL_ATTRIBUTES:
             self.pddl_attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].to_list()
-            logger.success(f"Loaded PDDL attributes from {cfg.MODEL.PDDL_ATTRIBUTES}")
+            logger.success(f"Loaded {len(self.pddl_attributes)} PDDL attributes from {cfg.MODEL.PDDL_ATTRIBUTES}.")
             cfg.MODEL.NUM_CLASSES.append(len(self.pddl_attributes))
         else:
             logger.warning("No PDDL attributes specified. Using default model.")
@@ -546,6 +546,9 @@ class AudioSlowFastGRU(nn.Module):
             ],
             dropout_rate=cfg.MODEL.DROPOUT_RATE,
             act_func=cfg.MODEL.HEAD_ACT,
+            num_frames=cfg.AUDIO_DATA.NUM_FRAMES,
+            gru_hidden_size=cfg.MODEL.GRU_HIDDEN_SIZE,
+            gru_num_layers=cfg.MODEL.GRU_NUM_LAYERS,
         )
 
     def forward(

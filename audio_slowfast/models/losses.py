@@ -4,12 +4,14 @@
 """Loss functions."""
 
 import torch.nn as nn
+from audio_slowfast.utils.loss import MaskedLoss
 
 _LOSSES = {
     "cross_entropy": nn.CrossEntropyLoss,
     "bce": nn.BCELoss,
     "bce_logit": nn.BCEWithLogitsLoss,
     "mse": nn.MSELoss,
+    "masked_loss": MaskedLoss,
 }
 
 

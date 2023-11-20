@@ -3,7 +3,7 @@
 
 """Train an audio classification model."""
 
-from typing import Tuple
+from typing import Dict, Tuple
 import logging as lg
 import pprint
 import sys
@@ -117,18 +117,15 @@ def train_epoch(
         # Check if the predictions look good or are weird. In this case, send an alert.
         check_predictions(preds=preds, labels=labels, threshold=0.1)
 
-        logger.error(f"{type(labels)}")
         if isinstance(labels, dict):
-            logger.success("ICI")
             loss, loss_verb, loss_noun, loss_state = compute_loss(
                 preds=preds,
                 labels=labels,
+                lengths=lengths,
                 cfg=cfg,
             )
 
         else:
-            logger.error("ICI")
-
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
 
@@ -781,15 +778,17 @@ def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tens
     return bce_term + mse_term
 
 
-def compute_loss(preds: torch.Tensor, labels: torch.Tensor, cfg: CfgNode) -> Tuple[torch.Tensor, ...]:
+def compute_loss(preds: torch.Tensor, labels: Dict[str, torch.Tensor], cfg: CfgNode) -> Tuple[torch.Tensor, ...]:
+    logger.warning(f"Preds shapes: {[pred.shape for pred in preds]}")
     # Explicitly declare reduction to mean.
     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
+    masked_loss_fun = losses.get_loss_func(cfg.MODEL.STATE_LOSS_FUNC)(reduction="mean")
 
     loss_verb = loss_fun(preds[0], labels["verb"])
     loss_noun = loss_fun(preds[1], labels["noun"])
 
-    #! TODO
-    loss_state = compute_masked_loss(preds[2], ...)
+    #
+    loss_state = masked_loss_fun(preds[2], labels["state"])
 
     # Use torch.mean to average the losses over all GPUs for logging purposes.
     loss_vec = torch.stack(
