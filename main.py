@@ -156,6 +156,9 @@ def main(args: Dict[str, Any]) -> None:
             logger.warning("No GPU found. Running on CPU. Also deactivating WandB reports.")
             cfg.NUM_GPUS = 0
             cfg.WANDB.ENABLE = False
+            cfg.TENSORBOARD.ENABLE = False
+            cfg.DATA_LOADER.NUM_WORKERS = 4
+            cfg.TRAIN.BATCH_SIZE = 2
 
         sleep(1)
         launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=train)

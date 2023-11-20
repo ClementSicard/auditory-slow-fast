@@ -19,28 +19,13 @@ def epickitchens_collate_fn(batch):
 
     slow_spectrograms, fast_spectrograms = zip(*spectrograms)
 
-    # Find the maximum num_spectrogram for each type of spectrogram
-    max_num_spectrogram_slow = max([s.shape[0] for s in slow_spectrograms])
-    max_num_spectrogram_fast = max([s.shape[0] for s in fast_spectrograms])
+    lengths = [slow_spectrogram.shape[0] for slow_spectrogram in slow_spectrograms]
 
-    assert (
-        max_num_spectrogram_slow == max_num_spectrogram_fast
-    ), f"{max_num_spectrogram_slow=} != {max_num_spectrogram_fast=}"
-
-    # 0-pad the first dimension to be of length max_num_spectrogram
-    padded_spectrograms1 = torch.zeros(
-        (len(slow_spectrograms), max_num_spectrogram_slow, *slow_spectrograms[0].shape[1:])
-    )
-    padded_spectrograms2 = torch.zeros(
-        (len(fast_spectrograms), max_num_spectrogram_fast, *fast_spectrograms[0].shape[1:])
-    )
-
-    for i, (s1, s2) in enumerate(zip(slow_spectrograms, fast_spectrograms)):
-        padded_spectrograms1[i, : s1.shape[0], :, :] = s1
-        padded_spectrograms2[i, : s2.shape[0], :, :] = s2
+    padded_slow_spectrograms = torch.nn.utils.rnn.pad_sequence(slow_spectrograms, batch_first=True)
+    padded_fast_spectrograms = torch.nn.utils.rnn.pad_sequence(fast_spectrograms, batch_first=True)
 
     # Combine padded spectrograms into a tuple
-    padded_spectrograms = (padded_spectrograms1, padded_spectrograms2)
+    padded_spectrograms = (padded_slow_spectrograms, padded_fast_spectrograms)
 
     # Convert other elements of the batch to tensors or appropriate formats
     indices = torch.tensor(indices)
@@ -48,7 +33,9 @@ def epickitchens_collate_fn(batch):
     # Stack noun embeddings
     stacked_noun_embeddings = torch.stack(noun_embeddings, dim=0)
 
-    return padded_spectrograms, labels, indices, stacked_noun_embeddings, metadata
+    logger.error(f"Labels: {labels=}")
+
+    return padded_spectrograms, lengths, labels, indices, stacked_noun_embeddings, metadata
 
 
 def construct_loader(cfg, split):
@@ -98,7 +85,7 @@ def construct_loader(cfg, split):
 
 
 def shuffle_dataset(loader, cur_epoch):
-    """ "
+    """
     Shuffles the data.
     Args:
         loader (loader): data loader to perform shuffle.

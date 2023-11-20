@@ -107,8 +107,6 @@ def _get_model_analysis_input(cfg):
     [(B=1, N, C, T_slow, F), (B=1, N, C, T_fast, F)].
     """
 
-    logger.warning(f"{[xx.shape for xx in model_inputs]}")
-
     return model_inputs
 
 
@@ -139,7 +137,7 @@ def get_model_stats(model, cfg, mode):
     model_mode = model.training
     model.eval()
     inputs = _get_model_analysis_input(cfg)
-    count_dict, *_ = model_stats_fun(model, (inputs, torch.zeros(512).unsqueeze(0)))
+    count_dict, *_ = model_stats_fun(model, (inputs, torch.tensor([4]), torch.zeros(512).unsqueeze(0)))
     count = sum(count_dict.values())
     model.train(model_mode)
     return count
@@ -154,7 +152,7 @@ def log_model_info(model, cfg):
         cfg (CfgNode): configs. Details can be found in
             audio_slowfast/config/defaults.py
     """
-    logger.info("Model:\n{}".format(model))
+    logger.warning("Model:\n{}".format(model))
     logger.info("Params: {:,}".format(params_count(model)))
     logger.info("Mem: {:,} MB".format(gpu_mem_usage()))
     logger.info("Flops: {:,} G".format(get_model_stats(model, cfg, "flop")))

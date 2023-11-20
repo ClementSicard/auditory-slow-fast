@@ -1,3 +1,4 @@
+from typing import List
 from loguru import logger
 
 import torch
@@ -65,8 +66,7 @@ class GRUResNetBasicHead(nn.Module):
         )
 
         # Project back the GRU output to the number features of the input
-        self.project_to_clip_space = nn.Linear(gru_hidden_size * 2, gru_hidden_size, bias=True)
-        self.project_to_dim_in = nn.Linear(gru_hidden_size, sum(dim_in), bias=True)
+        self.project_to_dim_in = nn.Linear(gru_hidden_size * 2, sum(dim_in), bias=True)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
         assert (
@@ -96,6 +96,7 @@ class GRUResNetBasicHead(nn.Module):
         self,
         inputs: torch.Tensor,
         noun_embeddings: torch.Tensor,
+        lengths: List[int],
         initial_batch_shape: torch.Size,
     ) -> torch.Tensor:
         """
@@ -120,9 +121,13 @@ class GRUResNetBasicHead(nn.Module):
         if hasattr(self, "dropout"):
             x = self.dropout(x)
 
-        self._gru(x=x, noun_embeddings=noun_embeddings, initial_batch_shape=initial_batch_shape)
+        self._gru(
+            x=x,
+            noun_embeddings=noun_embeddings,
+            initial_batch_shape=initial_batch_shape,
+            lengths=lengths,
+        )
 
-        logger.info(f"Projection input shape: {x.shape}")
         if isinstance(self.num_classes, (list, tuple)):
             x_v = self.projection_verb(x)
             x_n = self.projection_noun(x)
@@ -154,6 +159,7 @@ class GRUResNetBasicHead(nn.Module):
         x: torch.Tensor,
         noun_embeddings: torch.Tensor,
         initial_batch_shape: torch.Size,
+        lengths: List[int],
     ) -> torch.Tensor:
         """
         From Table 1 of the paper (https://arxiv.org/pdf/2103.03516.pdf), n_features_asf = 2304
@@ -181,37 +187,23 @@ class GRUResNetBasicHead(nn.Module):
         B, N = initial_batch_shape
         D = 2 if self.gru.bidirectional else 1
 
-        logger.warning(f"Initial noun embedding shape: {noun_embeddings.shape}")
         h_0 = noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1)
-        logger.warning(f"h_0 shape: {h_0.shape}")
-
-        # x is of shape (batch * seq_len, 1, 1, n_features_asf)
-        logger.debug(f"GRU input shape: {x.shape}")
 
         # (B*N, 1, 1, n_features_asf) -> (B*N, n_features_asf)
         x = x.squeeze()
 
         # (B*N, n_features_asf) -> (B, N, n_features_asf)
         x = x.view(B, N, *x.shape[1:])
-        logger.debug(f"GRU input shape after view: {x.shape}")
 
         # Pass the transformed batch through the GRU
         # (B, N, D * gru_hidden_size) = (B, N, 2 * 512)
+        x = torch.nn.utils.rnn.pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
         x, _ = self.gru(x, hx=h_0)
+        x, lengths = torch.nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
 
         # (B, N, 1024) -> (B*N, 1024)
         x = x.view(B * N, *x.shape[2:])
-        logger.debug(f"GRU output shape: {x.shape}")
-
-        # (B*N, 1024) -> (B*N, 1, 1, 1024)
         x = x.unsqueeze(1).unsqueeze(1)
-
-        # Project it back to CLIP embedding space
-        # (B*N, 1, 1, 1024) -> (B*N, 1, 1, 512)
-        x = self.project_to_clip_space(x)
-
-        # Project it back to the number of features of the input
-        # (B*N, 1, 1, 512) -> (B*N, 1, 1, n_features_asf)
         x = self.project_to_dim_in(x)
 
         return x

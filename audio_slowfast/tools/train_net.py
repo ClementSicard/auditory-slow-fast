@@ -77,7 +77,7 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    for cur_iter, (inputs, labels, _, noun_embeddings, _) in enumerate(
+    for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
         # Write to stderr
         tqdm(
             train_loader,
@@ -107,13 +107,19 @@ def train_epoch(
 
         train_meter.data_toc()
 
-        preds = model(inputs)
+        preds = model(
+            x=inputs,
+            lengths=lengths,
+            noun_embeddings=noun_embeddings,
+        )
         preds = [pred.squeeze(1) for pred in preds]
 
         # Check if the predictions look good or are weird. In this case, send an alert.
         check_predictions(preds=preds, labels=labels, threshold=0.1)
 
+        logger.error(f"{type(labels)}")
         if isinstance(labels, dict):
+            logger.success("ICI")
             loss, loss_verb, loss_noun, loss_state = compute_loss(
                 preds=preds,
                 labels=labels,
@@ -121,6 +127,8 @@ def train_epoch(
             )
 
         else:
+            logger.error("ICI")
+
             # Explicitly declare reduction to mean.
             loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
 
@@ -319,7 +327,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
     model.eval()
     val_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, _, _) in enumerate(val_loader):
+    for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(val_loader):
         if cfg.NUM_GPUS:
             # Transferthe data to the current GPU device.
             if isinstance(inputs, (list,)):
@@ -334,8 +342,12 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
 
         val_meter.data_toc()
 
-        preds = model(inputs)
-
+        preds = model(
+            x=inputs,
+            lengths=lengths,
+            noun_embeddings=noun_embeddings,
+        )
+        preds = [pred.squeeze(1) for pred in preds]
         check_predictions(preds=preds, labels=labels, threshold=0.1)
 
         if isinstance(labels, dict):
@@ -613,9 +625,8 @@ def train(cfg):
     logger.info(pprint.pformat(cfg))
 
     # Build the audio model and print model statistics.
-    # model = AudioSlowFast(cfg=cfg, train=True)
     model = build_model(cfg)
-    logger.warning(model)
+
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
 

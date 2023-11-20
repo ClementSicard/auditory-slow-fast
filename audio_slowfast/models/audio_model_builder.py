@@ -551,8 +551,8 @@ class AudioSlowFastGRU(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
+        lengths: torch.Tensor,
         noun_embeddings: torch.Tensor,
-        bboxes=None,
     ):
         """
         Similar to the original `forward()` method in AudioSlowFast, but with the addition of the noun embeddings.
@@ -562,7 +562,6 @@ class AudioSlowFastGRU(nn.Module):
         reshaped_x = []
         for pathway_x in x:
             B, N, C, T, F = pathway_x.shape  # Extract dimensions
-            logger.debug(f"{B=}, {N=}, {C=}, {T=}, {F=}")
             # Reshape to (batch_size * n_sequence, channels, time, frequency)
             pathway_x_reshaped = pathway_x.view(B * N, C, T, F)
             reshaped_x.append(pathway_x_reshaped)
@@ -572,8 +571,6 @@ class AudioSlowFastGRU(nn.Module):
                 T,
                 F,
             ), f"Expected {B * N, C, T, F}, got {pathway_x_reshaped.shape}"
-
-        logger.warning([xx.shape for xx in reshaped_x])
 
         x = self.s1(reshaped_x)
         x = self.s1_fuse(x)
@@ -587,7 +584,12 @@ class AudioSlowFastGRU(nn.Module):
         x = self.s4(x)
         x = self.s4_fuse(x)
         x = self.s5(x)
-        x = self.head(x, noun_embeddings=noun_embeddings, initial_batch_shape=(B, N))
+        x = self.head(
+            x,
+            noun_embeddings=noun_embeddings,
+            initial_batch_shape=(B, N),
+            lengths=lengths,
+        )
         return x
 
     def freeze_fn(self, freeze_mode):
