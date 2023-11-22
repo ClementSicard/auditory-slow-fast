@@ -23,7 +23,6 @@ class GRUResNetBasicHead(nn.Module):
         act_func="softmax",
         gru_hidden_size=512,
         gru_num_layers=2,
-        num_frames=400,
     ):
         """
         The `__init__` method of any subclass should also contain these
@@ -49,7 +48,6 @@ class GRUResNetBasicHead(nn.Module):
         self.num_pathways = len(pool_size)
         self.gru_hidden_size = gru_hidden_size
         self.gru_num_layers = gru_num_layers
-        self.num_frames = num_frames
 
         for pathway in range(self.num_pathways):
             avg_pool = nn.AvgPool2d(pool_size[pathway], stride=1)
@@ -84,7 +82,7 @@ class GRUResNetBasicHead(nn.Module):
             self.projection_noun = nn.Linear(sum(self.dim_in), self.num_classes[1], bias=True)
 
             # Will project to [B * N_s, num_frames * num_predicates]
-            self.projection_state = nn.Linear(sum(self.dim_in), self.num_frames * self.num_classes[2], bias=True)
+            self.projection_state = nn.Linear(sum(self.dim_in), self.num_classes[2], bias=True)
         else:
             self.projection = nn.Linear(sum(self.dim_in), num_classes, bias=True)
         # Softmax for evaluation and testing.
@@ -157,15 +155,14 @@ class GRUResNetBasicHead(nn.Module):
             # Reshape each output to (B, N, num_classes)
             x_v = x_v.view(-1, N, self.num_classes[0])
             x_n = x_n.view(-1, N, self.num_classes[1])
-            x_s = x_s.view(-1, N, self.num_frames, self.num_classes[2])
+            x_s = x_s.view(-1, N, self.num_classes[2])
+
+            # Assert that all x_s are in the range [-1, 1]
+            assert torch.all(torch.abs(x_s) <= 1), "x_s not in range [-1, 1]"
 
             # Average accross dim-1 (0-indexed) for x_v and x_n
-            x_v = x_v.mean(dim=1)
-            x_n = x_n.mean(dim=1)
-
-            logger.error(f"x_v.shape: {x_v.shape}")
-            logger.error(f"x_n.shape: {x_n.shape}")
-            logger.error(f"x_s.shape: {x_s.shape}")
+            x_v = x_v.mean(dim=1)  # (B, N, 97) -> (B, 97)
+            x_n = x_n.mean(dim=1)  # (B, N, 300) -> (B, 300)
 
             return (x_v, x_n, x_s)
         else:
@@ -175,9 +172,10 @@ class GRUResNetBasicHead(nn.Module):
             return x
 
     def fc_inference(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
+        x = act(x)
+
         # Performs fully convolutional inference.
         if not self.training:
-            x = act(x)
             x = x.mean([1, 2])
 
         x = x.view(x.shape[0], -1)

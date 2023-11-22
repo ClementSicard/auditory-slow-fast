@@ -8,21 +8,24 @@ TRAIN:
   CHECKPOINT_EPOCH_RESET: True
   AUTO_RESUME: True
   SUPERVISION_TYPE: "half"
+
 DATA:
   INPUT_CHANNEL_NUM: [1, 1]
   ONLY_SYMBOLIC_STATE: False
+
 AUDIO_DATA:
   CLIP_SECS: 1.999
   NUM_FRAMES: 400
 
   # The overlap is in seconds
-  SPECTROGRAM_OVERLAP: 0.0
+  SPECTROGRAM_OVERLAP: 1.0
 
 SLOWFAST:
   ALPHA: 4
   BETA_INV: 8
   FUSION_CONV_CHANNEL_RATIO: 2
   FUSION_KERNEL_SZ: 7
+
 RESNET:
   ZERO_INIT_FINAL_BN: True
   WIDTH_PER_GROUP: 64
@@ -33,10 +36,12 @@ RESNET:
   NUM_BLOCK_TEMP_KERNEL: [[3, 3], [4, 4], [6, 6], [3, 3]]
   FREQUENCY_STRIDES: [[1, 1], [2, 2], [2, 2], [2, 2]]
   FREQUENCY_DILATIONS: [[1, 1], [1, 1], [1, 1], [1, 1]]
+
 BN:
   USE_PRECISE_STATS: True
   FREEZE: True
   NUM_BATCHES_PRECISE: 64
+
 SOLVER:
   BASE_LR: 0.001
   LR_POLICY: steps_with_relative_lrs
@@ -48,8 +53,9 @@ SOLVER:
   WARMUP_EPOCHS: -1.0
   WARMUP_START_LR: 0.01
   OPTIMIZING_METHOD: sgd
+
 MODEL:
-  NUM_CLASSES: [97, 300] # This will be updated by the pre conditions and post conditions files into a 4-element list
+  NUM_CLASSES: [97, 300] # This will be updated by the state files into a 3-element list
   VOCAB_FILE: models/asf/config/vocab.txt
   PDDL_ATTRIBUTES: models/asf/config/attributes.csv
   ARCH: slowfast
@@ -65,21 +71,25 @@ TEST:
   ENABLE: False
   DATASET: epickitchens
   BATCH_SIZE: 128
+
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True
+
 EPICKITCHENS:
   TRAIN_PLUS_VAL: False
   AUDIO_DATA_FILE: /scratch/work/ptg/EPIC-KITCHENS/EPIC_audio.hdf5
   TRAIN_LIST: data/epic-kitchens-100-annotations/filtered_train.pkl
   TEST_LIST: data/epic-kitchens-100-annotations/filtered_val.pkl
   VAL_LIST: data/epic-kitchens-100-annotations/filtered_val.pkl
+
 TENSORBOARD:
   ENABLE: True
   LOG_DIR: tensorboard
-NUM_GPUS: 0 # MODIFY
+
+NUM_GPUS: 1 # MODIFY
 NUM_SHARDS: 1
 RNG_SEED: 0
 OUTPUT_DIR: .
 WANDB:
-  ENABLE: True # MODIFY
+  ENABLE: True # If no GPU is enabled this will be set to False

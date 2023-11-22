@@ -3,7 +3,7 @@
 
 """Train an audio classification model."""
 
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 import logging as lg
 import pprint
 import sys
@@ -77,11 +77,15 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    loss = torch.tensor(0.0).to(device)
+
     for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
         # Write to stderr
         tqdm(
             train_loader,
-            desc="Epoch: {}/{}".format(cur_epoch + 1, cfg.SOLVER.MAX_EPOCH),
+            desc="Epoch: {}/{}  Loss: {:.3f}".format(cur_epoch + 1, cfg.SOLVER.MAX_EPOCH, loss),
             unit="batch",
             file=sys.stderr,
         ),
@@ -114,15 +118,19 @@ def train_epoch(
         )
         preds = [pred.squeeze(1) for pred in preds]
 
+        labels["state"] = prepare_state_labels(preds, labels, lengths)
+
         # Check if the predictions look good or are weird. In this case, send an alert.
         check_predictions(preds=preds, labels=labels, threshold=0.1)
 
         if isinstance(labels, dict):
             loss, loss_verb, loss_noun, loss_state = compute_loss(
-                preds=preds,
+                verb_preds=preds[0],
+                noun_preds=preds[1],
+                state_preds=preds[2],
                 labels=labels,
-                lengths=lengths,
                 cfg=cfg,
+                lengths=lengths,
             )
 
         else:
@@ -347,11 +355,16 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_
         preds = [pred.squeeze(1) for pred in preds]
         check_predictions(preds=preds, labels=labels, threshold=0.1)
 
+        labels["state"] = prepare_state_labels(preds, labels, lengths)
+
         if isinstance(labels, dict):
             loss, loss_verb, loss_noun, loss_state = compute_loss(
-                preds,
-                labels,
-                cfg,
+                verb_preds=preds[0],
+                noun_preds=preds[1],
+                state_preds=preds[2],
+                labels=labels,
+                cfg=cfg,
+                lengths=lengths,
             )
 
             # Compute the verb accuracies.
@@ -681,11 +694,11 @@ def train(cfg):
 
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
         # Shuffle the dataset.
-        logger.info(f"Epoch {cur_epoch} started. Shuffling dataset.")
+        logger.info(f"Epoch {cur_epoch + 1} started. Shuffling dataset.")
         loader.shuffle_dataset(train_loader, cur_epoch)
         logger.success("Done!")
 
-        logger.info(f"Training for epoch {cur_epoch}.")
+        logger.info(f"Training for epoch {cur_epoch + 1}.")
         # Train for one epoch.
         train_epoch(
             train_loader,
@@ -697,7 +710,7 @@ def train(cfg):
             writer,
             wandb_log,
         )
-        logger.success(f"Done training for epoch {cur_epoch}!")
+        logger.success(f"Done training for epoch {cur_epoch + 1}!")
 
         is_checkp_epoch = cu.is_checkpoint_epoch(
             cfg,
@@ -778,17 +791,21 @@ def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tens
     return bce_term + mse_term
 
 
-def compute_loss(preds: torch.Tensor, labels: Dict[str, torch.Tensor], cfg: CfgNode) -> Tuple[torch.Tensor, ...]:
-    logger.warning(f"Preds shapes: {[pred.shape for pred in preds]}")
+def compute_loss(
+    verb_preds: torch.Tensor,
+    noun_preds: torch.Tensor,
+    state_preds: torch.Tensor,
+    labels: Dict[str, torch.Tensor],
+    lengths: List[int],
+    cfg: CfgNode,
+) -> Tuple[torch.Tensor, ...]:
     # Explicitly declare reduction to mean.
     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
     masked_loss_fun = losses.get_loss_func(cfg.MODEL.STATE_LOSS_FUNC)(reduction="mean")
 
-    loss_verb = loss_fun(preds[0], labels["verb"])
-    loss_noun = loss_fun(preds[1], labels["noun"])
-
-    #
-    loss_state = masked_loss_fun(preds[2], labels["state"])
+    loss_verb = loss_fun(verb_preds, labels["verb"])
+    loss_noun = loss_fun(noun_preds, labels["noun"])
+    loss_state = masked_loss_fun(state_preds, labels["state"])
 
     # Use torch.mean to average the losses over all GPUs for logging purposes.
     loss_vec = torch.stack(
@@ -834,3 +851,22 @@ def check_predictions(preds: torch.Tensor, labels: torch.Tensor, threshold: floa
             text=text,
             level=AlertLevel.WARN,
         )
+
+
+def prepare_state_labels(preds, labels, lengths) -> torch.Tensor:
+    """
+    Returns the state labels for the given predictions and labels.
+    It creates labels as follows:
+
+    1. Sets value longer than audio segment length to -10
+    2. Sets values up to length // 2 to the precondition label
+    3. Sets values after length // 2 to length to the postcondition label
+    """
+    B, N, P = preds[2].shape
+    state = labels["posts"].clone().unsqueeze(1).repeat(1, N, 1)
+
+    for i, length in enumerate(lengths):
+        state[i, length:, :] = -10
+        state[i, : length // 2] = labels["precs"][i]
+
+    return state

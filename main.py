@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 import yaml
 from loguru import logger
+from audio_slowfast.models.build import build_model
 
 import src.utils
 from audio_slowfast import test, train
@@ -105,7 +106,10 @@ def main(args: Dict[str, Any]) -> None:
     """
     meta_config = load_config(args["config"])
 
-    # # Prepare the dataset
+    cfg = get_cfg()
+    cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
+
+    # Prepare the dataset
     # prepare_dataset(
     #     verbs_from_args=args["verbs"],
     #     nouns_path=meta_config["dataset"]["epic"]["nouns"],
@@ -129,12 +133,8 @@ def main(args: Dict[str, Any]) -> None:
         match args["model"]:
             case "audio_slowfast":
                 logger.info("Loading AudioSlowFast model")
-                from audio_slowfast import AudioSlowFast
 
-                model = AudioSlowFast(
-                    checkpoint=meta_config["models"]["audio_slowfast"]["weights"],
-                    cfg_file_path=meta_config["models"]["audio_slowfast"]["config"],
-                )
+                model = build_model(cfg)
                 logger.info("Model loaded")
                 n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 logger.info(f"Model parameters: {n_params:,}")
@@ -149,11 +149,10 @@ def main(args: Dict[str, Any]) -> None:
         )
 
     elif args["train"]:
-        cfg = get_cfg()
-        cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
-
         if not torch.cuda.is_available():
             logger.warning("No GPU found. Running on CPU. Also deactivating WandB reports.")
+
+            # Modify config for debug training
             cfg.NUM_GPUS = 0
             cfg.WANDB.ENABLE = False
             cfg.TENSORBOARD.ENABLE = False
@@ -161,7 +160,7 @@ def main(args: Dict[str, Any]) -> None:
             cfg.TRAIN.BATCH_SIZE = 2
 
         sleep(1)
-        launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=train)
+        launch_job(cfg=cfg, init_method=None, func=train)
 
     elif args["test"]:
         cfg = get_cfg()

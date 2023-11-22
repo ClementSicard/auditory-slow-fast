@@ -546,7 +546,6 @@ class AudioSlowFastGRU(nn.Module):
             ],
             dropout_rate=cfg.MODEL.DROPOUT_RATE,
             act_func=cfg.MODEL.HEAD_ACT,
-            num_frames=cfg.AUDIO_DATA.NUM_FRAMES,
             gru_hidden_size=cfg.MODEL.GRU_HIDDEN_SIZE,
             gru_num_layers=cfg.MODEL.GRU_NUM_LAYERS,
         )

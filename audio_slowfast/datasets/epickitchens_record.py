@@ -88,3 +88,17 @@ class EpicKitchensAudioRecord(AudioRecord):
     @property
     def metadata(self):
         return {"narration_id": self._index}
+
+    def compute_state_vector(self, precs, posts):
+        length = self.num_spectrograms
+
+        if length == 1:
+            return posts
+
+        # For the first half of the spectrograms, use the precs vector, then use the posts vector
+        # for the second half. If there are an odd number of spectrograms, the last spectrogram is a post.
+        state = np.zeros((length, precs.shape[0]))
+        state[:, length // 2] = precs
+        state[length // 2, :] = posts
+
+        return state
