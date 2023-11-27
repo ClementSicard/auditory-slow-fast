@@ -227,6 +227,8 @@ _C.AUDIO_DATA = CfgNode()
 # Sampling rate of audio (in kHz)
 _C.AUDIO_DATA.SAMPLING_RATE = 24000
 
+_C.AUDIO_DATA.N_FFT = 2048
+
 # Duration of audio clip from which to extract the spectrogram
 _C.AUDIO_DATA.CLIP_SECS = 1.279
 

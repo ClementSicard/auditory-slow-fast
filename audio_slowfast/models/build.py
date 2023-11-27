@@ -3,6 +3,7 @@
 
 """Model construction functions."""
 
+from loguru import logger
 import torch
 from fvcore.common.registry import Registry
 
@@ -27,6 +28,8 @@ def build_model(cfg, gpu_id=None):
         assert cfg.NUM_GPUS <= torch.cuda.device_count(), "Cannot use more GPU devices than available"
     else:
         assert cfg.NUM_GPUS == 0, "Cuda is not available. Please set `NUM_GPUS: 0 for running on CPUs."
+
+    logger.debug(f"{MODEL_REGISTRY=}")
 
     # Construct the model
     name = cfg.MODEL.MODEL_NAME

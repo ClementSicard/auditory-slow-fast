@@ -1,27 +1,30 @@
 import os
-import pandas as pd
-import pickle
-import torch
+
 import h5py
+import pandas as pd
+import torch
 import torch.utils.data
 from fvcore.common.file_io import PathManager
+from loguru import logger
 
-import audio_slowfast.utils.logging as logging
+from src.transforms import get_transforms
 
-from .build import DATASET_REGISTRY
-from .epickitchens_record import EpicKitchensAudioRecord
-
-from .spec_augment import combined_transforms
 from . import utils as utils
 from .audio_loader_epic import pack_audio
-
-logger = logging.get_logger(__name__)
+from .epickitchens_record import EpicKitchensAudioRecord
+from .build import DATASET_REGISTRY
+from .spec_augment import combined_transforms
 
 
 @DATASET_REGISTRY.register()
 class EpicKitchens(torch.utils.data.Dataset):
     def __init__(self, cfg, mode):
-        assert mode in ["train", "val", "test", "train+val"], "Split '{}' not supported for EPIC-KITCHENS".format(mode)
+        assert mode in [
+            "train",
+            "val",
+            "test",
+            "train+val",
+        ], "Split '{}' not supported for EPIC-KITCHENS".format(mode)
         self.cfg = cfg
         self.mode = mode
         if self.mode in ["train", "val", "train+val"]:
@@ -33,26 +36,40 @@ class EpicKitchens(torch.utils.data.Dataset):
         logger.info("Constructing EPIC-KITCHENS Audio {}...".format(mode))
         self._construct_loader()
 
+        self.transforms = get_transforms()
+
     def _construct_loader(self):
         """
         Construct the audio loader.
         """
         if self.mode == "train":
             path_annotations_pickle = [
-                os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, self.cfg.EPICKITCHENS.TRAIN_LIST)
+                os.path.join(
+                    self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
+                    self.cfg.EPICKITCHENS.TRAIN_LIST,
+                )
             ]
         elif self.mode == "val":
             path_annotations_pickle = [
-                os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, self.cfg.EPICKITCHENS.VAL_LIST)
+                os.path.join(
+                    self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
+                    self.cfg.EPICKITCHENS.VAL_LIST,
+                )
             ]
         elif self.mode == "test":
             path_annotations_pickle = [
-                os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, self.cfg.EPICKITCHENS.TEST_LIST)
+                os.path.join(
+                    self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
+                    self.cfg.EPICKITCHENS.TEST_LIST,
+                )
             ]
         else:
             path_annotations_pickle = [
                 os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, file)
-                for file in [self.cfg.EPICKITCHENS.TRAIN_LIST, self.cfg.EPICKITCHENS.VAL_LIST]
+                for file in [
+                    self.cfg.EPICKITCHENS.TRAIN_LIST,
+                    self.cfg.EPICKITCHENS.VAL_LIST,
+                ]
             ]
 
         for file in path_annotations_pickle:
@@ -61,15 +78,18 @@ class EpicKitchens(torch.utils.data.Dataset):
         self._audio_records = []
         self._temporal_idx = []
         for file in path_annotations_pickle:
-            for tup in pd.read_pickle(file).iterrows():
+            file_df = pd.read_pickle(file)
+            for tup in file_df.iterrows():
                 for idx in range(self._num_clips):
-                    self._audio_records.append(EpicKitchensAudioRecord(tup))
+                    self._audio_records.append(
+                        EpicKitchensAudioRecord(tup, cfg=self.cfg),
+                    )
                     self._temporal_idx.append(idx)
         assert len(self._audio_records) > 0, "Failed to load EPIC-KITCHENS split {} from {}".format(
             self.mode, path_annotations_pickle
         )
         logger.info(
-            "Constructing epickitchens dataloader (size: {}) from {}".format(
+            "Constructing epickitchens dataloader (size: {:,}) from {}".format(
                 len(self._audio_records), path_annotations_pickle
             )
         )
@@ -97,7 +117,15 @@ class EpicKitchens(torch.utils.data.Dataset):
         else:
             raise NotImplementedError("Does not support {} mode".format(self.mode))
 
-        spectrogram = pack_audio(self.cfg, self.audio_dataset, self._audio_records[index], temporal_sample_index)
+        transformation = self._audio_records[index].transformation
+
+        spectrogram = pack_audio(
+            cfg=self.cfg,
+            audio_dataset=self.audio_dataset,
+            audio_record=self._audio_records[index],
+            temporal_sample_index=temporal_sample_index,
+            transform=self.transforms[transformation] if transformation != "none" else None,
+        )
 
         # Normalization.
         spectrogram = spectrogram.float()

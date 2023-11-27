@@ -10,9 +10,9 @@ from loguru import logger
 from src.transforms import get_transforms
 
 from . import utils as utils
-from .audio_loader_epic import pack_audio
-from .build import DATASET_REGISTRY
+from .audio_loader_epic_gru import pack_audio_gru
 from .epickitchens_record_gru import EpicKitchensAudioRecordGRU
+from .build import DATASET_REGISTRY
 from .spec_augment import combined_transforms
 
 
@@ -78,9 +78,6 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
         self._audio_records = []
         self._temporal_idx = []
 
-        # Add num spectrograms per audio_segments
-        self._num_spectrograms_list = []
-
         for file in path_annotations_pickle:
             file_df = pd.read_pickle(file)
             for tup in file_df.iterrows():
@@ -127,9 +124,8 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
         fast_spectrograms = []
 
         num_spectrograms = self._audio_records[index].num_spectrograms
-
         for i in range(num_spectrograms):
-            spectrogram = pack_audio(
+            spectrogram = pack_audio_gru(
                 cfg=self.cfg,
                 audio_dataset=self.audio_dataset,
                 audio_record=self._audio_records[index],
@@ -156,6 +152,7 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
                     logger.error(f"Length: {self._audio_records[index].length_in_s}")
                     logger.error(f"Num spectrograms: {self._audio_records[index].num_spectrograms}")
                     logger.error(f"Transformation: {self._audio_records[index].transformation}")
+                    raise e
 
                 # C F T -> C T F
                 spectrogram = spectrogram.permute(0, 2, 1)

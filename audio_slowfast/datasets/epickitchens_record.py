@@ -1,21 +1,17 @@
-from .audio_record import AudioRecord
-from datetime import timedelta
 import time
+from datetime import timedelta
 
-
-def timestamp_to_sec(timestamp):
-    x = time.strptime(timestamp, "%H:%M:%S.%f")
-    sec = (
-        float(timedelta(hours=x.tm_hour, minutes=x.tm_min, seconds=x.tm_sec).total_seconds())
-        + float(timestamp.split(".")[-1]) / 100
-    )
-    return sec
+from audio_slowfast.datasets.utils import timestamp_to_sec
+from .audio_record import AudioRecord
+from fvcore.common.config import CfgNode
 
 
 class EpicKitchensAudioRecord(AudioRecord):
-    def __init__(self, tup):
+    def __init__(self, tup, cfg: CfgNode):
+        self.cfg = cfg
         self._index = str(tup[0])
         self._series = tup[1]
+        self._sampling_rate = cfg.AUDIO_DATA.SAMPLING_RATE
 
     @property
     def participant(self):
@@ -27,15 +23,19 @@ class EpicKitchensAudioRecord(AudioRecord):
 
     @property
     def start_audio_sample(self):
-        return int(round(timestamp_to_sec(self._series["start_timestamp"]) * 24000))
+        return int(round(timestamp_to_sec(self._series["start_timestamp"]) * self._sampling_rate))
 
     @property
     def end_audio_sample(self):
-        return int(round(timestamp_to_sec(self._series["stop_timestamp"]) * 24000))
+        return int(round(timestamp_to_sec(self._series["stop_timestamp"]) * self._sampling_rate))
 
     @property
     def num_audio_samples(self):
         return self.end_audio_sample - self.start_audio_sample
+
+    @property
+    def transformation(self):
+        return self._series["transformation"]
 
     @property
     def label(self):
