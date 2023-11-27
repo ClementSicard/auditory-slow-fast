@@ -1,6 +1,7 @@
 TRAIN:
   ENABLE: True
-  DATASET: epickitchens
+  DATASET: EpicKitchensGRU
+  # DATASET: EpicKitchens
   BATCH_SIZE: 128
   EVAL_PERIOD: 2
   CHECKPOINT_PERIOD: 1
@@ -69,7 +70,7 @@ MODEL:
 
 TEST:
   ENABLE: False
-  DATASET: epickitchens
+  DATASET: EpicKitchens
   BATCH_SIZE: 128
 
 DATA_LOADER:

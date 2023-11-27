@@ -131,7 +131,7 @@ train:
 		--train \
 		--verbs break crush pat shake sharpen smell throw water \
 		--augment \
-		--factor 4.0
+		# --factor 1.0
 
 .PHONY: test
 test:

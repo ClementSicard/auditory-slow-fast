@@ -543,7 +543,7 @@ def train(cfg):
     start_epoch = cu.load_train_checkpoint(cfg, model, optimizer)
 
     # Create the audio train and val loaders.
-    if cfg.TRAIN.DATASET != "epickitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
+    if cfg.TRAIN.DATASET != "EpicKitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
         train_loader = loader.construct_loader(cfg, "train")
         val_loader = loader.construct_loader(cfg, "val")
         precise_bn_loader = loader.construct_loader(cfg, "train") if cfg.BN.USE_PRECISE_STATS else None
@@ -553,7 +553,7 @@ def train(cfg):
         precise_bn_loader = loader.construct_loader(cfg, "train+val") if cfg.BN.USE_PRECISE_STATS else None
 
     # Create meters.
-    if cfg.TRAIN.DATASET == "epickitchens":
+    if cfg.TRAIN.DATASET == "EpicKitchens":
         train_meter = EPICTrainMeter(len(train_loader), cfg)
         val_meter = EPICValMeter(len(val_loader), cfg)
     else:
@@ -569,9 +569,9 @@ def train(cfg):
     if cfg.WANDB.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
         wandb_log = True
         if cfg.TRAIN.AUTO_RESUME and cfg.WANDB.RUN_ID != "":
-            wandb.init(project="slowfast", config=cfg, sync_tensorboard=True, resume=cfg.WANDB.RUN_ID)
+            wandb.init(project=cfg.MODEL.MODEL_NAME, config=cfg, sync_tensorboard=True, resume=cfg.WANDB.RUN_ID)
         else:
-            wandb.init(project="slowfast", config=cfg, sync_tensorboard=True)
+            wandb.init(project=cfg.MODEL.MODEL_NAME, config=cfg, sync_tensorboard=True)
         wandb.watch(model)
 
     else:

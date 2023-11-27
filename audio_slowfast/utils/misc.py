@@ -132,12 +132,21 @@ def get_model_stats(model, cfg, mode):
     elif mode == "activation":
         model_stats_fun = activation_count
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # Set model to evaluation mode for analysis.
     # Evaluation mode can avoid getting stuck with sync batchnorm.
     model_mode = model.training
     model.eval()
     inputs = _get_model_analysis_input(cfg)
-    count_dict, *_ = model_stats_fun(model, (inputs, torch.tensor([4]), torch.zeros(512).unsqueeze(0)))
+    count_dict, *_ = model_stats_fun(
+        model,
+        (
+            inputs,
+            torch.tensor([4]),
+            torch.zeros(512).unsqueeze(0).to(device),
+        ),
+    )
     count = sum(count_dict.values())
     model.train(model_mode)
     return count

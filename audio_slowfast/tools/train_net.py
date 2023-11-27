@@ -79,15 +79,21 @@ def train_epoch(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    loss = torch.tensor(0.0).to(device)
+    epoch_loss = torch.tensor(0.0).to(device)
 
+    cur_iter = 0
     for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
         # Write to stderr
         tqdm(
             train_loader,
-            desc="Epoch: {}/{}  Loss: {:.3f}".format(cur_epoch + 1, cfg.SOLVER.MAX_EPOCH, loss),
+            # train_loader,
+            desc="Epoch: {}/{} Loss: {:.3f}".format(
+                cur_epoch + 1,
+                cfg.SOLVER.MAX_EPOCH,
+                (epoch_loss / (cur_iter + 1)).item(),
+            ),
             unit="batch",
-            file=sys.stderr,
+            # file=sys.stderr,
         ),
     ):
         # Transfer the data to the current GPU device.
@@ -142,6 +148,8 @@ def train_epoch(
 
             # check Nan Loss.
             misc.check_nan_losses(loss)
+
+        epoch_loss += loss
 
         # Perform the backward pass.
         optimizer.zero_grad()
@@ -650,7 +658,7 @@ def train(cfg):
     start_epoch = cu.load_train_checkpoint(cfg, model, optimizer)
 
     # Create the audio train and val loaders.
-    if cfg.TRAIN.DATASET != "epickitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
+    if cfg.TRAIN.DATASET != "EpicKitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
         train_loader = loader.construct_loader(cfg, "train")
         val_loader = loader.construct_loader(cfg, "val")
         precise_bn_loader = loader.construct_loader(cfg, "train") if cfg.BN.USE_PRECISE_STATS else None
@@ -660,7 +668,7 @@ def train(cfg):
         precise_bn_loader = loader.construct_loader(cfg, "train+val") if cfg.BN.USE_PRECISE_STATS else None
 
     # Create meters.
-    if cfg.TRAIN.DATASET == "epickitchens":
+    if cfg.TRAIN.DATASET == "EpicKitchens":
         train_meter = EPICTrainMeter(epoch_iters=len(train_loader), cfg=cfg)
         val_meter = EPICValMeter(max_iter=len(val_loader), cfg=cfg)
     else:
@@ -677,13 +685,17 @@ def train(cfg):
         wandb_log = True
         if cfg.TRAIN.AUTO_RESUME and cfg.WANDB.RUN_ID != "":
             wandb.init(
-                project="slowfast",
+                project=cfg.MODEL.MODEL_NAME,
                 config=cfg,
                 sync_tensorboard=True,
                 resume=cfg.WANDB.RUN_ID,
             )
         else:
-            wandb.init(project="slowfast", config=cfg, sync_tensorboard=True)
+            wandb.init(
+                project=cfg.MODEL.MODEL_NAME,
+                config=cfg,
+                sync_tensorboard=True,
+            )
         wandb.watch(model)
 
     else:

@@ -142,7 +142,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         test_meter.iter_tic()
 
     # Log epoch stats and print the final testing results.
-    if cfg.TEST.DATASET != "epickitchens":
+    if cfg.TEST.DATASET != "EpicKitchens":
         all_preds = test_meter.audio_preds.clone().detach()
         all_labels = test_meter.audio_labels
         if cfg.NUM_GPUS:
@@ -198,7 +198,7 @@ def test(cfg):
 
     assert len(test_loader.dataset) % cfg.TEST.NUM_ENSEMBLE_VIEWS == 0
     # Create meters for multi-view testing.
-    if cfg.TEST.DATASET == "epickitchens":
+    if cfg.TEST.DATASET == "EpicKitchens":
         test_meter = EPICTestMeter(
             num_audios=len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS,
             num_clips=cfg.TEST.NUM_ENSEMBLE_VIEWS,
@@ -226,7 +226,7 @@ def test(cfg):
     test_meter, preds, _, labels, metadata = perform_test(test_loader, model, test_meter, cfg, writer)
 
     if du.is_master_proc():
-        if cfg.TEST.DATASET == "epickitchens":
+        if cfg.TEST.DATASET == "EpicKitchens":
             results = {
                 "verb_output": preds[0],
                 "noun_output": preds[1],
