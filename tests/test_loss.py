@@ -14,18 +14,18 @@ def run():
     labels = torch.tensor(
         [
             [
-                [0.2, 0.3, -10],
-                [0.1, 0.5, -10],
+                [1, -1, 0, 0, 1, -10],
             ],
             [
-                [0.2, -10, -10],
-                [0.1, -10, -10],
+                [1, 0, -10, -10, -10, -10],
             ],
-        ]
+        ],
+        dtype=torch.float,
     )
     a = torch.rand_like(labels)
 
-    loss(a, labels)
+    l = loss(a, labels)
+    logger.debug(f"{l=}")
 
 
 if __name__ == "__main__":

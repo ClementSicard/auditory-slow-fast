@@ -245,6 +245,8 @@ _C.AUDIO_DATA.NUM_FREQUENCIES = 128
 # Overlap duration of two consecutive spectrograms, in seconds.
 _C.AUDIO_DATA.SPECTROGRAM_OVERLAP = 1.0
 
+_C.AUDIO_DATA.MAX_NB_SPECTROGRAMS = 15
+
 # ---------------------------------------------------------------------------- #
 # Optimizer options
 # ---------------------------------------------------------------------------- #

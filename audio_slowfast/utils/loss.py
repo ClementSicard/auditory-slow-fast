@@ -30,13 +30,14 @@ class MaskedLoss(nn.Module):
         # Assert all values are in the range [0, 1]
         assert torch.all(abs_preds[mask] <= 1), "abs_preds not in range [0, 1]"
 
+        bce_term = self.bce(abs_preds[mask], abs_labels[mask])
+
         # Get the indices where the abs_labels are 1
         # pos_mask_indices = abs_labels.nonzero(as_tuple=True)
         pos_mask_indices = torch.zeros_like(abs_labels, dtype=torch.bool)
-        pos_mask_indices[abs_labels == 1] = True
+        pos_mask_indices[abs_labels > 0] = True
         pos_mask_indices *= mask
 
-        bce_term = self.bce(abs_preds[mask], abs_labels[mask])
         mse_term = self.mse(preds[pos_mask_indices], labels[pos_mask_indices])
 
         result = 0.5 * (bce_term.mean() + mse_term.mean())

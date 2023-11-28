@@ -565,6 +565,7 @@ class AudioSlowFastGRU(nn.Module):
         reshaped_x = []
         for pathway_x in x:
             B, N, C, T, F = pathway_x.shape  # Extract dimensions
+
             # Reshape to (batch_size * n_sequence, channels, time, frequency)
             pathway_x_reshaped = pathway_x.view(B * N, C, T, F)
             reshaped_x.append(pathway_x_reshaped)

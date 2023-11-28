@@ -124,7 +124,12 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
         fast_spectrograms = []
 
         num_spectrograms = self._audio_records[index].num_spectrograms
-        for i in range(num_spectrograms):
+        for i in range(
+            min(
+                num_spectrograms,
+                self.cfg.AUDIO_DATA.MAX_NB_SPECTROGRAMS,
+            ),
+        ):
             spectrogram = pack_audio_gru(
                 cfg=self.cfg,
                 audio_dataset=self.audio_dataset,
