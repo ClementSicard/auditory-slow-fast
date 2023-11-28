@@ -3,6 +3,7 @@
 
 """Audio models."""
 
+from typing import Optional
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -554,7 +555,7 @@ class AudioSlowFastGRU(nn.Module):
         self,
         x: torch.Tensor,
         lengths: torch.Tensor,
-        noun_embeddings: torch.Tensor,
+        noun_embeddings: Optional[torch.Tensor] = None,
     ):
         """
         Similar to the original `forward()` method in AudioSlowFast, but with the addition of the noun embeddings.
@@ -586,11 +587,12 @@ class AudioSlowFastGRU(nn.Module):
         x = self.s4(x)
         x = self.s4_fuse(x)
         x = self.s5(x)
+
         x = self.head(
             x,
-            noun_embeddings=noun_embeddings,
             initial_batch_shape=(B, N),
             lengths=lengths,
+            noun_embeddings=noun_embeddings,
         )
         return x
 

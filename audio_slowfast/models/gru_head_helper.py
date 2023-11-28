@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from loguru import logger
 
 import torch
@@ -102,9 +102,9 @@ class GRUResNetBasicHead(nn.Module):
     def forward(
         self,
         inputs: torch.Tensor,
-        noun_embeddings: torch.Tensor,
         lengths: List[int],
         initial_batch_shape: torch.Size,
+        noun_embeddings: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Forward function for the GRU ResNet head. It first passes the spectrograms embeddings through the GRU to output

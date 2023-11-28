@@ -110,7 +110,6 @@ def train_epoch(
         optim.set_lr(optimizer, lr)
 
         train_meter.data_toc()
-        logger.error([i.shape for i in inputs])
         preds = model(
             x=inputs,
             lengths=lengths,

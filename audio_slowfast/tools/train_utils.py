@@ -73,7 +73,7 @@ def compute_loss(
 ) -> Tuple[torch.Tensor, ...]:
     # Explicitly declare reduction to mean.
     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-    masked_loss_fun = losses.get_loss_func(cfg.MODEL.STATE_LOSS_FUNC)(reduction="mean")
+    masked_loss_fun = losses.get_loss_func(cfg.MODEL.STATE_LOSS_FUNC)()
 
     loss_verb = loss_fun(verb_preds, labels["verb"])
     loss_noun = loss_fun(noun_preds, labels["noun"])

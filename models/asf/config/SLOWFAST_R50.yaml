@@ -2,7 +2,7 @@ TRAIN:
   ENABLE: True
   DATASET: EpicKitchensGRU
   # DATASET: EpicKitchens
-  BATCH_SIZE: 2
+  BATCH_SIZE: 16
   EVAL_PERIOD: 2
   CHECKPOINT_PERIOD: 1
   CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_EPIC.pyth
@@ -93,4 +93,4 @@ NUM_SHARDS: 1
 RNG_SEED: 0
 OUTPUT_DIR: .
 WANDB:
-  ENABLE: False # If no GPU is enabled this will be set to False
+  ENABLE: True # If no GPU is enabled this will be set to False
