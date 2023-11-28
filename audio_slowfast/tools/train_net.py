@@ -2,22 +2,18 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 """Train an audio classification model."""
-
-from typing import Dict, List, Tuple
 import logging as lg
 import pprint
-import sys
 
 import numpy as np
 import torch
 import wandb
-from fvcore.common.config import CfgNode
 from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
 from loguru import logger
 from tqdm import tqdm
 from wandb import AlertLevel
 from audio_slowfast.models.build import build_model
-
+from audio_slowfast.tools.eval_net import eval_epoch
 import audio_slowfast.models.losses as losses
 import audio_slowfast.models.optimizer as optim
 import audio_slowfast.utils.checkpoint as cu
@@ -25,6 +21,7 @@ import audio_slowfast.utils.distributed as du
 import audio_slowfast.utils.logging as logging
 import audio_slowfast.utils.metrics as metrics
 import audio_slowfast.utils.misc as misc
+import audio_slowfast.tools.train_utils as train_utils
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast.datasets import loader
 from audio_slowfast.utils.meters import (
@@ -77,20 +74,14 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    epoch_loss = torch.tensor(0.0).to(device)
-
     cur_iter = 0
     for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
         # Write to stderr
         tqdm(
             train_loader,
-            # train_loader,
-            desc="Epoch: {}/{} Loss: {:.3f}".format(
+            desc="Epoch: {}/{}".format(
                 cur_epoch + 1,
                 cfg.SOLVER.MAX_EPOCH,
-                (epoch_loss / (cur_iter + 1)).item(),
             ),
             unit="batch",
             # file=sys.stderr,
@@ -98,6 +89,7 @@ def train_epoch(
     ):
         # Transfer the data to the current GPU device.
         if cfg.NUM_GPUS:
+            # Transferthe data to the current GPU device.
             if isinstance(inputs, list):
                 for i in range(len(inputs)):
                     inputs[i] = inputs[i].cuda(non_blocking=True)
@@ -118,21 +110,20 @@ def train_epoch(
         optim.set_lr(optimizer, lr)
 
         train_meter.data_toc()
-
+        logger.error([i.shape for i in inputs])
         preds = model(
             x=inputs,
             lengths=lengths,
             noun_embeddings=noun_embeddings,
         )
-        preds = [pred.squeeze(1) for pred in preds]
 
-        labels["state"] = prepare_state_labels(preds, labels, lengths)
+        labels["state"] = train_utils.prepare_state_labels(preds, labels, lengths)
 
         # Check if the predictions look good or are weird. In this case, send an alert.
-        check_predictions(preds=preds, labels=labels, threshold=0.1)
+        train_utils.check_predictions(preds=preds, labels=labels, threshold=0.1)
 
         if isinstance(labels, dict):
-            loss, loss_verb, loss_noun, loss_state = compute_loss(
+            loss, loss_verb, loss_noun, loss_state = train_utils.compute_loss(
                 verb_preds=preds[0],
                 noun_preds=preds[1],
                 state_preds=preds[2],
@@ -150,8 +141,6 @@ def train_epoch(
 
             # check Nan Loss.
             misc.check_nan_losses(loss)
-
-        epoch_loss += loss
 
         # Perform the backward pass.
         optimizer.zero_grad()
@@ -190,7 +179,9 @@ def train_epoch(
 
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
-                (preds[0], preds[1]), (labels["verb"], labels["noun"]), (1, 5)
+                (preds[0], preds[1]),
+                (labels["verb"], labels["noun"]),
+                (1, 5),
             )
             # Gather all the predictions across all the devices.
             if cfg.NUM_GPUS > 1:
@@ -324,282 +315,6 @@ def train_epoch(
     train_meter.reset()
 
 
-@torch.no_grad()
-def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer=None, wandb_log=False):
-    """
-    Evaluate the model on the val set.
-    Args:
-        val_loader (loader): data loader to provide validation data.
-        model (model): model to evaluate the performance.
-        val_meter (ValMeter): meter instance to record and calculate the metrics.
-        cur_epoch (int): number of the current epoch of training.
-        cfg (CfgNode): configs. Details can be found in
-            slowfast/config/defaults.py
-        writer (TensorboardWriter, optional): TensorboardWriter object
-            to writer Tensorboard log.
-    """
-    # Evaluation mode enabled. The running stats would not be updated.
-    model.eval()
-    val_meter.iter_tic()
-
-    for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(val_loader):
-        if cfg.NUM_GPUS:
-            # Transferthe data to the current GPU device.
-            if isinstance(inputs, (list,)):
-                for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(non_blocking=True)
-            else:
-                inputs = inputs.cuda(non_blocking=True)
-            if isinstance(labels, (dict,)):
-                labels = {k: v.cuda() for k, v in labels.items()}
-            else:
-                labels = labels.cuda()
-
-        val_meter.data_toc()
-
-        preds = model(
-            x=inputs,
-            lengths=lengths,
-            noun_embeddings=noun_embeddings,
-        )
-        preds = [pred.squeeze(1) for pred in preds]
-        check_predictions(preds=preds, labels=labels, threshold=0.1)
-
-        labels["state"] = prepare_state_labels(preds, labels, lengths)
-
-        if isinstance(labels, dict):
-            loss, loss_verb, loss_noun, loss_state = compute_loss(
-                verb_preds=preds[0],
-                noun_preds=preds[1],
-                state_preds=preds[2],
-                labels=labels,
-                cfg=cfg,
-                lengths=lengths,
-            )
-
-            # Compute the verb accuracies.
-            verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(preds[0], labels["verb"], (1, 5))
-
-            # Combine the errors across the GPUs.
-            if cfg.NUM_GPUS > 1:
-                loss_verb, verb_top1_acc, verb_top5_acc = du.all_reduce([loss_verb, verb_top1_acc, verb_top5_acc])
-
-            # Copy the errors from GPU to CPU (sync point).
-            loss_verb, verb_top1_acc, verb_top5_acc = (
-                loss_verb.item(),
-                verb_top1_acc.item(),
-                verb_top5_acc.item(),
-            )
-
-            # Compute the noun accuracies.
-            noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(preds[1], labels["noun"], (1, 5))
-
-            # Combine the errors across the GPUs.
-            if cfg.NUM_GPUS > 1:
-                loss_noun, noun_top1_acc, noun_top5_acc = du.all_reduce([loss_noun, noun_top1_acc, noun_top5_acc])
-
-            # Copy the errors from GPU to CPU (sync point).
-            loss_noun, noun_top1_acc, noun_top5_acc = loss_noun.item(), noun_top1_acc.item(), noun_top5_acc.item()
-
-            # Compute the action accuracies.
-            action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
-                (preds[0], preds[1]), (labels["verb"], labels["noun"]), (1, 5)
-            )
-            # Combine the errors across the GPUs.
-            if cfg.NUM_GPUS > 1:
-                loss, action_top1_acc, action_top5_acc = du.all_reduce([loss, action_top1_acc, action_top5_acc])
-
-            # Copy the errors from GPU to CPU (sync point).
-            loss, action_top1_acc, action_top5_acc = (
-                loss.item(),
-                action_top1_acc.item(),
-                action_top5_acc.item(),
-            )
-
-            val_meter.iter_toc()
-            # Update and log stats.
-            val_meter.update_stats(
-                top1_acc=(
-                    verb_top1_acc,
-                    noun_top1_acc,
-                    action_top1_acc,
-                ),
-                top5_acc=(
-                    verb_top5_acc,
-                    noun_top5_acc,
-                    action_top5_acc,
-                ),
-                mb_size=inputs[0].size(0)
-                * max(cfg.NUM_GPUS, 1),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
-            )
-            # write to tensorboard format if available.
-            if writer is not None and not wandb_log:
-                writer.add_scalars(
-                    {
-                        "Val/loss": loss,
-                        "Val/Top1_acc": action_top1_acc,
-                        "Val/Top5_acc": action_top5_acc,
-                        "Val/verb/loss": loss_verb,
-                        "Val/verb/Top1_acc": verb_top1_acc,
-                        "Val/verb/Top5_acc": verb_top5_acc,
-                        "Val/noun/loss": loss_noun,
-                        "Val/noun/Top1_acc": noun_top1_acc,
-                        "Val/noun/Top5_acc": noun_top5_acc,
-                        "Val/state/loss": loss_state,
-                    },
-                    global_step=len(val_loader) * cur_epoch + cur_iter,
-                )
-
-            if wandb_log:
-                wandb.log(
-                    {
-                        "Val/loss": loss,
-                        "Val/Top1_acc": action_top1_acc,
-                        "Val/Top5_acc": action_top5_acc,
-                        "Val/verb/loss": loss_verb,
-                        "Val/verb/Top1_acc": verb_top1_acc,
-                        "Val/verb/Top5_acc": verb_top5_acc,
-                        "Val/noun/loss": loss_noun,
-                        "Val/noun/Top1_acc": noun_top1_acc,
-                        "Val/noun/Top5_acc": noun_top5_acc,
-                        "Val/state/loss": loss_state,
-                        "val_step": len(val_loader) * cur_epoch + cur_iter,
-                    },
-                )
-
-            val_meter.update_predictions(
-                preds=(
-                    preds[0],
-                    preds[1],
-                    preds[2],
-                ),
-                labels=(
-                    labels["verb"],
-                    labels["noun"],
-                    labels["state"],
-                ),
-            )
-
-        else:
-            # Explicitly declare reduction to mean.
-            loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-
-            # Compute the loss.
-            loss = loss_fun(preds, labels)
-
-            if cfg.DATA.MULTI_LABEL:
-                if cfg.NUM_GPUS > 1:
-                    preds, labels = du.all_gather([preds, labels])
-
-            else:
-                # Compute the errors.
-                num_topks_correct = metrics.topks_correct(preds, labels, (1, 5))
-
-                # Combine the errors across the GPUs.
-                top1_err, top5_err = [(1.0 - x / preds.size(0)) * 100.0 for x in num_topks_correct]
-                if cfg.NUM_GPUS > 1:
-                    loss, top1_err, top5_err = du.all_reduce([loss, top1_err, top5_err])
-
-                # Copy the errors from GPU to CPU (sync point).
-                loss, top1_err, top5_err = (
-                    loss.item(),
-                    top1_err.item(),
-                    top5_err.item(),
-                )
-
-                val_meter.iter_toc()
-                # Update and log stats.
-                val_meter.update_stats(
-                    top1_err,
-                    top5_err,
-                    inputs[0].size(0)
-                    * max(cfg.NUM_GPUS, 1),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
-                )
-                # write to tensorboard format if available.
-                if writer is not None and not wandb_log:
-                    writer.add_scalars(
-                        {
-                            "Val/loss": loss,
-                            "Val/Top1_err": top1_err,
-                            "Val/Top5_err": top5_err,
-                        },
-                        global_step=len(val_loader) * cur_epoch + cur_iter,
-                    )
-
-                if wandb_log:
-                    wandb.log(
-                        {
-                            "Val/loss": loss,
-                            "Val/Top1_err": top1_err,
-                            "Val/Top5_err": top5_err,
-                            "val_step": len(val_loader) * cur_epoch + cur_iter,
-                        },
-                    )
-
-            val_meter.update_predictions(preds, labels)
-
-        val_meter.log_iter_stats(cur_epoch, cur_iter)
-        val_meter.iter_tic()
-
-    # Log epoch stats.
-    is_best_epoch, top1_dict = val_meter.log_epoch_stats(cur_epoch)
-    # write to tensorboard format if available.
-    if writer is not None:
-        all_verb_preds = [pred.clone().detach() for pred in val_meter.all_verb_preds]
-        all_verb_labels = [label.clone().detach() for label in val_meter.all_verb_labels]
-        all_noun_preds = [pred.clone().detach() for pred in val_meter.all_noun_preds]
-        all_noun_labels = [label.clone().detach() for label in val_meter.all_noun_labels]
-        all_state_preds = [pred.clone().detach() for pred in val_meter.all_state_preds]
-        all_state_labels = [label.clone().detach() for label in val_meter.all_state_labels]
-
-        if cfg.NUM_GPUS:
-            all_verb_preds = [pred.cpu() for pred in all_verb_preds]
-            all_verb_labels = [label.cpu() for label in all_verb_labels]
-            all_noun_preds = [pred.cpu() for pred in all_noun_preds]
-            all_noun_labels = [label.cpu() for label in all_noun_labels]
-            all_state_preds = [pred.cpu() for pred in all_state_preds]
-            all_state_labels = [label.cpu() for label in all_state_labels]
-
-        writer.plot_eval(preds=all_verb_preds, labels=all_verb_labels, global_step=cur_epoch)
-        writer.plot_eval(preds=all_noun_preds, labels=all_noun_labels, global_step=cur_epoch)
-        writer.plot_eval(preds=all_state_preds, labels=all_state_labels, global_step=cur_epoch)
-
-    if writer is not None and not wandb_log:
-        if "top1_acc" in top1_dict.keys():
-            writer.add_scalars(
-                {
-                    "Val/epoch/Top1_acc": top1_dict["top1_acc"],
-                    "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
-                    "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
-                },
-                global_step=cur_epoch,
-            )
-
-        else:
-            writer.add_scalars(
-                {"Val/epoch/Top1_err": top1_dict["top1_err"]},
-                global_step=cur_epoch,
-            )
-
-    if wandb_log:
-        if "top1_acc" in top1_dict.keys():
-            wandb.log(
-                {
-                    "Val/epoch/Top1_acc": top1_dict["top1_acc"],
-                    "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
-                    "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
-                    "epoch": cur_epoch,
-                },
-            )
-
-        else:
-            wandb.log({"Val/epoch/Top1_err": top1_dict["top1_err"], "epoch": cur_epoch})
-
-    top1 = top1_dict["top1_acc"] if "top1_acc" in top1_dict.keys() else top1_dict["top1_err"]
-    val_meter.reset()
-    return is_best_epoch, top1
-
-
 def calculate_and_update_precise_bn(loader, model, num_iters=200, use_gpu=True):
     """
     Update the stats in bn layers by calculate the precise stats.
@@ -660,7 +375,7 @@ def train(cfg):
     start_epoch = cu.load_train_checkpoint(cfg, model, optimizer)
 
     # Create the audio train and val loaders.
-    if cfg.TRAIN.DATASET != "EpicKitchens" or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
+    if not cfg.TRAIN.DATASET.startswith("EpicKitchens") or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
         train_loader = loader.construct_loader(cfg, "train")
         val_loader = loader.construct_loader(cfg, "val")
         precise_bn_loader = loader.construct_loader(cfg, "train") if cfg.BN.USE_PRECISE_STATS else None
@@ -670,7 +385,7 @@ def train(cfg):
         precise_bn_loader = loader.construct_loader(cfg, "train+val") if cfg.BN.USE_PRECISE_STATS else None
 
     # Create meters.
-    if cfg.TRAIN.DATASET == "EpicKitchens":
+    if cfg.TRAIN.DATASET.startswith("EpicKitchens"):
         train_meter = EPICTrainMeter(epoch_iters=len(train_loader), cfg=cfg)
         val_meter = EPICValMeter(max_iter=len(val_loader), cfg=cfg)
     else:
@@ -704,7 +419,7 @@ def train(cfg):
         wandb_log = False
 
     # Perform the training loop.
-    logger.info("Start epoch: {}".format(start_epoch + 1))
+    logger.info("Start epoch: {}".format(start_epoch))
 
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
         # Shuffle the dataset.
@@ -712,7 +427,7 @@ def train(cfg):
         loader.shuffle_dataset(train_loader, cur_epoch)
         logger.success("Done!")
 
-        logger.info(f"Training for epoch {cur_epoch + 1}.")
+        logger.info(f"Training for epoch {cur_epoch}.")
         # Train for one epoch.
         train_epoch(
             train_loader,
@@ -735,17 +450,16 @@ def train(cfg):
             cur_epoch,
         )
 
-        # Compute precise BN stats.
-        if (is_checkp_epoch or is_eval_epoch) and cfg.BN.USE_PRECISE_STATS and len(get_bn_modules(model)) > 0:
-            logger.info(f"Computing precise BN stats for epoch {cur_epoch}.")
-            calculate_and_update_precise_bn(
-                precise_bn_loader,
-                model,
-                min(cfg.BN.NUM_BATCHES_PRECISE, len(precise_bn_loader)),
-                cfg.NUM_GPUS > 0,
-            )
-            logger.info(f"Computing precise BN stats for epoch {cur_epoch}.")
-        _ = misc.aggregate_sub_bn_stats(model)
+        # # Compute precise BN stats.
+        # if (is_checkp_epoch or is_eval_epoch) and cfg.BN.USE_PRECISE_STATS and len(get_bn_modules(model)) > 0:
+        #     logger.info(f"Computing precise BN stats for epoch {cur_epoch}.")
+        #     calculate_and_update_precise_bn(
+        #         precise_bn_loader,
+        #         model,
+        #         min(cfg.BN.NUM_BATCHES_PRECISE, len(precise_bn_loader)),
+        #         cfg.NUM_GPUS > 0,
+        #     )
+        # _ = misc.aggregate_sub_bn_stats(model)
 
         # Save a checkpoint.
         if is_checkp_epoch:
@@ -803,84 +517,3 @@ def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tens
     mse_term = mse(preds[pos_mask_indices], labels[pos_mask_indices])
 
     return bce_term + mse_term
-
-
-def compute_loss(
-    verb_preds: torch.Tensor,
-    noun_preds: torch.Tensor,
-    state_preds: torch.Tensor,
-    labels: Dict[str, torch.Tensor],
-    lengths: List[int],
-    cfg: CfgNode,
-) -> Tuple[torch.Tensor, ...]:
-    # Explicitly declare reduction to mean.
-    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-    masked_loss_fun = losses.get_loss_func(cfg.MODEL.STATE_LOSS_FUNC)(reduction="mean")
-
-    loss_verb = loss_fun(verb_preds, labels["verb"])
-    loss_noun = loss_fun(noun_preds, labels["noun"])
-    loss_state = masked_loss_fun(state_preds, labels["state"])
-
-    # Use torch.mean to average the losses over all GPUs for logging purposes.
-    loss_vec = torch.stack(
-        [
-            loss_verb,
-            loss_noun,
-            loss_state,
-        ]
-    )
-
-    loss = torch.mean(loss_vec)
-
-    # check Nan Loss.
-    misc.check_nan_losses(loss)
-
-    return loss, loss_verb, loss_noun, loss_state
-
-
-def _check_prediction(pred: torch.Tensor, threshold: float = 0.1) -> bool:
-    return torch.all(torch.abs(pred) <= threshold)
-
-
-def check_predictions(preds: torch.Tensor, labels: torch.Tensor, threshold: float = 0.1):
-    """
-    Check if the state predictions are within the threshold and actually look like something.
-
-    Parameters
-    ----------
-    `preds`: `torch.Tensor`
-        The predictions from the model.
-
-    `labels`: `torch.Tensor`
-        The labels for the predictions.
-
-    `threshold`: `float`
-        The threshold to check the predictions against.
-    """
-    if _check_prediction(pred=preds[2], threshold=threshold):
-        text = f"State < 0.1\n\nPreds:{preds[2]}\nLabels:{labels[2]}"
-        logger.warning(text)
-        wandb.alert(
-            title="State looking strange",
-            text=text,
-            level=AlertLevel.WARN,
-        )
-
-
-def prepare_state_labels(preds, labels, lengths) -> torch.Tensor:
-    """
-    Returns the state labels for the given predictions and labels.
-    It creates labels as follows:
-
-    1. Sets value longer than audio segment length to -10
-    2. Sets values up to length // 2 to the precondition label
-    3. Sets values after length // 2 to length to the postcondition label
-    """
-    B, N, P = preds[2].shape
-    state = labels["posts"].clone().unsqueeze(1).repeat(1, N, 1)
-
-    for i, length in enumerate(lengths):
-        state[i, length:, :] = -10
-        state[i, : length // 2] = labels["precs"][i]
-
-    return state

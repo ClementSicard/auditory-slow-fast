@@ -133,6 +133,17 @@ train:
 		--augment \
 		--factor 4.0
 
+.PHONY: train-small
+train-small:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	python main.py \
+		--model audio_slowfast \
+		--config config.yaml \
+		--train \
+		--verbs break crush pat shake sharpen smell throw water \
+		--augment \
+		--small
+
 .PHONY: test
 test:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
@@ -142,7 +153,7 @@ test:
 		--test \
 		--verbs break crush pat shake sharpen smell throw water \
 		--augment \
-		# --factor 4.0
+		--factor 4.0
 
 
 .PHONY: job-train

@@ -62,6 +62,7 @@ def parse_args() -> Dict[str, Any]:
     parser.add_argument("--make-plots", action="store_true")
     parser.add_argument("--augment", action="store_true")
     parser.add_argument("--factor", type=float, default=1.0)
+    parser.add_argument("--small", action="store_true")
 
     args = parser.parse_args()
 
@@ -123,6 +124,7 @@ def main(args: Dict[str, Any]) -> None:
         nouns_embeddings_path=meta_config["dataset"]["epic"]["nouns_embeddings"],
         augment=args["augment"],
         factor=args["factor"],
+        small=args["small"],
     )
 
     attributes = pd.read_csv(meta_config["models"]["audio_slowfast"]["attributes_file"])["attribute"].tolist()
@@ -158,6 +160,9 @@ def main(args: Dict[str, Any]) -> None:
             cfg.TENSORBOARD.ENABLE = False
             cfg.DATA_LOADER.NUM_WORKERS = 4
             cfg.TRAIN.BATCH_SIZE = 2
+
+        if args["small"]:
+            cfg.SOLVER.MAX_EPOCH = 2
 
         sleep(1)
         launch_job(cfg=cfg, init_method=None, func=train)

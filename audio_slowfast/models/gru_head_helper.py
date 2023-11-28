@@ -159,6 +159,7 @@ class GRUResNetBasicHead(nn.Module):
 
             # Assert that all x_s are in the range [-1, 1]
             assert torch.all(torch.abs(x_s) <= 1), "x_s not in range [-1, 1]"
+            assert len(x_s.shape) == 3, f"x_s has shape {x_s.shape} instead of (B, N, P)"
 
             # Average accross dim-1 (0-indexed) for x_v and x_n
             x_v = x_v.mean(dim=1)  # (B, N, 97) -> (B, 97)
@@ -217,7 +218,8 @@ class GRUResNetBasicHead(nn.Module):
         h_0 = noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1)
 
         # (B*N, 1, 1, n_features_asf) -> (B*N, n_features_asf)
-        x = x.squeeze()
+        # Squeeze all dimensions except the batch dimension (first)
+        x = x.squeeze(1).squeeze(1)
 
         # (B*N, n_features_asf) -> (B, N, n_features_asf)
         x = x.view(B, N, *x.shape[1:])

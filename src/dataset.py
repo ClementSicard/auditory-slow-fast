@@ -28,6 +28,7 @@ def prepare_dataset(
     make_plots: bool = False,
     augment: bool = True,
     factor: float = 1.0,
+    small: bool = False,
 ) -> None:
     """
     Prepares the dataset by filtering it to keep only the verbs we want and
@@ -74,11 +75,19 @@ def prepare_dataset(
 
     `factor` : `float`, optional
         The factor to use for augmentation, by default `1.0`.
+
+    `small` : `bool`, optional
+        Whether to use a small dataset or not, by default `False`
     """
+    if small:
+        logger.warning("Using small dataset")
+        factor = 1.0
+        augment = True
+
     logger.info(f"Preparing dataset with verbs: {verbs_from_args}")
     ids, map_ids_verbs, verbs_df = load_verbs(verbs_from_args=verbs_from_args, path=verbs_path)
-    train_df = load_dataset(path=train_path)
-    val_df = load_dataset(path=val_path)
+    train_df = load_dataset(path=train_path, small=small)
+    val_df = load_dataset(path=val_path, small=small)
 
     if make_plots:
         logger.info("Making plots...")
@@ -109,9 +118,11 @@ def prepare_dataset(
 
     # Load PDDL domain
     actions, attributes = parse_pddl(domain_path=pddl_domain_path, problem_path=pddl_problem_path)
+
     assert set(map_ids_verbs.values()).issubset(
         set([a.name for a in actions])
     ), f"Some actions are not in the list of verbs: {set(map_ids_verbs.values()) - set([a.name for a in actions])}"
+
     attributes_df = pd.DataFrame(attributes, columns=["attribute"])
     attributes_df.to_csv(save_attributes_path, index=False)
 
@@ -203,7 +214,7 @@ def load_verbs(
     return verbs_from_args_ids, map_ids, verbs_df
 
 
-def load_dataset(path: str) -> pd.DataFrame:
+def load_dataset(path: str, small: bool) -> pd.DataFrame:
     """
     Loads the dataset from the given path and adds a column with the duration of each video.
 
@@ -217,7 +228,7 @@ def load_dataset(path: str) -> pd.DataFrame:
     `pd.DataFrame`
         The dataset with the duration of each video.
     """
-    df = pd.read_pickle(path)
+    df = pd.read_pickle(path) if not small else pd.read_pickle(path)[:100]
     df["start_ts_td"] = pd.to_timedelta(df["start_timestamp"])
     df["stop_ts_td"] = pd.to_timedelta(df["stop_timestamp"])
     df["duration_in_s"] = (df["stop_ts_td"] - df["start_ts_td"]).dt.total_seconds()
