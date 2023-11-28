@@ -108,6 +108,8 @@ def train_epoch(
             else:
                 labels = labels.cuda()
 
+            noun_embeddings = noun_embeddings.cuda()
+
             if cur_iter % cfg.LOG_PERIOD == 0:
                 display_gpu_info()
 

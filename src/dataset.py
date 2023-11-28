@@ -486,10 +486,6 @@ def get_nouns_clip_embeddings(nouns: pd.DataFrame, model: CLIP, path: str) -> Di
     `Dict[str, torch.Tensor]`
         The embeddings for the given nouns.
     """
-    if os.path.exists(path):
-        logger.info(f"Loading CLIP embeddings for nouns from {path}")
-        return pd.read_pickle(path).to_dict(orient="index")
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Put the embeddings in a dictionary, with the index as key and (name, embedding) as value
@@ -498,7 +494,7 @@ def get_nouns_clip_embeddings(nouns: pd.DataFrame, model: CLIP, path: str) -> Di
         noun_embeddings = {
             i: {
                 "noun": n,
-                "embedding": model.encode_text(clip.tokenize([n]).to(device)),
+                "embedding": model.encode_text(clip.tokenize([n]).to(device)).float().cpu().numpy(),
             }
             for i, n in tqdm(
                 nouns.items(),

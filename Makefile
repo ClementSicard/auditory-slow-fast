@@ -131,7 +131,7 @@ train:
 		--train \
 		--verbs break crush pat shake sharpen smell throw water \
 		--augment \
-		# --factor 1.0
+		--factor 4.0
 
 .PHONY: test
 test:
@@ -142,7 +142,7 @@ test:
 		--test \
 		--verbs break crush pat shake sharpen smell throw water \
 		--augment \
-		--factor 4.0
+		# --factor 4.0
 
 
 .PHONY: job-train
@@ -153,7 +153,7 @@ job-train:
 	sbatch -N 1 \
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
-		--gres=gpu:v100:1 \
+		--gres=gpu:1 \
 	    --time 24:00:00 \
 	    --mem 16G \
 	    --error $${LOG_FILE} \

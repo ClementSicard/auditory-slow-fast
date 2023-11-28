@@ -145,7 +145,7 @@ def _extract_sound_feature(
         )
         num_timesteps_to_pad = cfg.AUDIO_DATA.NUM_FRAMES - spectrogram.shape[0]
         if num_timesteps_to_pad > 0:
-            logger.warning(f"Padded spectrogram {audio_record._index} with copies of the last sample.")
+            logger.debug(f"Padded spectrogram {audio_record._index} with copies of the last sample.")
             spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), "edge")
 
     return torch.tensor(spectrogram).unsqueeze(0)

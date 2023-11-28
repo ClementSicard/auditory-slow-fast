@@ -171,7 +171,7 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
         label = self._audio_records[index].label
         metadata = self._audio_records[index].metadata
 
-        noun_embedding = self._audio_records[index].noun_embedding
+        noun_embedding = torch.from_numpy(self._audio_records[index].noun_embedding)
 
         return spectrograms, label, index, noun_embedding, metadata
 
