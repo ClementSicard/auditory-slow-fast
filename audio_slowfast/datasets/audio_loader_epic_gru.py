@@ -44,6 +44,7 @@ def pack_audio_gru(
     """
     samples = audio_dataset[audio_record.untrimmed_video_name][()]
     start_sample = audio_record.start_audio_sample + start_offset * cfg.AUDIO_DATA.SAMPLING_RATE
+
     start_idx, end_idx = get_start_end_idx(
         audio_record.num_audio_samples,
         int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)),

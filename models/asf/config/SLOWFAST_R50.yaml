@@ -1,8 +1,7 @@
 TRAIN:
   ENABLE: True
   DATASET: EpicKitchensGRU
-  # DATASET: EpicKitchens
-  BATCH_SIZE: 16
+  BATCH_SIZE: 4
   EVAL_PERIOD: 2
   CHECKPOINT_PERIOD: 1
   CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_EPIC.pyth
@@ -51,7 +50,7 @@ SOLVER:
   LR_POLICY: steps_with_relative_lrs
   STEPS: [0, 20, 25]
   LRS: [1, 0.2, 0.02]
-  MAX_EPOCH: 30
+  MAX_EPOCH: 10
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: -1.0
@@ -93,7 +92,7 @@ TENSORBOARD:
 
 NUM_GPUS: 1 # MODIFY
 NUM_SHARDS: 1
-RNG_SEED: 0
+RNG_SEED: 24
 OUTPUT_DIR: .
 WANDB:
   ENABLE: True # If no GPU is enabled this will be set to False

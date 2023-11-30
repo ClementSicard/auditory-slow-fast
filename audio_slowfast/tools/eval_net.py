@@ -83,7 +83,7 @@ def eval_epoch(
                 state_preds=preds[2],
                 labels=labels,
                 cfg=cfg,
-                lengths=lengths,
+                current_iter=cur_iter,
             )
 
             # Compute the verb accuracies.

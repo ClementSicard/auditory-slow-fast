@@ -70,4 +70,10 @@ def time_mask(spec, T=25, num_masks=1, replace_with_zero=False):
 
 
 def combined_transforms(spec):
-    return time_mask(freq_mask(time_warp(spec), num_masks=2), num_masks=2)
+    return time_mask(
+        freq_mask(
+            time_warp(spec),
+            num_masks=2,
+        ),
+        num_masks=2,
+    )

@@ -128,7 +128,7 @@ def train_epoch(
                 state_preds=preds[2],
                 labels=labels,
                 cfg=cfg,
-                lengths=lengths,
+                current_iter=cur_iter,
             )
 
         else:

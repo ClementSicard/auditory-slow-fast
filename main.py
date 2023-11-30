@@ -111,21 +111,21 @@ def main(args: Dict[str, Any]) -> None:
     cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
 
     # Prepare the dataset
-    prepare_dataset(
-        verbs_from_args=args["verbs"],
-        nouns_path=meta_config["dataset"]["epic"]["nouns"],
-        verbs_path=meta_config["dataset"]["epic"]["verbs"],
-        train_path=meta_config["dataset"]["epic"]["train"],
-        val_path=meta_config["dataset"]["epic"]["val"],
-        make_plots=args["make_plots"],
-        pddl_domain_path=meta_config["dataset"]["epic"]["pddl_domain"],
-        pddl_problem_path=meta_config["dataset"]["epic"]["pddl_problem"],
-        save_attributes_path=meta_config["models"]["audio_slowfast"]["attributes_file"],
-        nouns_embeddings_path=meta_config["dataset"]["epic"]["nouns_embeddings"],
-        augment=args["augment"],
-        factor=args["factor"],
-        small=args["small"],
-    )
+    # prepare_dataset(
+    #     verbs_from_args=args["verbs"],
+    #     nouns_path=meta_config["dataset"]["epic"]["nouns"],
+    #     verbs_path=meta_config["dataset"]["epic"]["verbs"],
+    #     train_path=meta_config["dataset"]["epic"]["train"],
+    #     val_path=meta_config["dataset"]["epic"]["val"],
+    #     make_plots=args["make_plots"],
+    #     pddl_domain_path=meta_config["dataset"]["epic"]["pddl_domain"],
+    #     pddl_problem_path=meta_config["dataset"]["epic"]["pddl_problem"],
+    #     save_attributes_path=meta_config["models"]["audio_slowfast"]["attributes_file"],
+    #     nouns_embeddings_path=meta_config["dataset"]["epic"]["nouns_embeddings"],
+    #     augment=args["augment"],
+    #     factor=args["factor"],
+    #     small=args["small"],
+    # )
 
     attributes = pd.read_csv(meta_config["models"]["audio_slowfast"]["attributes_file"])["attribute"].tolist()
 

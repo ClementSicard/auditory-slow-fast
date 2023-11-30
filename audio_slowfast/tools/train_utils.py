@@ -68,8 +68,8 @@ def compute_loss(
     noun_preds: torch.Tensor,
     state_preds: torch.Tensor,
     labels: Dict[str, torch.Tensor],
-    lengths: List[int],
     cfg: CfgNode,
+    current_iter: int = 0,
 ) -> Tuple[torch.Tensor, ...]:
     # Explicitly declare reduction to mean.
     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
@@ -77,7 +77,7 @@ def compute_loss(
 
     loss_verb = loss_fun(verb_preds, labels["verb"])
     loss_noun = loss_fun(noun_preds, labels["noun"])
-    loss_state = masked_loss_fun(state_preds, labels["state"])
+    loss_state = masked_loss_fun(preds=state_preds, labels=labels["state"], current_iter=current_iter)
 
     # Use torch.mean to average the losses over all GPUs for logging purposes.
     loss_vec = torch.stack(

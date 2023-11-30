@@ -9,6 +9,7 @@ from h5py._hl.files import File
 
 from audio_slowfast.datasets.utils import get_start_end_idx
 
+
 from .epickitchens_record import EpicKitchensAudioRecord
 
 
@@ -58,6 +59,7 @@ def pack_audio(
         end_idx=end_idx,
         transform=transform,
     )
+
     return spectrogram
 
 
@@ -117,35 +119,25 @@ def _extract_sound_feature(
     # 1st case: the audio clip is shorter than the desired length.
     if audio_record.num_audio_samples < int(round(cfg.AUDIO_DATA.SAMPLING_RATE * cfg.AUDIO_DATA.CLIP_SECS)):
         samples = samples[audio_record.start_audio_sample : audio_record.end_audio_sample]
-        if transform is not None:
-            samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
-        spectrogram = _log_specgram(
-            cfg,
-            samples,
-            window_size=cfg.AUDIO_DATA.WINDOW_LENGTH,
-            step_size=cfg.AUDIO_DATA.HOP_LENGTH,
-        )
-        num_timesteps_to_pad = cfg.AUDIO_DATA.NUM_FRAMES - spectrogram.shape[0]
-        spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), "edge")
 
     # 2nd case: the audio clip is longer than the desired length.
     else:
         samples = samples[start_idx:end_idx]
 
-        # In case the overlaps goes beyond the end of the audio clip, pad the audio clip with copies of the last sample.
+    # In case the overlaps goes beyond the end of the audio clip, pad the audio clip with copies of the last sample.
+    if transform is not None:
+        samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
 
-        if transform is not None:
-            samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
+    spectrogram = _log_specgram(
+        cfg,
+        samples,
+        window_size=cfg.AUDIO_DATA.WINDOW_LENGTH,
+        step_size=cfg.AUDIO_DATA.HOP_LENGTH,
+    )
 
-        spectrogram = _log_specgram(
-            cfg,
-            samples,
-            window_size=cfg.AUDIO_DATA.WINDOW_LENGTH,
-            step_size=cfg.AUDIO_DATA.HOP_LENGTH,
-        )
-        num_timesteps_to_pad = cfg.AUDIO_DATA.NUM_FRAMES - spectrogram.shape[0]
-        if num_timesteps_to_pad > 0:
-            logger.debug(f"Padded spectrogram {audio_record._index} with copies of the last sample.")
-            spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), "edge")
+    num_timesteps_to_pad = cfg.AUDIO_DATA.NUM_FRAMES - spectrogram.shape[0]
+    if num_timesteps_to_pad > 0:
+        # logger.warning(f"Padded spectrogram {audio_record._index} with copies of the last sample.")
+        spectrogram = np.pad(spectrogram, ((0, num_timesteps_to_pad), (0, 0)), "edge")
 
     return torch.tensor(spectrogram).unsqueeze(0)

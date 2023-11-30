@@ -119,6 +119,8 @@ class EpicKitchens(torch.utils.data.Dataset):
 
         transformation = self._audio_records[index].transformation
 
+        from audio_slowfast.visualization.spectrograms import _plot_spectrogram
+
         spectrogram = pack_audio(
             cfg=self.cfg,
             audio_dataset=self.audio_dataset,
@@ -135,11 +137,16 @@ class EpicKitchens(torch.utils.data.Dataset):
             spectrogram = spectrogram.permute(0, 2, 1)
             # SpecAugment
             spectrogram = combined_transforms(spectrogram)
-            # C F T -> C T F
+            # C F T -> C T F -> (1, 400, 128)
             spectrogram = spectrogram.permute(0, 2, 1)
+
         label = self._audio_records[index].label
         spectrogram = utils.pack_pathway_output(self.cfg, spectrogram)
         metadata = self._audio_records[index].metadata
+
+        # TODO: remove this hack
+        # spectrogram = [spectrogram, spectrogram]
+
         return spectrogram, label, index, metadata
 
     def __len__(self):

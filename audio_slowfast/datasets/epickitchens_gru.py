@@ -33,7 +33,7 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
             self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS
 
         self.audio_dataset = None
-        logger.info("Constructing EPIC-KITCHENS Audio {}...".format(mode))
+        logger.info("Constructing EPIC-KITCHENS-GRU Audio {}...".format(mode))
         self._construct_loader()
 
         self.transforms = get_transforms()
@@ -90,7 +90,7 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
             self.mode, path_annotations_pickle
         )
         logger.info(
-            "Constructing epickitchens dataloader (size: {:,}) from {}".format(
+            "Constructing EPIC-KITCHENS-GRU dataloader (size: {:,}) from {}".format(
                 len(self._audio_records), path_annotations_pickle
             )
         )
@@ -110,20 +110,23 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
         if self.audio_dataset is None:
             self.audio_dataset = h5py.File(self.cfg.EPICKITCHENS.AUDIO_DATA_FILE, "r")
 
-        if self.mode in ["train", "val", "train+val"]:
-            # -1 indicates random sampling.
-            temporal_sample_index = -1
-        elif self.mode in ["test"]:
-            temporal_sample_index = self._temporal_idx[index]
-        else:
-            raise NotImplementedError("Does not support {} mode".format(self.mode))
+        # if self.mode in ["train", "val", "train+val"]:
+        #     # -1 indicates random sampling.
+        #     temporal_sample_index = -1
+        # elif self.mode in ["test"]:
+        #     temporal_sample_index = self._temporal_idx[index]
+        # else:
+        #     raise NotImplementedError("Does not support {} mode".format(self.mode))
 
+        temporal_sample_index = self._temporal_idx[index]
         transformation = self._audio_records[index].transformation
 
         slow_spectrograms = []
         fast_spectrograms = []
 
         num_spectrograms = self._audio_records[index].num_spectrograms
+        from audio_slowfast.visualization.spectrograms import _plot_spectrogram
+
         for i in range(
             min(
                 num_spectrograms,
