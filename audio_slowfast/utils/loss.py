@@ -36,12 +36,22 @@ class MaskedLoss(nn.Module):
 
         bce_term = self.bce(abs_preds[mask], abs_labels[mask])
 
+        # logger.error(f"preds: {preds}")
+        # logger.error(f"labels: {labels}")
+        # logger.error(f"abs_preds: {abs_preds}")
+        # logger.error(f"abs_labels: {abs_labels}")
+        # logger.error(f"mask: {mask}")
+        # logger.error(f"abs_preds[mask]: {abs_preds[mask]}")
+        # logger.error(f"abs_labels[mask]: {abs_labels[mask]}")
+        # logger.error(f"bce_term: {bce_term}")
+
         # Get the indices where the abs_labels are 1
         # pos_mask_indices = abs_labels.nonzero(as_tuple=True)
         pos_mask_indices = torch.zeros_like(abs_labels, dtype=torch.bool)
-        pos_mask_indices[abs_labels > 0] = True
+        pos_mask_indices[abs_labels == 1.0] = True
         pos_mask_indices *= mask
 
+        # mse_term = self.mse(preds[pos_mask_indices], labels[pos_mask_indices])
         mse_term = self.mse(preds[pos_mask_indices], labels[pos_mask_indices])
 
         result = 0.5 * (bce_term + mse_term)

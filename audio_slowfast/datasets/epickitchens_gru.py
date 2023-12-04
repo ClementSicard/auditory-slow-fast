@@ -14,11 +14,12 @@ from .audio_loader_epic_gru import pack_audio_gru
 from .epickitchens_record_gru import EpicKitchensAudioRecordGRU
 from .build import DATASET_REGISTRY
 from .spec_augment import combined_transforms
+from fvcore.common.config import CfgNode
 
 
 @DATASET_REGISTRY.register()
 class EpicKitchensGRU(torch.utils.data.Dataset):
-    def __init__(self, cfg, mode):
+    def __init__(self, cfg: CfgNode, mode: str, unique_batch: bool = True):
         assert mode in [
             "train",
             "val",
@@ -34,9 +35,10 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
 
         self.audio_dataset = None
         logger.info("Constructing EPIC-KITCHENS-GRU Audio {}...".format(mode))
-        self._construct_loader()
-
+        self.unique_batch = unique_batch
         self.transforms = get_transforms()
+
+        self._construct_loader()
 
     def _construct_loader(self):
         """
@@ -80,7 +82,7 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
 
         for file in path_annotations_pickle:
             file_df = pd.read_pickle(file)
-            for tup in file_df.iterrows():
+            for tup in file_df.iterrows() if not self.unique_batch else file_df[: self.cfg.TRAIN.BATCH_SIZE].iterrows():
                 for idx in range(self._num_clips):
                     self._audio_records.append(
                         EpicKitchensAudioRecordGRU(tup, cfg=self.cfg),

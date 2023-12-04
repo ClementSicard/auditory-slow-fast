@@ -164,8 +164,8 @@ def log_model_info(model, cfg):
     logger.warning("Model:\n{}".format(model))
     logger.info("Params: {:,}".format(params_count(model)))
     logger.info("Mem: {:,} MB".format(gpu_mem_usage()))
-    logger.info("Flops: {:,} G".format(get_model_stats(model, cfg, "flop")))
-    logger.info("Activations: {:,} M".format(get_model_stats(model, cfg, "activation")))
+    # logger.info("Flops: {:,} G".format(get_model_stats(model, cfg, "flop")))
+    # logger.info("Activations: {:,} M".format(get_model_stats(model, cfg, "activation")))
     logger.info("nvidia-smi")
     os.system("nvidia-smi")
 

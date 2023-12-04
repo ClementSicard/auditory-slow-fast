@@ -132,6 +132,8 @@ def load_checkpoint(
     optimizer=None,
     epoch_reset=False,
     clear_name_pattern=(),
+    exclude_layers=(),
+    # exclude_layers=("head.projection_verb", "head.projection_noun"),
 ):
     """
     Load the checkpoint from the given file.
@@ -173,6 +175,10 @@ def load_checkpoint(
 
     pre_train_dict = checkpoint["model_state"]
     model_dict = ms.state_dict()
+
+    # Exclude specified layers
+    pre_train_dict = {k: v for k, v in pre_train_dict.items() if not any(ex_layer in k for ex_layer in exclude_layers)}
+
     # Match pre-trained weights that have same shape as current model.
     pre_train_dict_match = {
         k: v for k, v in pre_train_dict.items() if k in model_dict and v.size() == model_dict[k].size()

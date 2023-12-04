@@ -91,7 +91,7 @@ def log_json_stats(stats, it: Optional[int] = None):
         use_decimal=True,
         indent=2 * " ",
     )
-    # logger.debug(f"Stats: {json_stats}")
+    logger.debug(f"Stats: {json_stats}")
 
     file_name = os.getenv("TRAIN_STATS")
     if not file_name:

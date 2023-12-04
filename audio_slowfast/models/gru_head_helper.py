@@ -56,6 +56,8 @@ class GRUResNetBasicHead(nn.Module):
         if dropout_rate > 0.0:
             self.dropout = nn.Dropout(dropout_rate)
 
+        self.gru_substitute = nn.Linear(sum(dim_in), gru_hidden_size * 2, bias=True)
+
         # GRU Module
         self.gru = nn.GRU(
             input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
@@ -78,13 +80,20 @@ class GRUResNetBasicHead(nn.Module):
         # At this stage, a batch has shape (B * N_s, 1, )
 
         if isinstance(self.num_classes, (list, tuple)):
-            self.projection_verb = nn.Linear(sum(self.dim_in), self.num_classes[0], bias=True)
-            self.projection_noun = nn.Linear(sum(self.dim_in), self.num_classes[1], bias=True)
+            V, N, P = self.num_classes
+            F = sum(self.dim_in)
+            self.projection_verb = nn.Linear(F, V, bias=True)
+            self.projection_noun = nn.Linear(F, N, bias=True)
 
             # Will project to [B * N_s, num_frames * num_predicates]
-            self.projection_state = nn.Linear(sum(self.dim_in), self.num_classes[2], bias=True)
+            # self.projection_state = nn.Linear(F, self.num_classes[2], bias=True)
+
+            self.projection_min_1 = nn.Linear(F, P, bias=True)
+            self.projection_0 = nn.Linear(F, P, bias=True)
+            self.projection_1 = nn.Linear(F, P, bias=True)
+
         else:
-            self.projection = nn.Linear(sum(self.dim_in), num_classes, bias=True)
+            self.projection = nn.Linear(F, num_classes, bias=True)
         # Softmax for evaluation and testing.
         if act_func == "softmax":
             # Dimension 3 is the size of the embedding space before the projection.
@@ -97,7 +106,8 @@ class GRUResNetBasicHead(nn.Module):
             raise NotImplementedError(f"{act_func} is not supported as an activation function")
 
         # State vectors use tanh activation to fall in the range [-1, 1]
-        self.state_act = nn.Tanh()
+        self.state_act = nn.Softmax(dim=2)  # Softmax on [B, N, 3, P]
+        # self.state_act = nn.Tanh()
 
     def forward(
         self,
@@ -132,7 +142,7 @@ class GRUResNetBasicHead(nn.Module):
         if hasattr(self, "dropout"):
             x = self.dropout(x)
 
-        self._gru(
+        x = self._gru(
             x=x,
             noun_embeddings=noun_embeddings,
             initial_batch_shape=initial_batch_shape,
@@ -140,9 +150,10 @@ class GRUResNetBasicHead(nn.Module):
         )
 
         if isinstance(self.num_classes, (list, tuple)):
-            x_v = self.projection_verb(x)
-            x_n = self.projection_noun(x)
-            x_s = self.projection_state(x)
+            x_v = self.projection_verb(x)  # (B*N, 2304) -> (B*N, V)
+            x_n = self.projection_noun(x)  # (B*N, 2304) -> (B*N, N)
+            x_s = self.project_state(x)  # (B*N, 2304) -> (B*N, 3, P)
+            # x_s = self.projection_state(x)
 
             x_v = self.fc_inference(x_v, self.act)
             x_n = self.fc_inference(x_n, self.act)
@@ -153,13 +164,11 @@ class GRUResNetBasicHead(nn.Module):
             N = initial_batch_shape[1]
 
             # Reshape each output to (B, N, num_classes)
-            x_v = x_v.view(-1, N, self.num_classes[0])
-            x_n = x_n.view(-1, N, self.num_classes[1])
-            x_s = x_s.view(-1, N, self.num_classes[2])
+            x_v = x_v.view(-1, N, self.num_classes[0])  # (B*N, V) -> (B, N, V)
+            x_n = x_n.view(-1, N, self.num_classes[1])  # (B*N, N) -> (B, N, N)
 
-            # Assert that all x_s are in the range [-1, 1]
-            assert torch.all(torch.abs(x_s) <= 1), "x_s not in range [-1, 1]"
-            assert len(x_s.shape) == 3, f"x_s has shape {x_s.shape} instead of (B, N, P)"
+            # (B*N, 3, P) -> (B, N, 3, P)
+            x_s = x_s.view(-1, N, self.num_classes[2], 3)
 
             # Average accross dim-1 (0-indexed) for x_v and x_n
             x_v = x_v.mean(dim=1)  # (B, N, 97) -> (B, 97)
@@ -173,8 +182,16 @@ class GRUResNetBasicHead(nn.Module):
             return x
 
     def fc_inference(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
-        x = act(x)
+        # Performs fully convolutional inference.
+        if not self.training:
+            x = act(x)
+            x = x.mean([1, 2])
 
+        x = x.view(x.shape[0], -1)
+        return x
+
+    def fc_inference_state(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
+        x = act(x)
         # Performs fully convolutional inference.
         if not self.training:
             x = x.mean([1, 2])
@@ -213,26 +230,52 @@ class GRUResNetBasicHead(nn.Module):
         """
         # Reshape noun_embeddings to be (2 * num_gpu_layers, batch_size, embedding_size)
         B, N = initial_batch_shape
+        F = x.shape[-1]
         D = 2 if self.gru.bidirectional else 1
 
         h_0 = noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1)
 
         # (B*N, 1, 1, n_features_asf) -> (B*N, n_features_asf)
         # Squeeze all dimensions except the batch dimension (first)
+
         x = x.squeeze(1).squeeze(1)
 
         # (B*N, n_features_asf) -> (B, N, n_features_asf)
-        x = x.view(B, N, *x.shape[1:])
+        x = x.view(B, N, F)
 
         # Pass the transformed batch through the GRU
         # (B, N, D * gru_hidden_size) = (B, N, 2 * 512)
-        x = torch.nn.utils.rnn.pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
+        x = torch.nn.utils.rnn.pack_padded_sequence(
+            input=x,
+            lengths=lengths,
+            batch_first=True,
+            enforce_sorted=False,
+        )
+        # x = self.gru_substitute(x)
+        # x, _ = self.gru(x)
         x, _ = self.gru(x, hx=h_0)
+
         x, lengths = torch.nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
 
         # (B, N, 1024) -> (B*N, 1024)
-        x = x.view(B * N, *x.shape[2:])
+        logger.warning(f"{B=} {N=}")
+
+        x = x.reshape(B * N, D * self.gru.hidden_size)
         x = x.unsqueeze(1).unsqueeze(1)
+
         x = self.projection_to_dim_in(x)
+
+        return x
+
+    def project_state(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Project the GRU output to the state vector space.
+        """
+        x_min_1 = self.projection_min_1(x)  # (B, N, P)
+        x_0 = self.projection_0(x)  # (B, N, P)
+        x_1 = self.projection_1(x)  # (B, N, P)
+
+        # Concatenate them into a single tensor of size (B, N, 3, P)
+        x = torch.cat([x_min_1, x_0, x_1], dim=2)
 
         return x

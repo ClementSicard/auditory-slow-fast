@@ -376,6 +376,7 @@ def train(cfg):
     # Create the audio train and val loaders.
     if not cfg.TRAIN.DATASET.startswith("EpicKitchens") or not cfg.EPICKITCHENS.TRAIN_PLUS_VAL:
         train_loader = loader.construct_loader(cfg, "train")
+        # train_loader = loader.construct_loader(cfg, "train")
         val_loader = loader.construct_loader(cfg, "val")
         precise_bn_loader = loader.construct_loader(cfg, "train") if cfg.BN.USE_PRECISE_STATS else None
     else:
@@ -461,25 +462,26 @@ def train(cfg):
         # _ = misc.aggregate_sub_bn_stats(model)
 
         # Save a checkpoint.
-        if is_checkp_epoch:
-            logger.info(f"Saving a checkpoint for epoch {cur_epoch}.")
-            cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg)
-            logger.success(f"Done saving a checkpoint for epoch {cur_epoch}.")
+        # if is_checkp_epoch:
+        #     logger.info(f"Saving a checkpoint for epoch {cur_epoch}.")
+        #     cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg)
+        #     logger.success(f"Done saving a checkpoint for epoch {cur_epoch}.")
+
         # Evaluate the model on validation set.
-        if is_eval_epoch:
-            logger.info(f"Evaluating the model for epoch {cur_epoch}.")
-            is_best_epoch, _ = eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer, wandb_log)
-            logger.success(f"Done evaluating the model for epoch {cur_epoch}!")
-            if is_best_epoch:
-                logger.success(f"Saving a best checkpoint for epoch {cur_epoch}.")
-                cu.save_checkpoint(
-                    cfg.OUTPUT_DIR,
-                    model,
-                    optimizer,
-                    cur_epoch,
-                    cfg,
-                    is_best_epoch=is_best_epoch,
-                )
+        # if is_eval_epoch:
+        #     logger.info(f"Evaluating the model for epoch {cur_epoch}.")
+        #     is_best_epoch, _ = eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer, wandb_log)
+        #     logger.success(f"Done evaluating the model for epoch {cur_epoch}!")
+        #     if is_best_epoch:
+        #         logger.success(f"Saving a best checkpoint for epoch {cur_epoch}.")
+        #         cu.save_checkpoint(
+        #             cfg.OUTPUT_DIR,
+        #             model,
+        #             optimizer,
+        #             cur_epoch,
+        #             cfg,
+        #             is_best_epoch=is_best_epoch,
+        #         )
 
     if writer is not None:
         writer.close()
