@@ -76,6 +76,34 @@ def prepare_state_labels(preds, labels, lengths) -> torch.Tensor:
 def compute_loss(
     verb_preds: torch.Tensor,
     noun_preds: torch.Tensor,
+    labels: Dict[str, torch.Tensor],
+    cfg: CfgNode,
+) -> Tuple[torch.Tensor, ...]:
+    # Explicitly declare reduction to mean.
+    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
+
+    loss_verb = loss_fun(verb_preds, labels["verb"])
+    loss_noun = loss_fun(noun_preds, labels["noun"])
+
+    # Use torch.mean to average the losses over all GPUs for logging purposes.
+    loss_vec = torch.stack(
+        [
+            loss_verb,
+            loss_noun,
+        ]
+    )
+
+    loss = torch.mean(loss_vec)
+
+    # check Nan Loss.
+    misc.check_nan_losses(loss)
+
+    return loss, loss_verb, loss_noun
+
+
+def compute_loss_with_state(
+    verb_preds: torch.Tensor,
+    noun_preds: torch.Tensor,
     state_preds: torch.Tensor,
     labels: Dict[str, torch.Tensor],
     cfg: CfgNode,

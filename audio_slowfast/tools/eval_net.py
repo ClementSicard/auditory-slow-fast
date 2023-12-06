@@ -79,7 +79,7 @@ def eval_epoch(
         labels["state"] = train_utils.prepare_state_labels(preds, labels, lengths)
 
         if isinstance(labels, dict):
-            loss, loss_verb, loss_noun, loss_state = train_utils.compute_loss(
+            loss, loss_verb, loss_noun, loss_state = train_utils.compute_loss_with_state(
                 verb_preds=verb_preds,
                 noun_preds=noun_preds,
                 state_preds=state_preds,
