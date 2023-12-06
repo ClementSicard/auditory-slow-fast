@@ -5,7 +5,7 @@ from audiomentations.core.transforms_interface import BaseWaveformTransform
 from fvcore.common.config import CfgNode
 from h5py._hl.files import File
 
-from .epickitchens_record_gru import EpicKitchensAudioRecordGRU
+from .epickitchens_record_gru_pddl import EpicKitchensAudioRecordGRUwithPDDL
 from audio_slowfast.datasets.utils import get_start_end_idx
 from audio_slowfast.datasets.audio_loader_epic import _extract_sound_feature
 
@@ -13,7 +13,7 @@ from audio_slowfast.datasets.audio_loader_epic import _extract_sound_feature
 def pack_audio_gru(
     cfg: CfgNode,
     audio_dataset: File,
-    audio_record: EpicKitchensAudioRecordGRU,
+    audio_record: EpicKitchensAudioRecordGRUwithPDDL,
     temporal_sample_index: int,
     transform: Optional[BaseWaveformTransform] = None,
     start_offset: float = 0.0,

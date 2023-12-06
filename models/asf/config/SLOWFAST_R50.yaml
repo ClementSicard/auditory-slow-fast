@@ -67,6 +67,8 @@ MODEL:
   STATE_LOSS_FUNC: masked_loss
   DROPOUT_RATE: 0.5
 
+  ONLY_ACTION_RECOGNITION: True
+
   # Adds CLIP
   CLIP_MODEL: ViT-B/32
 
@@ -111,5 +113,5 @@ NUM_SHARDS: 1
 RNG_SEED: 25
 OUTPUT_DIR: .
 WANDB:
-  ENABLE: True # If no GPU is enabled this will be set to False
-  # ENABLE: False # If no GPU is enabled this will be set to False
+  # ENABLE: True # If no GPU is enabled this will be set to False
+  ENABLE: False # If no GPU is enabled this will be set to False

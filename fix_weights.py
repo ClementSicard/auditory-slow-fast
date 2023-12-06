@@ -5,7 +5,6 @@ from loguru import logger
 import os
 
 from audio_slowfast.config.defaults import get_cfg
-from audio_slowfast.audio_slowfast import AudioSlowFast
 
 
 def main() -> None:

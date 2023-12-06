@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 
 from audio_slowfast.config.defaults import get_cfg
-from audio_slowfast.datasets.epickitchens_gru import EpicKitchensGRU
+from audio_slowfast.datasets.epickitchens_gru_pddl import EpicKitchensGRUwithPDDL
 from audio_slowfast.datasets.epickitchens import EpicKitchens
 
 
@@ -29,7 +29,7 @@ def run(index: int) -> None:
     # _plot_spectrogram(sample[0][1].squeeze(0), index=index, s_type="Fast", d_type="regular")
     # plot_spectrograms(sample[0], index=index, d_type="regular")
 
-    audio_dataset = EpicKitchensGRU(cfg, "train")
+    audio_dataset = EpicKitchensGRUwithPDDL(cfg, "train")
     sample = audio_dataset[index]
     # plot_spectrograms(sample[0], index=index, d_type="gru")
 

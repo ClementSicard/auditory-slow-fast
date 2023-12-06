@@ -157,6 +157,8 @@ _C.MODEL.GRU_NUM_LAYERS = 2
 # The vocab files.
 _C.MODEL.VOCAB_FILE = ""
 
+_C.MODEL.ONLY_ACTION_RECOGNITION = False
+
 # Loss function.
 _C.MODEL.LOSS_FUNC = "cross_entropy"
 _C.MODEL.STATE_LOSS_FUNC = "masked_loss"

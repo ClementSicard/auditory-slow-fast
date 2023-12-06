@@ -23,6 +23,7 @@ class GRUResNetBasicHead(nn.Module):
         act_func="softmax",
         gru_hidden_size=512,
         gru_num_layers=2,
+        only_action_recognition: bool = False,
     ):
         """
         The `__init__` method of any subclass should also contain these
@@ -48,6 +49,7 @@ class GRUResNetBasicHead(nn.Module):
         self.num_pathways = len(pool_size)
         self.gru_hidden_size = gru_hidden_size
         self.gru_num_layers = gru_num_layers
+        self.only_action_recognition = only_action_recognition
 
         for pathway in range(self.num_pathways):
             avg_pool = nn.AvgPool2d(pool_size[pathway], stride=1)
@@ -78,17 +80,20 @@ class GRUResNetBasicHead(nn.Module):
         # At this stage, a batch has shape (B * N_s, 1, )
 
         if isinstance(self.num_classes, (list, tuple)):
-            V, N, P = self.num_classes
             F = sum(self.dim_in)
+
+            if not self.only_action_recognition:
+                V, N, P = self.num_classes
+                self.projection_min_1 = nn.Linear(F, P, bias=True)
+                self.projection_0 = nn.Linear(F, P, bias=True)
+                self.projection_1 = nn.Linear(F, P, bias=True)
+
+                self.state_act = nn.Softmax(dim=2)  # Softmax on [B, N, 3, P]
+            else:
+                V, N = self.num_classes
+
             self.projection_verb = nn.Linear(F, V, bias=True)
             self.projection_noun = nn.Linear(F, N, bias=True)
-
-            # Will project to [B * N_s, num_frames * num_predicates]
-            # self.projection_state = nn.Linear(F, self.num_classes[2], bias=True)
-
-            self.projection_min_1 = nn.Linear(F, P, bias=True)
-            self.projection_0 = nn.Linear(F, P, bias=True)
-            self.projection_1 = nn.Linear(F, P, bias=True)
 
         else:
             self.projection = nn.Linear(F, num_classes, bias=True)
@@ -102,8 +107,6 @@ class GRUResNetBasicHead(nn.Module):
 
         else:
             raise NotImplementedError(f"{act_func} is not supported as an activation function")
-
-        self.state_act = nn.Softmax(dim=2)  # Softmax on [B, N, 3, P]
 
     def forward(
         self,
@@ -147,30 +150,33 @@ class GRUResNetBasicHead(nn.Module):
         )
 
         if isinstance(self.num_classes, (list, tuple)):
-            # Recover N
+            # Recover B, N
             B, N = initial_batch_shape
-            N_v, N_n, N_p = self.num_classes
+
+            if not self.only_action_recognition:
+                N_v, N_n, N_p = self.num_classes
+            else:
+                N_v, N_n = self.num_classes
 
             x_v = self.projection_verb(x)  # (B*N, 1, 1, F) -> (B*N, 1, 1, N_v)
-            x_n = self.projection_noun(x)  # (B*N, 1, 1, F) -> (B*N, 1, 1, N_n)
-            x_s = self.project_state(x)  # (B*N, 1, 1, F) -> (B*N, 1, 3, P)
-
             x_v = self.fc_inference(x_v, self.act)
-            x_n = self.fc_inference(x_n, self.act)
-            x_s = self.fc_inference_state(x_s, self.state_act)
-
-            # Reshape each output to (B, N, num_classes)
             x_v = x_v.view(B, N, N_v)  # (B*N, 1, 1, N_v) -> (B, N, N_v)
-            x_n = x_n.view(B, N, N_n)  # (B*N, 1, 1, N_n) -> (B, N, N_n)
-
-            # (B*N, 3, P) -> (B, N, P, 3)
-            x_s = x_s.view(B, N, N_p, 3)
-
-            # Average accross dim-1 (0-indexed) for x_v and x_n
             x_v = x_v.mean(dim=1)  # (B, N, N_v) -> (B, N_v)
+
+            x_n = self.projection_noun(x)  # (B*N, 1, 1, F) -> (B*N, 1, 1, N_n)
+            x_n = self.fc_inference(x_n, self.act)
+            x_n = x_n.view(B, N, N_n)  # (B*N, 1, 1, N_n) -> (B, N, N_n)
             x_n = x_n.mean(dim=1)  # (B, N, N_n) -> (B, N_n)
 
-            return (x_v, x_n, x_s)
+            if not self.only_action_recognition:
+                x_s = self.project_state(x)  # (B*N, 1, 1, F) -> (B*N, 1, 3, P)
+                x_s = self.fc_inference_state(x_s, self.state_act)  # (B*N, 1, 3, P) -> (B*N, 3, P)
+                x_s = x_s.view(B, N, N_p, 3)  # (B*N, 3, P) -> (B, N, P, 3)
+
+                return (x_v, x_n, x_s)
+
+            return (x_v, x_n)
+
         else:
             x = self.projection(x)
             x = self.fc_inference(x, self.act)
@@ -229,11 +235,10 @@ class GRUResNetBasicHead(nn.Module):
         F = x.shape[-1]
         D = 2 if self.gru.bidirectional else 1
 
-        h_0 = noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1)
+        h_0 = noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1) if noun_embeddings else None
 
         # (B*N, 1, 1, n_features_asf) -> (B*N, n_features_asf)
         # Squeeze all dimensions except the batch dimension (first)
-
         x = x.squeeze(1).squeeze(1)
 
         # (B*N, n_features_asf) -> (B, N, n_features_asf)

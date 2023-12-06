@@ -2,7 +2,9 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 from fvcore.common.registry import Registry
-from loguru import logger
+from torch.utils.data import Dataset
+
+from fvcore.common.config import CfgNode
 
 DATASET_REGISTRY = Registry("DATASET")
 DATASET_REGISTRY.__doc__ = """
@@ -13,19 +15,27 @@ The call should return a `torch.utils.data.Dataset` object.
 """
 
 
-def build_dataset(dataset_name, cfg, split):
+def build_dataset(dataset_name: str, cfg: CfgNode, split: str) -> Dataset:
     """
     Build a dataset, defined by `dataset_name`.
-    Args:
-        dataset_name (str): the name of the dataset to be constructed.
-        cfg (CfgNode): configs. Details can be found in
-            audio_slowfast/config/defaults.py
-        split (str): the split of the data loader. Options include `train`,
-            `val`, and `test`.
-    Returns:
-        Dataset: a constructed dataset specified by dataset_name.
+
+    Parameters
+    ----------
+    `dataset_name` : `str`
+        The name of the dataset to be constructed.
+
+    `cfg` : `CfgNode`
+        The configs. Details can be found in
+        `audio_slowfast/config/defaults.py`.
+
+    `split` : `str`
+        The split of the data loader. Options include `train`,
+        `val`, and `test`.
+
+    Returns
+    -------
+    `Dataset`
+        A constructed dataset specified by dataset_name.
     """
-    # Capitalize the the first letter of the dataset_name since the dataset_name
-    # in configs may be in lowercase but the name of dataset class should always
-    # start with an uppercase letter.
+
     return DATASET_REGISTRY.get(dataset_name)(cfg, split)

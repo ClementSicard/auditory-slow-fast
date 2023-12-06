@@ -15,7 +15,7 @@ from . import utils as utils
 from .build import build_dataset
 
 
-def epickitchens_collate_fn(batch: List[Any], supervision: str = "half"):
+def epickitchens_collate_fn(batch: List[Any]):
     # Unzip the batch into separate lists
     spectrograms, labels, indices, noun_embeddings, metadata = zip(*batch)
 
@@ -23,8 +23,16 @@ def epickitchens_collate_fn(batch: List[Any], supervision: str = "half"):
 
     lengths = [slow_spectrogram.shape[0] for slow_spectrogram in slow_spectrograms]
 
-    padded_slow_spectrograms = torch.nn.utils.rnn.pad_sequence(slow_spectrograms, batch_first=True)
-    padded_fast_spectrograms = torch.nn.utils.rnn.pad_sequence(fast_spectrograms, batch_first=True)
+    padded_slow_spectrograms = torch.nn.utils.rnn.pad_sequence(
+        slow_spectrograms,
+        batch_first=True,
+        padding_value=0.0,
+    )
+    padded_fast_spectrograms = torch.nn.utils.rnn.pad_sequence(
+        fast_spectrograms,
+        batch_first=True,
+        padding_value=0.0,
+    )
 
     # Combine padded spectrograms into a tuple
     padded_spectrograms = (padded_slow_spectrograms, padded_fast_spectrograms)
@@ -89,7 +97,7 @@ def construct_loader(cfg, split):
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=(False if sampler else shuffle),
+        shuffle=False if sampler else shuffle,
         sampler=sampler,
         num_workers=cfg.DATA_LOADER.NUM_WORKERS,
         pin_memory=cfg.DATA_LOADER.PIN_MEMORY,
@@ -97,7 +105,6 @@ def construct_loader(cfg, split):
         collate_fn=(
             lambda batch: epickitchens_collate_fn(
                 batch=batch,
-                supervision=cfg.TRAIN.SUPERVISION_TYPE,
             )
         )
         if "gru" in cfg.TRAIN.DATASET.lower()

@@ -41,8 +41,8 @@ jit_logger.setLevel(lg.ERROR)
 bn_logger = lg.getLogger("fvcore.nn.precise_bn")
 bn_logger.setLevel(lg.ERROR)
 
-logger = logging.getLogger("wandb")
-logger.setLevel(logging.ERROR)
+wandb_logger = lg.getLogger("wandb")
+wandb_logger.setLevel(lg.ERROR)
 
 
 def train_epoch(

@@ -3,23 +3,23 @@
 
 """Multi-view test an audio classification model."""
 
+import numpy as np
 import os
 import pickle
-
-import numpy as np
 import torch
 from fvcore.common.file_io import PathManager
-from loguru import logger
-from audio_slowfast.audio_slowfast import AudioSlowFast
 
 import audio_slowfast.utils.checkpoint as cu
 import audio_slowfast.utils.distributed as du
+import audio_slowfast.utils.logging as logging
 import audio_slowfast.utils.misc as misc
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast.datasets import loader
 from audio_slowfast.models import build_model
-from audio_slowfast.utils.meters import EPICTestMeter, TestMeter
+from audio_slowfast.utils.meters import TestMeter, EPICTestMeter
 from audio_slowfast.utils.vggsound_metrics import get_stats
+
+from loguru import logger
 
 
 @torch.no_grad()
@@ -64,63 +64,35 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
         # Perform the forward pass.
         preds = model(inputs)
-        verb_preds, noun_preds, state_preds = preds
 
         if isinstance(labels, (dict,)):
             # Gather all the predictions across all the devices to perform ensemble.
             if cfg.NUM_GPUS > 1:
-                verb_preds, verb_labels, audio_idx = du.all_gather([verb_preds, labels["verb"], audio_idx])
+                verb_preds, verb_labels, audio_idx = du.all_gather([preds[0], labels["verb"], audio_idx])
 
-                noun_preds, noun_labels, audio_idx = du.all_gather([noun_preds, labels["noun"], audio_idx])
-
-                precs_preds, precs_labels, audio_idx = du.all_gather([preds[2], labels["precs"], audio_idx])
-
+                noun_preds, noun_labels, audio_idx = du.all_gather([preds[1], labels["noun"], audio_idx])
                 meta = du.all_gather_unaligned(meta)
                 metadata = {"narration_id": []}
                 for i in range(len(meta)):
                     metadata["narration_id"].extend(meta[i]["narration_id"])
             else:
                 metadata = meta
-                verb_preds, verb_labels, audio_idx = verb_preds, labels["verb"], audio_idx
-                noun_preds, noun_labels, audio_idx = noun_preds, labels["noun"], audio_idx
-                precs_preds, precs_labels, audio_idx = (
-                    preds[2],
-                    labels["precs"],
-                    audio_idx,
-                )
-                posts_preds, posts_labels, audio_idx = (
-                    preds[3],
-                    labels["posts"],
-                    audio_idx,
-                )
+                verb_preds, verb_labels, audio_idx = preds[0], labels["verb"], audio_idx
+                noun_preds, noun_labels, audio_idx = preds[1], labels["noun"], audio_idx
             if cfg.NUM_GPUS:
                 verb_preds = verb_preds.cpu()
                 verb_labels = verb_labels.cpu()
                 noun_preds = noun_preds.cpu()
                 noun_labels = noun_labels.cpu()
-                precs_preds = precs_preds.cpu()
-                precs_labels = precs_labels.cpu()
-                posts_preds = posts_preds.cpu()
-                posts_labels = posts_labels.cpu()
                 audio_idx = audio_idx.cpu()
 
             test_meter.iter_toc()
             # Update and log stats.
             test_meter.update_stats(
-                preds=(
-                    verb_preds.detach(),
-                    noun_preds.detach(),
-                    precs_preds.detach(),
-                    posts_preds.detach(),
-                ),
-                labels=(
-                    verb_labels.detach(),
-                    noun_labels.detach(),
-                    precs_labels.detach(),
-                    posts_labels.detach(),
-                ),
-                metadata=metadata,
-                clip_ids=audio_idx.detach(),
+                (verb_preds.detach(), noun_preds.detach()),
+                (verb_labels.detach(), noun_labels.detach()),
+                metadata,
+                audio_idx.detach(),
             )
 
             test_meter.log_iter_stats(cur_iter)
@@ -141,7 +113,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         test_meter.iter_tic()
 
     # Log epoch stats and print the final testing results.
-    if cfg.TEST.DATASET != "EpicKitchens":
+    if cfg.TEST.DATASET != "epickitchens":
         all_preds = test_meter.audio_preds.clone().detach()
         all_labels = test_meter.audio_labels
         if cfg.NUM_GPUS:
@@ -176,16 +148,15 @@ def test(cfg):
     np.random.seed(cfg.RNG_SEED)
     torch.manual_seed(cfg.RNG_SEED)
 
-    # # Setup logging format.
-    # logging.setup_logging(cfg.OUTPUT_DIR)
+    # Setup logging format.
+    logging.setup_logging(cfg.OUTPUT_DIR)
 
     # Print config.
     logger.info("Test with config:")
     logger.info(cfg)
 
     # Build the audio model and print model statistics.
-    model = AudioSlowFast(cfg=cfg)
-
+    model = build_model(cfg)
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
 
@@ -197,13 +168,14 @@ def test(cfg):
 
     assert len(test_loader.dataset) % cfg.TEST.NUM_ENSEMBLE_VIEWS == 0
     # Create meters for multi-view testing.
-    if cfg.TEST.DATASET == "EpicKitchens":
+    raise NotImplementedError("Need to update this code to work with the new test meter")
+    if cfg.TEST.DATASET == "epickitchens":
         test_meter = EPICTestMeter(
-            num_audios=len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS,
-            num_clips=cfg.TEST.NUM_ENSEMBLE_VIEWS,
-            num_cls=cfg.MODEL.NUM_CLASSES,
-            overall_iters=len(test_loader),
-            ensemble_method=cfg.DATA.ENSEMBLE_METHOD,
+            len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS,
+            cfg.TEST.NUM_ENSEMBLE_VIEWS,
+            cfg.MODEL.NUM_CLASSES,
+            len(test_loader),
+            cfg.DATA.ENSEMBLE_METHOD,
         )
     else:
         test_meter = TestMeter(
@@ -222,17 +194,11 @@ def test(cfg):
         writer = None
 
     # # Perform multi-view test on the entire dataset.
-    test_meter, preds, _, labels, metadata = perform_test(test_loader, model, test_meter, cfg, writer)
+    test_meter, preds, preds_clips, labels, metadata = perform_test(test_loader, model, test_meter, cfg, writer)
 
     if du.is_master_proc():
-        if cfg.TEST.DATASET == "EpicKitchens":
-            results = {
-                "verb_output": verb_preds,
-                "noun_output": noun_preds,
-                "precs_output": preds[2],
-                "posts_output": preds[3],
-                "narration_id": metadata,
-            }
+        if cfg.TEST.DATASET == "epickitchens":
+            results = {"verb_output": preds[0], "noun_output": preds[1], "narration_id": metadata}
             scores_path = os.path.join(cfg.OUTPUT_DIR, "scores")
             if not os.path.exists(scores_path):
                 os.makedirs(scores_path)

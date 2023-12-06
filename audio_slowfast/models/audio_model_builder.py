@@ -368,12 +368,14 @@ class AudioSlowFastGRU(nn.Module):
         super(AudioSlowFastGRU, self).__init__()
         self.norm_module = get_norm(cfg)
 
-        if cfg.MODEL.PDDL_ATTRIBUTES:
+        if cfg.MODEL.PDDL_ATTRIBUTES and not cfg.MODEL.ONLY_ACTION_RECOGNITION:
             self.pddl_attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].to_list()
             logger.success(f"Loaded {len(self.pddl_attributes)} PDDL attributes from {cfg.MODEL.PDDL_ATTRIBUTES}.")
             cfg.MODEL.NUM_CLASSES.append(len(self.pddl_attributes))
         else:
-            logger.warning("No PDDL attributes specified. Using default model.")
+            logger.warning(
+                "No PDDL attributes to load since either PDDL attributes are not specified or only action recognition is enabled."
+            )
 
         self.num_pathways = 2  # Slow and Fast
         self._construct_network(cfg)
@@ -388,7 +390,7 @@ class AudioSlowFastGRU(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        assert cfg.MODEL.ARCH in _POOL1.keys()
+        assert cfg.MODEL.ARCH in _POOL1.keys(), f"Model arch {cfg.MODEL.ARCH} not in {_POOL1.keys()}"
         pool_size = _POOL1[cfg.MODEL.ARCH]
         assert len({len(pool_size), self.num_pathways}) == 1
         assert cfg.RESNET.DEPTH in _MODEL_STAGE_DEPTH.keys()
@@ -549,6 +551,7 @@ class AudioSlowFastGRU(nn.Module):
             act_func=cfg.MODEL.HEAD_ACT,
             gru_hidden_size=cfg.MODEL.GRU_HIDDEN_SIZE,
             gru_num_layers=cfg.MODEL.GRU_NUM_LAYERS,
+            only_action_recognition=cfg.MODEL.ONLY_ACTION_RECOGNITION,
         )
 
     def forward(
@@ -608,7 +611,7 @@ class AudioSlowFastGRU(nn.Module):
                     m.weight.requires_grad_(False)
                     m.bias.requires_grad_(False)
         elif freeze_mode == "bn_statistics":
-            print("Freezing all BN layers' statistics except the first one.")
+            logger.info("Freezing all BN layers' statistics except the first one.")
             for n, m in self.named_modules():
                 if (isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.SyncBatchNorm)) and (
                     "s1.pathway0_stem.bn" not in n and "s1.pathway1_stem.bn" not in n and "s1_fuse.bn" not in n

@@ -1,11 +1,23 @@
+import time
+from datetime import timedelta
+
 import numpy as np
 
-from .audio_record import AudioRecord, timestamp_to_sec
+from .audio_record import AudioRecord
 from .utils import get_num_spectrogram_frames
 from fvcore.common.config import CfgNode
 
 
-class EpicKitchensAudioRecordGRU(AudioRecord):
+def timestamp_to_sec(timestamp):
+    x = time.strptime(timestamp, "%H:%M:%S.%f")
+    sec = (
+        float(timedelta(hours=x.tm_hour, minutes=x.tm_min, seconds=x.tm_sec).total_seconds())
+        + float(timestamp.split(".")[-1]) / 100
+    )
+    return sec
+
+
+class EpicKitchensAudioRecordGRUwithPDDL(AudioRecord):
     def __init__(self, tup, cfg: CfgNode):
         self.cfg = cfg
         self._index = str(tup[0])
@@ -65,6 +77,8 @@ class EpicKitchensAudioRecordGRU(AudioRecord):
         return {
             "verb": self._series["verb_class"],
             "noun": self._series["noun_class"],
+            "precs": self._series["precs_vec"],
+            "posts": self._series["posts_vec"],
         }
 
     @property

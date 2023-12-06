@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import librosa
 
 from audio_slowfast.config.defaults import get_cfg
-from audio_slowfast.datasets.epickitchens_gru import EpicKitchensGRU
+from audio_slowfast.datasets.epickitchens_gru_pddl import EpicKitchensGRUwithPDDL
 from audio_slowfast.datasets.epickitchens import EpicKitchens
 
 
@@ -22,7 +22,7 @@ def run(index: int) -> None:
     sample = audio_dataset[index]
     plot_spectrograms(sample[0], index=index, d_type="regular")
 
-    audio_dataset = EpicKitchensGRU(cfg, "train")
+    audio_dataset = EpicKitchensGRUwithPDDL(cfg, "train")
     sample = audio_dataset[index]
     plot_spectrograms(sample[0], index=index, d_type="gru")
 

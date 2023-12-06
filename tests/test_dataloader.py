@@ -1,7 +1,6 @@
 import sys
 from loguru import logger
 import os
-import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
