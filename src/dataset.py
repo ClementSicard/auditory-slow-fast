@@ -110,10 +110,6 @@ def prepare_dataset(
     filtered_train_df = train_df[train_df.verb_class.isin(ids)]
     filtered_val_df = val_df[val_df.verb_class.isin(ids)]
 
-    # TODO: REMOVE THIS
-    # Filter the dataset for samples with a duration of > 2 seconds
-    filtered_train_df = filtered_train_df[filtered_train_df.duration_in_s > 3.5]
-
     # Load nouns and compute their CLIP embeddings
     device = "cuda" if torch.cuda.is_available() else "cpu"
     clip_model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
@@ -216,6 +212,10 @@ def load_verbs(
     map_ids = {i: verbs_df.loc[i].key for i in verbs_from_args_ids}
 
     return verbs_from_args_ids, map_ids, verbs_df
+
+
+def load_all_verbs(path: str) -> pd.DataFrame:
+    return pd.read_csv(path, header=0, index_col=0).key.to_list()
 
 
 def load_dataset(path: str, small: bool) -> pd.DataFrame:

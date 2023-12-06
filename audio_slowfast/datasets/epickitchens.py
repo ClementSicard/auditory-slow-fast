@@ -13,7 +13,7 @@ from . import utils as utils
 from .audio_loader_epic import pack_audio
 from .epickitchens_record import EpicKitchensAudioRecord
 from .build import DATASET_REGISTRY
-from .spec_augment import combined_transforms
+from .spec_augment import spec_augment
 
 
 @DATASET_REGISTRY.register()
@@ -136,7 +136,7 @@ class EpicKitchens(torch.utils.data.Dataset):
             # C T F -> C F T
             spectrogram = spectrogram.permute(0, 2, 1)
             # SpecAugment
-            spectrogram = combined_transforms(spectrogram)
+            spectrogram = spec_augment(spectrogram)
             # C F T -> C T F -> (1, 400, 128)
             spectrogram = spectrogram.permute(0, 2, 1)
 

@@ -105,29 +105,27 @@ def main(args: Dict[str, Any]) -> None:
     `ValueError`
         In case the povided model is not supported.
     """
-    meta_config = load_config(args["config"])
-
     cfg = get_cfg()
-    cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
+    cfg.merge_from_file(args["config"])
 
     # Prepare the dataset
     # prepare_dataset(
     #     verbs_from_args=args["verbs"],
-    #     nouns_path=meta_config["dataset"]["epic"]["nouns"],
-    #     verbs_path=meta_config["dataset"]["epic"]["verbs"],
-    #     train_path=meta_config["dataset"]["epic"]["train"],
-    #     val_path=meta_config["dataset"]["epic"]["val"],
+    #     nouns_path=cfg.EPICKITCHENS.NOUNS_FILE,
+    #     verbs_path=cfg.EPICKITCHENS.VERBS_FILE,
+    #     train_path=cfg.EPICKITCHENS.TRAIN_LIST,
+    #     val_path=cfg.EPICKITCHENS.VAL_LIST,
     #     make_plots=args["make_plots"],
-    #     pddl_domain_path=meta_config["dataset"]["epic"]["pddl_domain"],
-    #     pddl_problem_path=meta_config["dataset"]["epic"]["pddl_problem"],
-    #     save_attributes_path=meta_config["models"]["audio_slowfast"]["attributes_file"],
-    #     nouns_embeddings_path=meta_config["dataset"]["epic"]["nouns_embeddings"],
-    #     augment=args["augment"],
-    #     factor=args["factor"],
+    #     pddl_domain_path=cfg.EPICKITCHENS.PDDL_DOMAIN,
+    #     pddl_problem_path=cfg.EPICKITCHENS.PDDL_PROBLEM,
+    #     save_attributes_path=cfg.MODEL.PDDL_ATTRIBUTES,
+    #     nouns_embeddings_path=cfg.EPICKITCHENS.NOUNS_EMBEDDINGS_FILE,
+    #     augment=cfg.EPICKITCHENS.AUGMENT.ENABLE,
+    #     factor=cfg.EPICKITCHENS.AUGMENT.FACTOR,
     #     small=args["small"],
     # )
 
-    attributes = pd.read_csv(meta_config["models"]["audio_slowfast"]["attributes_file"])["attribute"].tolist()
+    attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].tolist()
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -168,8 +166,6 @@ def main(args: Dict[str, Any]) -> None:
         launch_job(cfg=cfg, init_method=None, func=train)
 
     elif args["test"]:
-        cfg = get_cfg()
-        cfg.merge_from_file(meta_config["models"]["audio_slowfast"]["config"])
         launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=test)
 
 

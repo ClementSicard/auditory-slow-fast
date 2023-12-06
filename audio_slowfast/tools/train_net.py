@@ -8,10 +8,9 @@ import pprint
 import numpy as np
 import torch
 import wandb
-from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
+from fvcore.nn.precise_bn import update_bn_stats
 from loguru import logger
 from tqdm import tqdm
-from wandb import AlertLevel
 from audio_slowfast.models.build import build_model
 from audio_slowfast.tools.eval_net import eval_epoch
 import audio_slowfast.models.losses as losses
@@ -31,6 +30,7 @@ from audio_slowfast.utils.meters import (
     ValMeter,
 )
 from src.utils import display_gpu_info
+from src.dataset import load_nouns, load_all_verbs
 
 numba_logger = lg.getLogger("numba")
 numba_logger.setLevel(lg.WARNING)
@@ -40,6 +40,9 @@ jit_logger.setLevel(lg.ERROR)
 
 bn_logger = lg.getLogger("fvcore.nn.precise_bn")
 bn_logger.setLevel(lg.ERROR)
+
+logger = logging.getLogger("wandb")
+logger.setLevel(logging.ERROR)
 
 
 def train_epoch(
@@ -74,7 +77,9 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    cur_iter = 0
+    verb_names = load_all_verbs(cfg.EPICKITCHENS.VERBS_FILE)
+    noun_names = load_nouns(cfg.EPICKITCHENS.NOUNS_FILE)
+
     for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
         # Write to stderr
         tqdm(
@@ -84,7 +89,6 @@ def train_epoch(
                 cfg.SOLVER.MAX_EPOCH,
             ),
             unit="batch",
-            # file=sys.stderr,
         ),
     ):
         # Transfer the data to the current GPU device.
@@ -116,19 +120,20 @@ def train_epoch(
             noun_embeddings=noun_embeddings,
         )
 
+        verb_preds, noun_preds, state_preds = preds
+
         labels["state"] = train_utils.prepare_state_labels(preds, labels, lengths)
 
-        # Check if the predictions look good or are weird. In this case, send an alert.
-        train_utils.check_predictions(preds=preds, labels=labels, threshold=0.1)
+        # # Check if the predictions look good or are weird. In this case, send an alert.
+        # train_utils.check_predictions(preds=preds, labels=labels, threshold=0.1)
 
         if isinstance(labels, dict):
             loss, loss_verb, loss_noun, loss_state = train_utils.compute_loss(
-                verb_preds=preds[0],
-                noun_preds=preds[1],
-                state_preds=preds[2],
+                verb_preds=verb_preds,
+                noun_preds=noun_preds,
+                state_preds=state_preds,
                 labels=labels,
                 cfg=cfg,
-                current_iter=cur_iter,
             )
 
         else:
@@ -149,7 +154,7 @@ def train_epoch(
 
         if isinstance(labels, (dict,)):
             # Compute the verb accuracies.
-            verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(preds[0], labels["verb"], (1, 5))
+            verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(verb_preds, labels["verb"], (1, 5))
 
             # Gather all the predictions across all the devices.
             if cfg.NUM_GPUS > 1:
@@ -163,7 +168,7 @@ def train_epoch(
             )
 
             # Compute the noun accuracies.
-            noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(preds[1], labels["noun"], (1, 5))
+            noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(noun_preds, labels["noun"], (1, 5))
 
             # Gather all the predictions across all the devices.
             if cfg.NUM_GPUS > 1:
@@ -178,7 +183,7 @@ def train_epoch(
 
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
-                (preds[0], preds[1]),
+                (verb_preds, noun_preds),
                 (labels["verb"], labels["noun"]),
                 (1, 5),
             )
@@ -235,6 +240,18 @@ def train_epoch(
                 )
 
             if wandb_log:
+                # Log confusion matrix for verb and noun
+                verb_confusion_matrix = wandb.plot.confusion_matrix(
+                    probs=verb_preds.detach().cpu().numpy(),
+                    y_true=labels["verb"].detach().cpu().numpy(),
+                    class_names=verb_names,
+                )
+                noun_confusion_matrix = wandb.plot.confusion_matrix(
+                    probs=noun_preds.detach().cpu().numpy(),
+                    y_true=labels["noun"].detach().cpu().numpy(),
+                    class_names=noun_names,
+                )
+
                 wandb.log(
                     {
                         "Train/loss": loss,
@@ -248,6 +265,8 @@ def train_epoch(
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
                         "Train/noun/Top5_acc": noun_top5_acc,
+                        "Train/verb/confusion_matrix": verb_confusion_matrix,
+                        "Train/noun/confusion_matrix": noun_confusion_matrix,
                         "train_step": data_size * cur_epoch + cur_iter,
                     },
                 )
@@ -462,59 +481,28 @@ def train(cfg):
         # _ = misc.aggregate_sub_bn_stats(model)
 
         # Save a checkpoint.
-        # if is_checkp_epoch:
-        #     logger.info(f"Saving a checkpoint for epoch {cur_epoch}.")
-        #     cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg)
-        #     logger.success(f"Done saving a checkpoint for epoch {cur_epoch}.")
+        if is_checkp_epoch:
+            logger.info(f"Saving a checkpoint for epoch {cur_epoch}.")
+            cu.save_checkpoint(cfg.OUTPUT_DIR, model, optimizer, cur_epoch, cfg)
+            logger.success(f"Done saving a checkpoint for epoch {cur_epoch}.")
 
         # Evaluate the model on validation set.
-        # if is_eval_epoch:
-        #     logger.info(f"Evaluating the model for epoch {cur_epoch}.")
-        #     is_best_epoch, _ = eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer, wandb_log)
-        #     logger.success(f"Done evaluating the model for epoch {cur_epoch}!")
-        #     if is_best_epoch:
-        #         logger.success(f"Saving a best checkpoint for epoch {cur_epoch}.")
-        #         cu.save_checkpoint(
-        #             cfg.OUTPUT_DIR,
-        #             model,
-        #             optimizer,
-        #             cur_epoch,
-        #             cfg,
-        #             is_best_epoch=is_best_epoch,
-        #         )
+        if is_eval_epoch:
+            logger.info(f"Evaluating the model for epoch {cur_epoch}.")
+            is_best_epoch, _ = eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer, wandb_log)
+            logger.success(f"Done evaluating the model for epoch {cur_epoch}!")
+            if is_best_epoch:
+                logger.success(f"Saving a best checkpoint for epoch {cur_epoch}.")
+                cu.save_checkpoint(
+                    cfg.OUTPUT_DIR,
+                    model,
+                    optimizer,
+                    cur_epoch,
+                    cfg,
+                    is_best_epoch=is_best_epoch,
+                )
 
     if writer is not None:
         writer.close()
 
     logger.success("Training complete! 🎉")
-
-
-"""
-Custom code for the new loss involving state.
-"""
-
-
-def compute_masked_loss(preds: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-    """
-    Compute the loss for the given predictions and labels.
-    Args:
-        preds (tensor): the logits from the model output.
-        labels (tensor): the labels.
-    Returns:
-        loss (tensor): the loss.
-    """
-    assert preds.shape == labels.shape, f"Shapes must match: {preds.shape=} {labels.shape=}"
-
-    bce = losses.get_loss_func("bce")(reduction="mean")
-    mse = losses.get_loss_func("mse")(reduction="mean")
-
-    abs_preds = torch.abs(preds)
-    abs_labels = torch.abs(labels)
-
-    # Get the indices where the abs_labels are 1
-    pos_mask_indices = abs_labels.nonzero(as_tuple=True)
-
-    bce_term = bce(abs_preds, abs_labels)
-    mse_term = mse(preds[pos_mask_indices], labels[pos_mask_indices])
-
-    return bce_term + mse_term

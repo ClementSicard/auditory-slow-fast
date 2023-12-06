@@ -156,7 +156,6 @@ _C.MODEL.GRU_NUM_LAYERS = 2
 
 # The vocab files.
 _C.MODEL.VOCAB_FILE = ""
-_C.MODEL.PDDL_ATTRIBUTES = ""
 
 # Loss function.
 _C.MODEL.LOSS_FUNC = "cross_entropy"
@@ -179,6 +178,7 @@ _C.MODEL.FC_INIT_STD = 0.01
 
 # Activation layer for the output head.
 _C.MODEL.HEAD_ACT = "softmax"
+_C.MODEL.PDDL_ATTRIBUTES = "softmax"
 
 
 # -----------------------------------------------------------------------------
@@ -367,7 +367,18 @@ _C.EPICKITCHENS.TRAIN_PLUS_VAL = False
 
 _C.EPICKITCHENS.TEST_SPLIT = "validation"
 
-_C.EPICKITCHENS.ATTRIBUTES = []
+_C.EPICKITCHENS.VERBS_FILE = ""
+_C.EPICKITCHENS.NOUNS_FILE = ""
+
+_C.EPICKITCHENS.PDDL_DOMAIN = ""
+_C.EPICKITCHENS.PDDL_PROBLEM = ""
+
+_C.EPICKITCHENS.NOUNS_EMBEDDINGS_FILE = ""
+
+_C.EPICKITCHENS.AUGMENT = CfgNode()
+
+_C.EPICKITCHENS.AUGMENT.ENABLE = False
+_C.EPICKITCHENS.AUGMENT.FACTOR = 1.0
 
 
 # -----------------------------------------------------------------------------

@@ -12,6 +12,8 @@ REPO_DIR := $${SCRATCH}/auditory-slow-fast
 JOB_NAME := slowfast-training
 MAIL_ADDRESS := $${USER}@nyu.edu
 
+CONFIG_PATH := models/asf/config/SLOWFAST_R50.yaml
+
 EXAMPLE_FILE := $(DATA_DIR)/EPIC-KITCHENS/P10/videos/P10_04_trimmed.wav
 
 # Model weights
@@ -79,7 +81,7 @@ queue:
 example-cluster:
 	@python main.py \
 		--model audio_slowfast \
-		--config config.yaml \
+		--config $(CONFIG_PATH) \
 		--example $(EXAMPLE_FILE) \
 		--verbs break crush pat shake sharpen smell throw water
 
@@ -125,9 +127,9 @@ update-deps:
 .PHONY: train
 train:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
-	python main.py \
+	CUDA_LAUNCH_BLOCKING=1 python main.py \
 		--model audio_slowfast \
-		--config config.yaml \
+		--config $(CONFIG_PATH) \
 		--train \
 		--verbs break crush pat shake sharpen smell throw water \
 		--augment \
@@ -138,7 +140,7 @@ train-small:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
 	python main.py \
 		--model audio_slowfast \
-		--config config.yaml \
+		--config $(CONFIG_PATH) \
 		--train \
 		--verbs break crush pat shake sharpen smell throw water \
 		--augment \
@@ -149,7 +151,7 @@ test:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
 	python main.py \
 		--model audio_slowfast \
-		--config config.yaml \
+		--config $(CONFIG_PATH) \
 		--test \
 		--verbs break crush pat shake sharpen smell throw water \
 		--augment \
@@ -178,7 +180,7 @@ job-train:
 .PHONY: job-test
 job-test:
 	@mkdir -p $(LOGS_DIR)
-	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
 	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-slowfast-train.log"; \
 	sbatch -N 1 \
 	    --ntasks 1 \

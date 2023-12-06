@@ -2,7 +2,7 @@ from loguru import logger
 import torch
 from tqdm import tqdm
 import wandb
-from audio_slowfast.tools.train_utils import check_predictions, prepare_state_labels
+from audio_slowfast.tools.train_utils import prepare_state_labels
 from audio_slowfast.utils import metrics
 import torch
 import wandb
@@ -10,6 +10,7 @@ import audio_slowfast.models.losses as losses
 import audio_slowfast.utils.distributed as du
 import audio_slowfast.utils.metrics as metrics
 import audio_slowfast.tools.train_utils as train_utils
+from src.dataset import load_all_verbs, load_nouns
 
 
 @torch.no_grad()
@@ -38,6 +39,9 @@ def eval_epoch(
     model.eval()
     val_meter.iter_tic()
 
+    verb_names = load_all_verbs(cfg.EPICKITCHENS.VERBS_FILE)
+    noun_names = load_nouns(cfg.EPICKITCHENS.NOUNS_FILE)
+
     for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
         tqdm(
             val_loader,
@@ -45,7 +49,6 @@ def eval_epoch(
                 cur_epoch,
             ),
             unit="batch",
-            # file=sys.stderr,
         ),
     ):
         # Transfer the data to the current GPU device.
@@ -71,23 +74,21 @@ def eval_epoch(
             noun_embeddings=noun_embeddings,
         )
 
-        labels["state"] = prepare_state_labels(preds, labels, lengths)
+        verb_preds, noun_preds, state_preds = preds
 
-        # Check if the predictions look good or are weird. In this case, send an alert.
-        train_utils.check_predictions(preds=preds, labels=labels, threshold=0.1)
+        labels["state"] = train_utils.prepare_state_labels(preds, labels, lengths)
 
         if isinstance(labels, dict):
             loss, loss_verb, loss_noun, loss_state = train_utils.compute_loss(
-                verb_preds=preds[0],
-                noun_preds=preds[1],
-                state_preds=preds[2],
+                verb_preds=verb_preds,
+                noun_preds=noun_preds,
+                state_preds=state_preds,
                 labels=labels,
                 cfg=cfg,
-                current_iter=cur_iter,
             )
 
             # Compute the verb accuracies.
-            verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(preds[0], labels["verb"], (1, 5))
+            verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(verb_preds, labels["verb"], (1, 5))
 
             # Combine the errors across the GPUs.
             if cfg.NUM_GPUS > 1:
@@ -101,7 +102,7 @@ def eval_epoch(
             )
 
             # Compute the noun accuracies.
-            noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(preds[1], labels["noun"], (1, 5))
+            noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(noun_preds, labels["noun"], (1, 5))
 
             # Combine the errors across the GPUs.
             if cfg.NUM_GPUS > 1:
@@ -116,7 +117,7 @@ def eval_epoch(
 
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
-                (preds[0], preds[1]),
+                (verb_preds, noun_preds),
                 (labels["verb"], labels["noun"]),
                 (1, 5),
             )
@@ -166,6 +167,17 @@ def eval_epoch(
                 )
 
             if wandb_log:
+                # Log confusion matrix for verb and noun
+                verb_confusion_matrix = wandb.plot.confusion_matrix(
+                    probs=verb_preds.detach().cpu().numpy(),
+                    y_true=labels["verb"].detach().cpu().numpy(),
+                    class_names=verb_names,
+                )
+                noun_confusion_matrix = wandb.plot.confusion_matrix(
+                    probs=noun_preds.detach().cpu().numpy(),
+                    y_true=labels["noun"].detach().cpu().numpy(),
+                    class_names=noun_names,
+                )
                 wandb.log(
                     {
                         "Val/loss": loss,
@@ -184,9 +196,9 @@ def eval_epoch(
 
             val_meter.update_predictions(
                 preds=(
-                    preds[0],
-                    preds[1],
-                    preds[2],
+                    verb_preds,
+                    noun_preds,
+                    state_preds,
                 ),
                 labels=(
                     labels["verb"],

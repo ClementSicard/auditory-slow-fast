@@ -8,7 +8,7 @@ from loguru import logger
 from . import utils as utils
 from .audio_loader_vggsound import pack_audio
 from .build import DATASET_REGISTRY
-from .spec_augment import combined_transforms
+from .spec_augment import spec_augment
 
 
 @DATASET_REGISTRY.register()
@@ -86,7 +86,7 @@ class Vggsound(torch.utils.data.Dataset):
             # C T F -> C F T
             spectrogram = spectrogram.permute(0, 2, 1)
             # SpecAugment
-            spectrogram = combined_transforms(spectrogram)
+            spectrogram = spec_augment(spectrogram)
             # C F T -> C T F
             spectrogram = spectrogram.permute(0, 2, 1)
         label = self._audio_records[index]["class_id"]

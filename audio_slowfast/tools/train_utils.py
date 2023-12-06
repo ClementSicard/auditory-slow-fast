@@ -30,12 +30,12 @@ def check_predictions(preds: torch.Tensor, labels: torch.Tensor, threshold: floa
     """
     if _check_prediction(pred=preds[2], threshold=threshold):
         text = f"State < 0.1\n\nPreds:{preds[2]}\nLabels:{labels['state']}"
-        # logger.warning(text)
-        # wandb.alert(
-        #     title="State looking strange",
-        #     text=text,
-        #     level=AlertLevel.WARN,
-        # )
+        logger.warning(text)
+        wandb.alert(
+            title="State looking strange",
+            text=text,
+            level=AlertLevel.WARN,
+        )
 
 
 def prepare_state_labels(preds, labels, lengths) -> torch.Tensor:
@@ -49,8 +49,6 @@ def prepare_state_labels(preds, labels, lengths) -> torch.Tensor:
     """
     try:
         B, N, P, C = preds[2].shape  # Pre-condition vector
-        # B, N, P = preds[2].shape
-        logger.info(f"{B=} {N=} {P=} {C=}")
     except Exception as e:
         logger.error(f"{preds[2].shape}")
         logger.error(f"{[p.shape for p in preds]}")
@@ -59,20 +57,18 @@ def prepare_state_labels(preds, labels, lengths) -> torch.Tensor:
     state = labels["posts"].clone().unsqueeze(1).repeat(1, N, 1)
 
     for i, length in enumerate(lengths):
-        state[i, length:, :] = 1e5
+        # state[i, length:, :] = 1e5
         state[i, : length // 2] = labels["precs"][i]
 
-    """
-    Newly added for the new state labels.
-    """
     state = state + 1
     state = state.long()
-    # Turn each state into a one-hot vector.
+
+    # Turn each state into a one-hot vector for the values != 1e5
     state = torch.nn.functional.one_hot(state, num_classes=C).float()
 
-    """
-    STOP
-    """
+    # Set the values after length for each length in lengths to -1
+    for i, length in enumerate(lengths):
+        state[i, length:, :, :] = -1
 
     return state
 
@@ -83,16 +79,13 @@ def compute_loss(
     state_preds: torch.Tensor,
     labels: Dict[str, torch.Tensor],
     cfg: CfgNode,
-    current_iter: int = 0,
 ) -> Tuple[torch.Tensor, ...]:
     # Explicitly declare reduction to mean.
     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
-    masked_loss_fun = losses.get_loss_func(cfg.MODEL.STATE_LOSS_FUNC)()
 
     loss_verb = loss_fun(verb_preds, labels["verb"])
     loss_noun = loss_fun(noun_preds, labels["noun"])
     loss_state = compute_state_loss(preds=state_preds, labels=labels["state"])
-    # loss_state = masked_loss_fun(preds=state_preds, labels=labels["state"], current_iter=current_iter)
 
     # Use torch.mean to average the losses over all GPUs for logging purposes.
     loss_vec = torch.stack(
@@ -115,22 +108,17 @@ def compute_state_loss(
     preds: torch.Tensor,
     labels: torch.Tensor,
 ) -> torch.Tensor:
-    # logger.warning(f"Preds shape: {preds.shape}")
-    # logger.error(f"Labels shape: {labels.shape}")
-
     # Permute both tensors to be (B, C, N, P)
     preds = preds.permute(0, 3, 1, 2)
     labels = labels.permute(0, 3, 1, 2)
 
-    # logger.warning(f"Preds shape: {preds.shape}")
-    # logger.error(f"Labels shape: {labels.shape}")
+    # Find indices where the labels are not -1
+    indices_to_keep = labels != -1
+    indices_to_keep = indices_to_keep.all(dim=1)
 
-    state_loss_fun = losses.get_loss_func("cross_entropy")(reduction="mean")
-
-    # logger.debug(f"Preds: {preds}")
-    # logger.debug(f"Labels: {labels}")
+    state_loss_fun = losses.get_loss_func("cross_entropy")(reduction="none")
 
     loss = state_loss_fun(preds, labels)
-    logger.success(f"Loss: {loss} 🎉🎉🎉🎉")
+    loss = torch.mean(loss[indices_to_keep])
 
     return loss

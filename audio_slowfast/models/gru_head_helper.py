@@ -56,8 +56,6 @@ class GRUResNetBasicHead(nn.Module):
         if dropout_rate > 0.0:
             self.dropout = nn.Dropout(dropout_rate)
 
-        self.gru_substitute = nn.Linear(sum(dim_in), gru_hidden_size * 2, bias=True)
-
         # GRU Module
         self.gru = nn.GRU(
             input_size=sum(dim_in),  # Assuming the input size is the sum of the dimensions of the pathways
@@ -105,9 +103,7 @@ class GRUResNetBasicHead(nn.Module):
         else:
             raise NotImplementedError(f"{act_func} is not supported as an activation function")
 
-        # State vectors use tanh activation to fall in the range [-1, 1]
         self.state_act = nn.Softmax(dim=2)  # Softmax on [B, N, 3, P]
-        # self.state_act = nn.Tanh()
 
     def forward(
         self,
@@ -131,7 +127,8 @@ class GRUResNetBasicHead(nn.Module):
             pool_out.append(m(inputs[pathway]))
 
         x = torch.cat(pool_out, 1)
-        # (N, C, T, H) -> (N, T, H, C).
+
+        # (B*N, F, 1, 1) -> (B*N, 1, 1, F)
         x = x.permute((0, 2, 3, 1))
 
         """
@@ -150,29 +147,28 @@ class GRUResNetBasicHead(nn.Module):
         )
 
         if isinstance(self.num_classes, (list, tuple)):
-            x_v = self.projection_verb(x)  # (B*N, 2304) -> (B*N, V)
-            x_n = self.projection_noun(x)  # (B*N, 2304) -> (B*N, N)
-            x_s = self.project_state(x)  # (B*N, 2304) -> (B*N, 3, P)
-            # x_s = self.projection_state(x)
+            # Recover N
+            B, N = initial_batch_shape
+            N_v, N_n, N_p = self.num_classes
+
+            x_v = self.projection_verb(x)  # (B*N, 1, 1, F) -> (B*N, 1, 1, N_v)
+            x_n = self.projection_noun(x)  # (B*N, 1, 1, F) -> (B*N, 1, 1, N_n)
+            x_s = self.project_state(x)  # (B*N, 1, 1, F) -> (B*N, 1, 3, P)
 
             x_v = self.fc_inference(x_v, self.act)
             x_n = self.fc_inference(x_n, self.act)
-            # State vectors use tanh activation to fall in the range [-1, 1]
-            x_s = self.fc_inference(x_s, self.state_act)
-
-            # Recover N
-            N = initial_batch_shape[1]
+            x_s = self.fc_inference_state(x_s, self.state_act)
 
             # Reshape each output to (B, N, num_classes)
-            x_v = x_v.view(-1, N, self.num_classes[0])  # (B*N, V) -> (B, N, V)
-            x_n = x_n.view(-1, N, self.num_classes[1])  # (B*N, N) -> (B, N, N)
+            x_v = x_v.view(B, N, N_v)  # (B*N, 1, 1, N_v) -> (B, N, N_v)
+            x_n = x_n.view(B, N, N_n)  # (B*N, 1, 1, N_n) -> (B, N, N_n)
 
-            # (B*N, 3, P) -> (B, N, 3, P)
-            x_s = x_s.view(-1, N, self.num_classes[2], 3)
+            # (B*N, 3, P) -> (B, N, P, 3)
+            x_s = x_s.view(B, N, N_p, 3)
 
             # Average accross dim-1 (0-indexed) for x_v and x_n
-            x_v = x_v.mean(dim=1)  # (B, N, 97) -> (B, 97)
-            x_n = x_n.mean(dim=1)  # (B, N, 300) -> (B, 300)
+            x_v = x_v.mean(dim=1)  # (B, N, N_v) -> (B, N_v)
+            x_n = x_n.mean(dim=1)  # (B, N, N_n) -> (B, N_n)
 
             return (x_v, x_n, x_s)
         else:
@@ -191,10 +187,10 @@ class GRUResNetBasicHead(nn.Module):
         return x
 
     def fc_inference_state(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
-        x = act(x)
         # Performs fully convolutional inference.
         if not self.training:
-            x = x.mean([1, 2])
+            x = act(x)
+            x = x.mean(1)
 
         x = x.view(x.shape[0], -1)
         return x
@@ -251,15 +247,12 @@ class GRUResNetBasicHead(nn.Module):
             batch_first=True,
             enforce_sorted=False,
         )
-        # x = self.gru_substitute(x)
-        # x, _ = self.gru(x)
+
         x, _ = self.gru(x, hx=h_0)
 
-        x, lengths = torch.nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
+        x, _ = torch.nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
 
         # (B, N, 1024) -> (B*N, 1024)
-        logger.warning(f"{B=} {N=}")
-
         x = x.reshape(B * N, D * self.gru.hidden_size)
         x = x.unsqueeze(1).unsqueeze(1)
 

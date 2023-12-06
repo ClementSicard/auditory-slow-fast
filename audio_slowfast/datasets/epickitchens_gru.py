@@ -13,13 +13,18 @@ from . import utils as utils
 from .audio_loader_epic_gru import pack_audio_gru
 from .epickitchens_record_gru import EpicKitchensAudioRecordGRU
 from .build import DATASET_REGISTRY
-from .spec_augment import combined_transforms
+from .spec_augment import spec_augment
 from fvcore.common.config import CfgNode
 
 
 @DATASET_REGISTRY.register()
 class EpicKitchensGRU(torch.utils.data.Dataset):
-    def __init__(self, cfg: CfgNode, mode: str, unique_batch: bool = True):
+    def __init__(
+        self,
+        cfg: CfgNode,
+        mode: str,
+        unique_batch: bool = False,
+    ):
         assert mode in [
             "train",
             "val",
@@ -112,14 +117,6 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
         if self.audio_dataset is None:
             self.audio_dataset = h5py.File(self.cfg.EPICKITCHENS.AUDIO_DATA_FILE, "r")
 
-        # if self.mode in ["train", "val", "train+val"]:
-        #     # -1 indicates random sampling.
-        #     temporal_sample_index = -1
-        # elif self.mode in ["test"]:
-        #     temporal_sample_index = self._temporal_idx[index]
-        # else:
-        #     raise NotImplementedError("Does not support {} mode".format(self.mode))
-
         temporal_sample_index = self._temporal_idx[index]
         transformation = self._audio_records[index].transformation
 
@@ -153,7 +150,7 @@ class EpicKitchensGRU(torch.utils.data.Dataset):
 
                 try:
                     # SpecAugment
-                    spectrogram = combined_transforms(spectrogram)
+                    spectrogram = spec_augment(spectrogram)
                 except Exception as e:
                     logger.success(f"Index: {self._audio_records[index]._index}")
                     logger.error(f"Video: {self._audio_records[index].untrimmed_video_name}")

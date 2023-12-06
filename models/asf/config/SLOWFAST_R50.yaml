@@ -1,8 +1,8 @@
 TRAIN:
   ENABLE: True
   DATASET: EpicKitchensGRU
-  BATCH_SIZE: 4
-  EVAL_PERIOD: 2
+  BATCH_SIZE: 16
+  EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
   CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_EPIC.pyth
   CHECKPOINT_EPOCH_RESET: True
@@ -50,7 +50,7 @@ SOLVER:
   LR_POLICY: steps_with_relative_lrs
   STEPS: [0, 20, 25]
   LRS: [1, 0.2, 0.02]
-  MAX_EPOCH: 4_000
+  MAX_EPOCH: 30
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: -1.0
@@ -85,6 +85,22 @@ EPICKITCHENS:
   TRAIN_LIST: data/epic-kitchens-100-annotations/filtered_train.pkl
   TEST_LIST: data/epic-kitchens-100-annotations/filtered_val.pkl
   VAL_LIST: data/epic-kitchens-100-annotations/filtered_val.pkl
+
+  # Vocab files
+  VERBS_FILE: data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
+  NOUNS_FILE: data/epic-kitchens-100-annotations/EPIC_100_noun_classes.csv
+
+  # PDDL
+  PDDL_DOMAIN: pddl/domain.pddl
+  PDDL_PROBLEM: pddl/problem.pddl
+
+  # CLIP nouns embeddings
+  NOUNS_EMBEDDINGS_FILE: data/epic-kitchens-100-annotations/nouns_embeddings.pkl
+
+  # Augmentation
+  AUGMENT:
+    ENABLE: True
+    FACTOR: 4.0
 
 TENSORBOARD:
   ENABLE: True

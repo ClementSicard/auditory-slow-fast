@@ -6,7 +6,24 @@ import torch
 from .sparse_image_warp import sparse_image_warp
 
 
-def time_warp(spec, W=5):
+def time_warp(spec: torch.Tensor, W: int = 5) -> torch.Tensor:
+    """
+    Warps the input spectrogram along the time axis in the range (0, W).
+
+    Parameters
+    ----------
+    `spec`: `torch.Tensor`
+        The input spectrogram.
+
+    `W`: `int`, optional (default = 5)
+        The maximum width of each time warp.
+
+    Returns
+    -------
+    `torch.Tensor`
+        The warped spectrogram.
+    """
+
     num_rows = spec.shape[1]
     spec_len = spec.shape[2]
     device = spec.device
@@ -28,7 +45,34 @@ def time_warp(spec, W=5):
     return warped_spectro.squeeze(3)
 
 
-def freq_mask(spec, F=27, num_masks=1, replace_with_zero=False):
+def freq_mask(
+    spec: torch.Tensor,
+    F: int = 27,
+    num_masks: int = 1,
+    replace_with_zero: bool = False,
+):
+    """
+    Creates a mask of size (num_masks, F), where F is the number of mel frequency channels,
+
+    Parameters
+    ----------
+    `spec`: `torch.Tensor`
+        The input spectrogram.
+
+    `F`: `int`, optional (default = 27)
+        The maximum width of each frequency mask.
+
+    `num_masks`: `int`, optional (default = 1)
+        The number of frequency masks to apply.
+
+    `replace_with_zero`: `bool`, optional (default = `False`)
+        Whether to replace the masked region with zeros or the mean value of the spectrogram.
+
+    Returns
+    -------
+    `torch.Tensor`
+        The masked spectrogram.
+    """
     cloned = spec.clone()
     num_mel_channels = cloned.shape[1]
 
@@ -49,7 +93,35 @@ def freq_mask(spec, F=27, num_masks=1, replace_with_zero=False):
     return cloned
 
 
-def time_mask(spec, T=25, num_masks=1, replace_with_zero=False):
+def time_mask(
+    spec: torch.Tensor,
+    T: int = 25,
+    num_masks: int = 1,
+    replace_with_zero: bool = False,
+) -> torch.Tensor:
+    """
+    Create a mask of size T x num_masks, where T is the number of time steps
+    and num_masks is the number of masks to apply.
+
+    Parameters
+    ----------
+    `spec`: `torch.Tensor`
+        The input spectrogram.
+
+    `T`: `int`, optional (default = 25)
+        The maximum width of each time mask.
+
+    `num_masks`: `int`, optional (default = 1)
+        The number of time masks to apply.
+
+    `replace_with_zero`: `bool`, optional (default = `False`)
+        Whether to replace the masked region with zeros or the mean value of the spectrogram.
+
+    Returns
+    -------
+    `torch.Tensor`
+        The masked spectrogram.
+    """
     cloned = spec.clone()
     len_spectro = cloned.shape[2]
 
@@ -69,11 +141,51 @@ def time_mask(spec, T=25, num_masks=1, replace_with_zero=False):
     return cloned
 
 
-def combined_transforms(spec):
+def spec_augment(
+    spec: torch.Tensor,
+    num_freq_masks: int = 2,
+    num_time_masks: int = 2,
+    F: int = 27,
+    T: int = 25,
+    W: int = 5,
+) -> torch.Tensor:
+    """
+    Performs SpecAugment (https://arxiv.org/abs/1904.08779) on the input spectrogram.
+
+    Parameters
+    ----------
+    `spec`: `torch.Tensor`
+        The input spectrogram.
+
+    `num_freq_masks`: `int`, optional (default = 2)
+        The number of frequency masks to apply.
+
+    `num_time_masks`: `int`, optional (default = 2)
+        The number of time masks to apply.
+
+    `F`: `int`, optional (default = 27)
+        The maximum width of each frequency mask.
+
+    `T`: `int`, optional (default = 25)
+        The maximum width of each time mask.
+
+    `W`: `int`, optional (default = 5)
+        The maximum width of each time warp.
+
+    Returns
+    -------
+    `torch.Tensor`
+        The masked spectrogram.
+    """
     return time_mask(
-        freq_mask(
-            time_warp(spec),
-            num_masks=2,
+        spec=freq_mask(
+            spec=time_warp(
+                spec=spec,
+                W=W,
+            ),
+            F=F,
+            num_masks=num_freq_masks,
         ),
-        num_masks=2,
+        T=T,
+        num_masks=num_time_masks,
     )

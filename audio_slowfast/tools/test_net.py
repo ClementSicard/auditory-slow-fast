@@ -64,17 +64,16 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
         # Perform the forward pass.
         preds = model(inputs)
+        verb_preds, noun_preds, state_preds = preds
 
         if isinstance(labels, (dict,)):
             # Gather all the predictions across all the devices to perform ensemble.
             if cfg.NUM_GPUS > 1:
-                verb_preds, verb_labels, audio_idx = du.all_gather([preds[0], labels["verb"], audio_idx])
+                verb_preds, verb_labels, audio_idx = du.all_gather([verb_preds, labels["verb"], audio_idx])
 
-                noun_preds, noun_labels, audio_idx = du.all_gather([preds[1], labels["noun"], audio_idx])
+                noun_preds, noun_labels, audio_idx = du.all_gather([noun_preds, labels["noun"], audio_idx])
 
                 precs_preds, precs_labels, audio_idx = du.all_gather([preds[2], labels["precs"], audio_idx])
-
-                posts_preds, posts_labels, audio_idx = du.all_gather([preds[3], labels["posts"], audio_idx])
 
                 meta = du.all_gather_unaligned(meta)
                 metadata = {"narration_id": []}
@@ -82,8 +81,8 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
                     metadata["narration_id"].extend(meta[i]["narration_id"])
             else:
                 metadata = meta
-                verb_preds, verb_labels, audio_idx = preds[0], labels["verb"], audio_idx
-                noun_preds, noun_labels, audio_idx = preds[1], labels["noun"], audio_idx
+                verb_preds, verb_labels, audio_idx = verb_preds, labels["verb"], audio_idx
+                noun_preds, noun_labels, audio_idx = noun_preds, labels["noun"], audio_idx
                 precs_preds, precs_labels, audio_idx = (
                     preds[2],
                     labels["precs"],
@@ -228,8 +227,8 @@ def test(cfg):
     if du.is_master_proc():
         if cfg.TEST.DATASET == "EpicKitchens":
             results = {
-                "verb_output": preds[0],
-                "noun_output": preds[1],
+                "verb_output": verb_preds,
+                "noun_output": noun_preds,
                 "precs_output": preds[2],
                 "posts_output": preds[3],
                 "narration_id": metadata,
