@@ -62,14 +62,14 @@ class EpicKitchens(torch.utils.data.Dataset):
             path_annotations_pickle = [
                 os.path.join(
                     self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
-                    self.cfg.EPICKITCHENS.TRAIN_LIST,
+                    self.cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST,
                 )
             ]
         elif self.mode == "val":
             path_annotations_pickle = [
                 os.path.join(
                     self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
-                    self.cfg.EPICKITCHENS.VAL_LIST,
+                    self.cfg.EPICKITCHENS.PROCESSED_VAL_LIST,
                 )
             ]
         elif self.mode == "test":
@@ -83,8 +83,8 @@ class EpicKitchens(torch.utils.data.Dataset):
             path_annotations_pickle = [
                 os.path.join(self.cfg.EPICKITCHENS.ANNOTATIONS_DIR, file)
                 for file in [
-                    self.cfg.EPICKITCHENS.TRAIN_LIST,
-                    self.cfg.EPICKITCHENS.VAL_LIST,
+                    self.cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST,
+                    self.cfg.EPICKITCHENS.PROCESSED_VAL_LIST,
                 ]
             ]
 
@@ -128,7 +128,10 @@ class EpicKitchens(torch.utils.data.Dataset):
         if self.audio_dataset is None:
             self.audio_dataset = h5py.File(self.cfg.EPICKITCHENS.AUDIO_DATA_FILE, "r")
 
-        return self._get_item_gru(index) if self.gru_format else self._get_item_regular(index)
+        if self.gru_format:
+            return self._get_item_gru(index)
+        else:
+            return self._get_item_regular(index)
 
     def _get_item_regular(self, index: int):
         if self.mode in ["train", "val", "train+val"]:

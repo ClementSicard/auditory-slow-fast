@@ -127,24 +127,11 @@ update-deps:
 .PHONY: train
 train:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
-	CUDA_LAUNCH_BLOCKING=1 python main.py \
-		--model audio_slowfast \
-		--config $(CONFIG_PATH) \
-		--train \
-		--verbs break crush pat shake sharpen smell throw water \
-		--augment \
-		--factor 4.0
-
-.PHONY: train-small
-train-small:
-	@$(CONDA_ACTIVATE) $(VENV_DIR)
 	python main.py \
 		--model audio_slowfast \
 		--config $(CONFIG_PATH) \
-		--train \
-		--verbs break crush pat shake sharpen smell throw water \
-		--augment \
-		--small
+		--train
+
 
 .PHONY: test
 test:

@@ -55,14 +55,10 @@ def parse_args() -> Dict[str, Any]:
         default="audio_slowfast",
     )
     parser.add_argument("--config", type=str, default="config.yaml")
+    parser.add_argument("--example", type=str, default=None)
     parser.add_argument("--train", action="store_true")
     parser.add_argument("--test", action="store_true")
-    parser.add_argument("--example", type=str, default=None)
-    parser.add_argument("--verbs", type=str, nargs="+", required=True)
     parser.add_argument("--make-plots", action="store_true")
-    parser.add_argument("--augment", action="store_true")
-    parser.add_argument("--factor", type=float, default=1.0)
-    parser.add_argument("--small", action="store_true")
 
     args = parser.parse_args()
 
@@ -78,8 +74,6 @@ def validate_args(args: Dict[str, Any]) -> None:
     `args` : `Dict[str, Any]`
         The arguments passed to the script.
     """
-    # Remove potential duplicates
-    args["verbs"] = list(set(args["verbs"]))
     logger.debug(f"Arguments:\n{json.dumps(args, indent=4)}")
 
     if not os.path.exists(args["config"]):
@@ -109,37 +103,26 @@ def main(args: Dict[str, Any]) -> None:
     cfg.merge_from_file(args["config"])
 
     # Prepare the dataset
-    # prepare_dataset(
-    #     verbs_from_args=args["verbs"],
-    #     nouns_path=cfg.EPICKITCHENS.NOUNS_FILE,
-    #     verbs_path=cfg.EPICKITCHENS.VERBS_FILE,
-    #     train_path=cfg.EPICKITCHENS.TRAIN_LIST,
-    #     val_path=cfg.EPICKITCHENS.VAL_LIST,
-    #     make_plots=args["make_plots"],
-    #     pddl_domain_path=cfg.EPICKITCHENS.PDDL_DOMAIN,
-    #     pddl_problem_path=cfg.EPICKITCHENS.PDDL_PROBLEM,
-    #     save_attributes_path=cfg.MODEL.PDDL_ATTRIBUTES,
-    #     nouns_embeddings_path=cfg.EPICKITCHENS.NOUNS_EMBEDDINGS_FILE,
-    #     augment=cfg.EPICKITCHENS.AUGMENT.ENABLE,
-    #     factor=cfg.EPICKITCHENS.AUGMENT.FACTOR,
-    #     small=args["small"],
-    # )
-
-    attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].tolist()
-
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    if not cfg.EPICKITCHENS.SKIP_PREPARATION:
+        prepare_dataset(cfg=cfg, make_plots=args["make_plots"])
+    else:
+        if not os.path.exists(cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST):
+            logger.error(f"Train list {cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST} does not exist")
+            exit(1)
+        if not os.path.exists(cfg.EPICKITCHENS.PROCESSED_VAL_LIST):
+            logger.error(f"Val list {cfg.EPICKITCHENS.PROCESSED_VAL_LIST} does not exist")
+            exit(1)
 
     if args["example"]:
-        match args["model"]:
-            case "audio_slowfast":
-                logger.info("Loading AudioSlowFast model")
+        attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].tolist()
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-                model = build_model(cfg)
-                logger.info("Model loaded")
-                n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-                logger.info(f"Model parameters: {n_params:,}")
-            case _:
-                raise ValueError("Unknown model type")
+        logger.info("Loading AudioSlowFast model")
+
+        model = build_model(cfg)
+        logger.info("Model loaded")
+        n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        logger.info(f"Model parameters: {n_params:,}")
 
         example(
             model=model,
@@ -150,7 +133,7 @@ def main(args: Dict[str, Any]) -> None:
 
     elif args["train"]:
         if not torch.cuda.is_available():
-            logger.warning("No GPU found. Running on CPU. Also deactivating WandB reports.")
+            logger.warning("No GPU found. Running on CPU. Also deactivating W&B reports.")
 
             # Modify config for debug training
             cfg.NUM_GPUS = 0
@@ -159,14 +142,11 @@ def main(args: Dict[str, Any]) -> None:
             cfg.DATA_LOADER.NUM_WORKERS = 4
             cfg.TRAIN.BATCH_SIZE = 2
 
-        if args["small"]:
-            cfg.SOLVER.MAX_EPOCH = 2
-
         sleep(1)
         launch_job(cfg=cfg, init_method=None, func=train)
 
     elif args["test"]:
-        launch_job(cfg=cfg, init_method="tcp://localhost:9999", func=test)
+        launch_job(cfg=cfg, init_method=None, func=test)
 
 
 def example(

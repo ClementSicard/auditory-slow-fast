@@ -112,7 +112,7 @@ class FuseFastToSlow(nn.Module):
 
 
 @MODEL_REGISTRY.register()
-class SlowFast(nn.Module):
+class AudioSlowFast(nn.Module):
     """
     SlowFast model builder for SlowFast network.
 
@@ -132,7 +132,7 @@ class SlowFast(nn.Module):
             cfg (CfgNode): model building configs, details are in the
                 comments of the config file.
         """
-        super(SlowFast, self).__init__()
+        super(AudioSlowFast, self).__init__()
         self.norm_module = get_norm(cfg)
         self.num_pathways = 2
         self._construct_network(cfg)

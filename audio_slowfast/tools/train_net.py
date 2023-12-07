@@ -414,9 +414,6 @@ def train_epoch(
 
         verb_preds, noun_preds = preds
 
-        # # Check if the predictions look good or are weird. In this case, send an alert.
-        # train_utils.check_predictions(preds=preds, labels=labels, threshold=0.1)
-
         if isinstance(labels, dict):
             loss, loss_verb, loss_noun = train_utils.compute_loss(
                 verb_preds=verb_preds,

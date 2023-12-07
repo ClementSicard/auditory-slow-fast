@@ -1,5 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import clip
 from clip.model import CLIP
 import numpy as np
@@ -12,23 +13,14 @@ from tqdm import tqdm
 from src.pddl import parse_pddl
 from src.transforms import get_transforms
 
+from fvcore.common.config import CfgNode
+
 pio.kaleido.scope.mathjax = None
 
 
 def prepare_dataset(
-    verbs_from_args: List[str],
-    verbs_path: str,
-    nouns_path: str,
-    train_path: str,
-    val_path: str,
-    pddl_domain_path: str,
-    pddl_problem_path: str,
-    save_attributes_path: str,
-    nouns_embeddings_path: str,
+    cfg: CfgNode,
     make_plots: bool = False,
-    augment: bool = True,
-    factor: float = 1.0,
-    small: bool = False,
 ) -> None:
     """
     Prepares the dataset by filtering it to keep only the verbs we want and
@@ -39,55 +31,38 @@ def prepare_dataset(
 
     Parameters
     ----------
-
-    `verbs_from_args` : `List[str]`
-        The list of verbs to keep, passed by CLI arguments.
-
-    `verbs_path` : `str`
-        The path to the verbs file.
-
-    `nouns_path` : `str`
-        The path to the nouns file
-
-    `train_path` : `str`
-        The path to the training annotations
-
-    `val_path` : `str`
-        The path to the validation annotations
-
-    `pddl_domain_path` : `str`
-        The path to the PDDL domain file
-
-    `pddl_problem_path` : `str`
-        The path to the PDDL problem file
-
-    `save_attributes_path` : `str`
-        The path to the file where to save the attributes
-
-    `nouns_embeddings_path` : `str`
-        The path to the file where to save the nouns embeddings
+    `cfg` : `CfgNode`
+        The configuration file.
 
     `make_plots` : `bool`, optional
-        Whether to make plots or not, by default `False`
-
-    `augment` : `bool`, optional
-        Whether to augment the dataset or not, by default `True`
-
-    `factor` : `float`, optional
-        The factor to use for augmentation, by default `1.0`.
-
-    `small` : `bool`, optional
-        Whether to use a small dataset or not, by default `False`
+        Whether to make plots or not, by default `False`.
     """
-    if small:
+    if cfg.EPICKITCHENS.SMALL:
         logger.warning("Using small dataset")
-        factor = 1.0
-        augment = True
+        cfg.EPICKITCHENS.AUGMENT.FACTOR = 1.0
+        cfg.EPICKITCHENS.AUGMENT.ENABLE = True
 
-    logger.info(f"Preparing dataset with verbs: {verbs_from_args}")
-    ids, map_ids_verbs, verbs_df = load_verbs(verbs_from_args=verbs_from_args, path=verbs_path)
-    train_df = load_dataset(path=train_path, small=small)
-    val_df = load_dataset(path=val_path, small=small)
+    if not cfg.EPICKITCHENS.ALL_VERBS:
+        logger.info(f"Preparing dataset with verbs: {cfg.EPICKITCHENS.VERBS}")
+    else:
+        logger.info("Preparing dataset with ALL verbs")
+
+    ids, map_ids_verbs, verbs_df = load_verbs(
+        verbs_from_args=cfg.EPICKITCHENS.VERBS,
+        path=cfg.EPICKITCHENS.VERBS_FILE,
+        all_verbs=cfg.EPICKITCHENS.ALL_VERBS,
+    )
+
+    logger.info(f"Loading train dataset from {cfg.EPICKITCHENS.ORIGINAL_TRAIN_LIST}...")
+    train_df = load_dataset(
+        path=cfg.EPICKITCHENS.ORIGINAL_TRAIN_LIST,
+        small=cfg.EPICKITCHENS.SMALL,
+    )
+    logger.info(f"Loading validation dataset from {cfg.EPICKITCHENS.ORIGINAL_VAL_LIST}...")
+    val_df = load_dataset(
+        path=cfg.EPICKITCHENS.ORIGINAL_VAL_LIST,
+        small=cfg.EPICKITCHENS.SMALL,
+    )
 
     if make_plots:
         logger.info("Making plots...")
@@ -110,70 +85,82 @@ def prepare_dataset(
     filtered_train_df = train_df[train_df.verb_class.isin(ids)]
     filtered_val_df = val_df[val_df.verb_class.isin(ids)]
 
-    # Load nouns and compute their CLIP embeddings
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    clip_model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
-    nouns = load_nouns(path=nouns_path)
-    clip_embeddings = get_nouns_clip_embeddings(nouns=nouns, model=clip_model, path=nouns_embeddings_path)
+    nouns = load_nouns(path=cfg.EPICKITCHENS.NOUNS_FILE)
 
-    # Load PDDL domain
-    actions, attributes = parse_pddl(domain_path=pddl_domain_path, problem_path=pddl_problem_path)
+    if not cfg.MODEL.ONLY_ACTION_RECOGNITION:
+        # Load PDDL domain
+        actions, attributes = parse_pddl(
+            domain_path=cfg.EPICKITCHENS.STATE.PDDL_DOMAIN,
+            problem_path=cfg.EPICKITCHENS.STATE.PDDL_PROBLEM,
+        )
 
-    assert set(map_ids_verbs.values()).issubset(
-        set([a.name for a in actions])
-    ), f"Some actions are not in the list of verbs: {set(map_ids_verbs.values()) - set([a.name for a in actions])}"
+        assert set(map_ids_verbs.values()).issubset(
+            set([a.name for a in actions])
+        ), f"Some actions are not in the list of verbs: {set(map_ids_verbs.values()) - set([a.name for a in actions])}"
 
-    attributes_df = pd.DataFrame(attributes, columns=["attribute"])
-    attributes_df.to_csv(save_attributes_path, index=False)
+        # Load nouns and compute their CLIP embeddings
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        clip_model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
 
-    # Extend the datasets with vectorized pre- and post-conditions for each action
-    vectors = {
-        action.name: {
-            "precs": [str(p) for p in action.preconditions],
-            "posts": [str(p) for p in action.postconditions],
-            "precs_vec": action.vectorize(attributes)[0],
-            "posts_vec": action.vectorize(attributes)[1],
+        clip_embeddings = (
+            get_nouns_clip_embeddings(
+                nouns=nouns,
+                model=clip_model,
+                path=cfg.EPICKITCHENS.NOUNS_EMBEDDINGS_FILE,
+            )
+            if not cfg.MODEL.ONLY_ACTION_RECOGNITION
+            else None
+        )
+
+        # Extend the datasets with vectorized pre- and post-conditions for each action
+        vectors = {
+            action.name: {
+                "precs": [str(p) for p in action.preconditions],
+                "posts": [str(p) for p in action.postconditions],
+                "precs_vec": action.vectorize(attributes)[0],
+                "posts_vec": action.vectorize(attributes)[1],
+            }
+            for action in actions
         }
-        for action in actions
-    }
 
-    filtered_train_df = extend_data(
-        df=filtered_train_df,
-        map_ids_verbs=map_ids_verbs,
-        vectors=vectors,
-        clip_embeddings=clip_embeddings,
-    )
-    filtered_val_df = extend_data(
-        df=filtered_val_df,
-        map_ids_verbs=map_ids_verbs,
-        vectors=vectors,
-        clip_embeddings=clip_embeddings,
-    )
+        filtered_train_df = extend_data(
+            df=filtered_train_df,
+            map_ids_verbs=map_ids_verbs,
+            vectors=vectors,
+            clip_embeddings=clip_embeddings,
+            only_action_recognition=cfg.MODEL.ONLY_ACTION_RECOGNITION,
+        )
+        filtered_val_df = extend_data(
+            df=filtered_val_df,
+            map_ids_verbs=map_ids_verbs,
+            vectors=vectors,
+            clip_embeddings=clip_embeddings,
+            only_action_recognition=cfg.MODEL.ONLY_ACTION_RECOGNITION,
+        )
 
-    if augment:
-        logger.info("Augmenting dataset to balance selected classes...")
+        attributes_df = pd.DataFrame(attributes, columns=["attribute"])
+        attributes_df.to_csv(cfg.MODEL.PDDL_ATTRIBUTES, index=False)
+
+    if cfg.EPICKITCHENS.AUGMENT.ENABLE:
+        logger.info("Augmenting train dataset to balance selected classes...")
         transforms = get_transforms(p=1.0)  # p = 1.0 to always apply the transforms
         filtered_train_df = augment_data(
             df=filtered_train_df,
             transforms=transforms,
-            factor=factor,
+            factor=cfg.EPICKITCHENS.AUGMENT.FACTOR,
         )
-        filtered_val_df = augment_data(
-            df=filtered_val_df,
-            transforms=transforms,
-            factor=factor,
-        )
-        logger.success("Done augmenting dataset.")
+        logger.success("Done augmenting train dataset.")
 
     # Save the filtered datasets
-    filtered_train_df.to_pickle(os.path.join(os.path.dirname(train_path), "filtered_train.pkl"))
-    filtered_val_df.to_pickle(os.path.join(os.path.dirname(val_path), "filtered_val.pkl"))
+    filtered_train_df.to_pickle(cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST)
+    filtered_val_df.to_pickle(cfg.EPICKITCHENS.PROCESSED_VAL_LIST)
     logger.success("Dataset prepared!")
 
 
 def load_verbs(
     verbs_from_args: List[str],
     path: str,
+    all_verbs: bool = False,
 ) -> Tuple[List[int], Dict[str, int], pd.DataFrame]:
     """
     Checks that the selected verbs are in the list of actual verbs and returns both the IDs and
@@ -187,6 +174,9 @@ def load_verbs(
     `path` : `str`
         The path to the verbs file.
 
+    `all_verbs` : `bool`, optional
+        Whether to load all the verbs or not, by default `False`
+
     Returns
     -------
     `Tuple[List[int], Dict[str, int], pd.DataFrame]`
@@ -199,19 +189,23 @@ def load_verbs(
     # Sort them alphabetically
     verbs = sorted(verbs_df.key.unique())
 
-    assert set(verbs_from_args).issubset(
-        verbs
-    ), f"Some verb classes are not in the list of verbs: {verbs_from_args - set(verbs)}"
+    if not all_verbs:
+        assert set(verbs_from_args).issubset(
+            verbs
+        ), f"Some verb classes are not in the list of verbs: {verbs_from_args - set(verbs)}"
 
-    # Get all the IDs corresponding to the verb classes we want to keep
-    verbs_from_args_ids = verbs_df[verbs_df.key.isin(verbs_from_args)].index.to_list()
+        # Get all the IDs corresponding to the verb classes we want to keep
+        verb_ids = verbs_df[verbs_df.key.isin(verbs_from_args)].index.to_list()
+    else:
+        verb_ids = verbs_df.index.to_list()
 
-    for i in verbs_from_args_ids:
-        logger.debug(f"{i}:{verbs_df.loc[i].key}")
+    if not all_verbs:
+        for i in verb_ids:
+            logger.debug(f"{i}:{verbs_df.loc[i].key}")
 
-    map_ids = {i: verbs_df.loc[i].key for i in verbs_from_args_ids}
+    map_ids = {i: verbs_df.loc[i].key for i in verb_ids}
 
-    return verbs_from_args_ids, map_ids, verbs_df
+    return verb_ids, map_ids, verbs_df
 
 
 def load_all_verbs(path: str) -> pd.DataFrame:
@@ -358,8 +352,9 @@ def plot_split_distribution(train_df: pd.DataFrame, val_df: pd.DataFrame) -> Non
 def extend_data(
     df: pd.DataFrame,
     map_ids_verbs: Dict[int, str],
-    vectors: Dict[str, Any],
-    clip_embeddings: Dict[str, torch.Tensor],
+    vectors: Optional[Dict[str, Any]] = None,
+    clip_embeddings: Optional[Dict[str, torch.Tensor]] = None,
+    only_action_recognition: bool = False,
 ) -> pd.DataFrame:
     """
     Extends dataset with vectorized pre- and post-conditions for each action.
@@ -368,12 +363,18 @@ def extend_data(
     ----------
     `df` : `pd.DataFrame`
         The dataset
+
     `map_ids_verbs` : `Dict[int, str]`
         The mapping between verb IDs and verb classes
-    `vectors` : `Dict[str, Any]`
-        The vectors for each action
-    `clip_embeddings` : `Dict[str, torch.Tensor]`
-        The CLIP embeddings for each noun
+
+    `vectors` : `Optional[Dict[str, Any]]`, optional
+        The vectors for each action. Defaults to `None`.
+
+    `clip_embeddings` : `Optional[Dict[str, torch.Tensor]]`, optional
+        The CLIP embeddings for each noun. Defaults to `None`.
+
+    `only_action_recognition` : `bool`, optional
+        Whether to only add the action recognition attributes or not. Defaults to `False`.
 
     Returns
     -------
@@ -382,13 +383,15 @@ def extend_data(
     """
     copy_df = df.copy()
     verb_classes = copy_df["verb_class"].map(map_ids_verbs)
-    copy_df.loc[:, "precs"] = verb_classes.map(lambda vc: vectors[vc]["precs"])
-    copy_df.loc[:, "posts"] = verb_classes.map(lambda vc: vectors[vc]["posts"])
-    copy_df.loc[:, "precs_vec"] = verb_classes.map(lambda vc: vectors[vc]["precs_vec"])
-    copy_df.loc[:, "posts_vec"] = verb_classes.map(lambda vc: vectors[vc]["posts_vec"])
 
-    # Add CLIP embeddings for nouns
-    copy_df.loc[:, "noun_embedding"] = copy_df["noun_class"].map(lambda n: clip_embeddings[n]["embedding"])
+    if not only_action_recognition:
+        copy_df.loc[:, "precs"] = verb_classes.map(lambda vc: vectors[vc]["precs"])
+        copy_df.loc[:, "posts"] = verb_classes.map(lambda vc: vectors[vc]["posts"])
+        copy_df.loc[:, "precs_vec"] = verb_classes.map(lambda vc: vectors[vc]["precs_vec"])
+        copy_df.loc[:, "posts_vec"] = verb_classes.map(lambda vc: vectors[vc]["posts_vec"])
+
+        # Add CLIP embeddings for nouns
+        copy_df.loc[:, "noun_embedding"] = copy_df["noun_class"].map(lambda n: clip_embeddings[n]["embedding"])
 
     return copy_df
 

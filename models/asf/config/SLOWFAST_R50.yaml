@@ -1,7 +1,7 @@
 TRAIN:
   ENABLE: True
-  DATASET: EpicKitchensGRU
-  BATCH_SIZE: 16
+  DATASET: EpicKitchens
+  BATCH_SIZE: 128
   EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
   CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_EPIC.pyth
@@ -58,11 +58,13 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 
 MODEL:
+  # MODEL_NAME: AudioSlowFastGRU
+  MODEL_NAME: AudioSlowFast
+
   NUM_CLASSES: [97, 300] # This will be updated by the state files into a 3-element list
   VOCAB_FILE: models/asf/config/vocab.txt
   PDDL_ATTRIBUTES: models/asf/config/attributes.csv
   ARCH: slowfast
-  MODEL_NAME: AudioSlowFastGRU
   LOSS_FUNC: cross_entropy
   STATE_LOSS_FUNC: masked_loss
   DROPOUT_RATE: 0.5
@@ -82,27 +84,38 @@ DATA_LOADER:
   PIN_MEMORY: True
 
 EPICKITCHENS:
-  TRAIN_PLUS_VAL: False
+  SKIP_PREPARATION: False
+
   AUDIO_DATA_FILE: /scratch/work/ptg/EPIC-KITCHENS/EPIC_audio.hdf5
-  TRAIN_LIST: data/epic-kitchens-100-annotations/filtered_train.pkl
-  TEST_LIST: data/epic-kitchens-100-annotations/filtered_val.pkl
-  VAL_LIST: data/epic-kitchens-100-annotations/filtered_val.pkl
+
+  ORIGINAL_TRAIN_LIST: data/epic-kitchens-100-annotations/EPIC_100_train.pkl
+  ORIGINAL_VAL_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
+  ORIGINAL_TEST_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
+
+  PROCESSED_TRAIN_LIST: data/epic-kitchens-100-annotations/full_train.pkl
+
+  # Here, for validation and test sets, processed means only filtered to the verbs we chose. No augmentation is applied.
+  PROCESSED_VAL_LIST: data/epic-kitchens-100-annotations/full_val.pkl
+  PROCESSED_TEST_LIST: data/epic-kitchens-100-annotations/full_val.pkl
 
   # Vocab files
   VERBS_FILE: data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
   NOUNS_FILE: data/epic-kitchens-100-annotations/EPIC_100_noun_classes.csv
 
-  # PDDL
-  PDDL_DOMAIN: pddl/domain.pddl
-  PDDL_PROBLEM: pddl/problem.pddl
+  VERBS: []
+  ALL_VERBS: True
 
-  # CLIP nouns embeddings
-  NOUNS_EMBEDDINGS_FILE: data/epic-kitchens-100-annotations/nouns_embeddings.pkl
+  SMALL: False
+
+  STATE:
+    PDDL_DOMAIN: pddl/domain.pddl
+    PDDL_PROBLEM: pddl/problem.pddl
+    NOUNS_EMBEDDINGS_FILE: data/epic-kitchens-100-annotations/nouns_embeddings.pkl
 
   # Augmentation
   AUGMENT:
     ENABLE: True
-    FACTOR: 4.0
+    FACTOR: 2.0
 
 TENSORBOARD:
   ENABLE: True
@@ -113,5 +126,5 @@ NUM_SHARDS: 1
 RNG_SEED: 25
 OUTPUT_DIR: .
 WANDB:
-  # ENABLE: True # If no GPU is enabled this will be set to False
-  ENABLE: False # If no GPU is enabled this will be set to False
+  ENABLE: True # If no GPU is enabled this will be set to False
+  # ENABLE: False # If no GPU is enabled this will be set to False
