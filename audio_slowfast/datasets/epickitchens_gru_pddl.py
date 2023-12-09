@@ -13,12 +13,10 @@ class EpicKitchensGRUwithPDDL(EpicKitchens):
         self,
         cfg: CfgNode,
         mode: str,
-        unique_batch: bool = False,
     ):
         super().__init__(
             cfg=cfg,
             mode=mode,
             record_type=EpicKitchensAudioRecordGRUwithPDDL,
-            unique_batch=unique_batch,
             gru_format=True,
         )

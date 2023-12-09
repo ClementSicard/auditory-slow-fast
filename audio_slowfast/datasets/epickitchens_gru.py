@@ -13,12 +13,10 @@ class EpicKitchensGRU(EpicKitchens):
         self,
         cfg: CfgNode,
         mode: str,
-        unique_batch: bool = False,
     ):
         super().__init__(
             cfg=cfg,
             mode=mode,
             record_type=EpicKitchensAudioRecordGRU,
-            unique_batch=unique_batch,
             gru_format=True,
         )

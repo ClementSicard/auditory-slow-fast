@@ -52,7 +52,7 @@ class EpicKitchensAudioRecordGRUwithPDDL(AudioRecord):
 
     @property
     def transformation(self):
-        return self._series["transformation"]
+        return self._series["transformation"] if "transformation" in self._series else "none"
 
     @property
     def num_spectrograms(self):
@@ -83,7 +83,8 @@ class EpicKitchensAudioRecordGRUwithPDDL(AudioRecord):
 
     @property
     def noun_embedding(self):
-        return self._series["noun_embedding"].reshape(-1)  # (1, 512) -> (512,)
+        # (1, 512) -> (512,)
+        return self._series["noun_embedding"].reshape(-1) if "noun_embedding" in self._series else np.array([])
 
     @property
     def metadata(self):

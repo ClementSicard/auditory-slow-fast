@@ -48,17 +48,10 @@ def parse_args() -> Dict[str, Any]:
         The arguments passed to the script.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model",
-        type=str,
-        choices=["audio_slowfast"],
-        default="audio_slowfast",
-    )
     parser.add_argument("--config", type=str, default="config.yaml")
     parser.add_argument("--example", type=str, default=None)
     parser.add_argument("--train", action="store_true")
     parser.add_argument("--test", action="store_true")
-    parser.add_argument("--make-plots", action="store_true")
 
     args = parser.parse_args()
 
@@ -102,36 +95,9 @@ def main(args: Dict[str, Any]) -> None:
     cfg = get_cfg()
     cfg.merge_from_file(args["config"])
 
-    # Prepare the dataset
-    if not cfg.EPICKITCHENS.SKIP_PREPARATION:
-        prepare_dataset(cfg=cfg, make_plots=args["make_plots"])
-    else:
-        if not os.path.exists(cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST):
-            logger.error(f"Train list {cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST} does not exist")
-            exit(1)
-        if not os.path.exists(cfg.EPICKITCHENS.PROCESSED_VAL_LIST):
-            logger.error(f"Val list {cfg.EPICKITCHENS.PROCESSED_VAL_LIST} does not exist")
-            exit(1)
+    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 
-    if args["example"]:
-        attributes = pd.read_csv(cfg.MODEL.PDDL_ATTRIBUTES)["attribute"].tolist()
-        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-        logger.info("Loading AudioSlowFast model")
-
-        model = build_model(cfg)
-        logger.info("Model loaded")
-        n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        logger.info(f"Model parameters: {n_params:,}")
-
-        example(
-            model=model,
-            attributes=attributes,
-            file_path=args["example"],
-            device=device,
-        )
-
-    elif args["train"]:
+    if args["train"]:
         if not torch.cuda.is_available():
             logger.warning("No GPU found. Running on CPU. Also deactivating W&B reports.")
 
@@ -142,8 +108,20 @@ def main(args: Dict[str, Any]) -> None:
             cfg.DATA_LOADER.NUM_WORKERS = 4
             cfg.TRAIN.BATCH_SIZE = 2
 
+        # Prepare the dataset
+        if not cfg.EPICKITCHENS.SKIP_PREPARATION:
+            prepare_dataset(cfg=cfg)
+        else:
+            if not os.path.exists(cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST):
+                logger.error(f"Train list {cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST} does not exist")
+                exit(1)
+            if not os.path.exists(cfg.EPICKITCHENS.PROCESSED_VAL_LIST):
+                logger.error(f"Val list {cfg.EPICKITCHENS.PROCESSED_VAL_LIST} does not exist")
+                exit(1)
+
         sleep(1)
         launch_job(cfg=cfg, init_method=None, func=train)
+        launch_job(cfg=cfg, init_method=None, func=test)
 
     elif args["test"]:
         launch_job(cfg=cfg, init_method=None, func=test)

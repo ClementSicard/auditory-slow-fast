@@ -16,10 +16,11 @@ import audio_slowfast.utils.misc as misc
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast.datasets import loader
 from audio_slowfast.models import build_model
-from audio_slowfast.utils.meters import TestMeter, EPICTestMeter
+from audio_slowfast.utils.meters import EPICTestMeterWithState, TestMeter, EPICTestMeter
 from audio_slowfast.utils.vggsound_metrics import get_stats
 
 from loguru import logger
+from tqdm import tqdm
 
 
 @torch.no_grad()
@@ -160,25 +161,63 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
     test_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, audio_idx, meta) in enumerate(test_loader):
-        if cfg.NUM_GPUS:
-            # Transfer the data to the current GPU device.
-            if isinstance(inputs, (list,)):
-                for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(non_blocking=True)
-            else:
-                inputs = inputs.cuda(non_blocking=True)
+    for cur_iter, batch in enumerate(
+        tqdm(
+            test_loader,
+            desc="Testing",
+            unit="batch",
+        )
+    ):
+        if cur_iter > 2:
+            break
 
-            # Transfer the data to the current GPU device.
-            if isinstance(labels, (dict,)):
-                labels = {k: v.cuda() for k, v in labels.items()}
-            else:
-                labels = labels.cuda()
-            audio_idx = audio_idx.cuda()
-        test_meter.data_toc()
+        if not "GRU" in cfg.TEST.DATASET:
+            inputs, labels, audio_idx, meta = batch
 
-        # Perform the forward pass.
-        preds = model(inputs)
+            if cfg.NUM_GPUS:
+                # Transfer the data to the current GPU device.
+                if isinstance(inputs, (list,)):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+
+                # Transfer the data to the current GPU device.
+                if isinstance(labels, (dict,)):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
+                audio_idx = audio_idx.cuda()
+
+            test_meter.data_toc()
+
+            # Perform the forward pass.
+            preds = model(inputs)
+
+        else:
+            inputs, lengths, labels, audio_idx, noun_embeddings, meta = batch
+            # Transfer the data to the current GPU device.
+            if cfg.NUM_GPUS:
+                # Transferthe data to the current GPU device.
+                if isinstance(inputs, list):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                if isinstance(labels, dict):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
+
+                noun_embeddings = noun_embeddings.cuda()
+
+            test_meter.data_toc()
+
+            preds = model(
+                x=inputs,
+                lengths=lengths,
+                noun_embeddings=noun_embeddings,
+            )
 
         if isinstance(labels, (dict,)):
             # Gather all the predictions across all the devices to perform ensemble.
@@ -228,7 +267,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         test_meter.iter_tic()
 
     # Log epoch stats and print the final testing results.
-    if cfg.TEST.DATASET != "epickitchens":
+    if not cfg.TEST.DATASET.startswith("EpicKitchens"):
         all_preds = test_meter.audio_preds.clone().detach()
         all_labels = test_meter.audio_labels
         if cfg.NUM_GPUS:
@@ -272,6 +311,7 @@ def test(cfg):
 
     # Build the audio model and print model statistics.
     model = build_model(cfg)
+
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg)
 

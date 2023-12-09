@@ -66,6 +66,7 @@ export PYTHONPATH=/path/to/auditory-slow-fast/slowfast:$PYTHONPATH
   ```
 
 ## Training/validation on EPIC-KITCHENS-100
+
 To train the model run (fine-tuning from VGG-Sound pretrained model):
 ```
 python tools/run_net.py --cfg configs/EPIC-KITCHENS/SLOWFAST_R50.yaml NUM_GPUS num_gpus 
@@ -82,6 +83,7 @@ EPICKITCHENS.ANNOTATIONS_DIR /path/to/annotations TRAIN.CHECKPOINT_FILE_PATH /pa
 ```
 
 To validate the model run:
+
 ```
 python tools/run_net.py --cfg configs/EPIC-KITCHENS/SLOWFAST_R50.yaml NUM_GPUS num_gpus 
 OUTPUT_DIR /path/to/experiment_dir EPICKITCHENS.AUDIO_DATA_FILE /path/to/EPIC-KITCHENS-100_audio.hdf5 
@@ -90,16 +92,19 @@ TEST.CHECKPOINT_FILE_PATH /path/to/experiment_dir/checkpoints/checkpoint_best.py
 ```
 
 To obtain scores on the test set run:
+
 ```
 python tools/run_net.py --cfg configs/EPIC-KITCHENS/SLOWFAST_R50.yaml NUM_GPUS num_gpus 
 OUTPUT_DIR /path/to/experiment_dir EPICKITCHENS.AUDIO_DATA_FILE /path/to/EPIC-KITCHENS-100_audio.hdf5 
 EPICKITCHENS.ANNOTATIONS_DIR /path/to/annotations TRAIN.ENABLE False TEST.ENABLE True 
 TEST.CHECKPOINT_FILE_PATH /path/to/experiment_dir/checkpoints/checkpoint_best.pyth 
-EPICKITCHENS.TEST_LIST EPIC_100_test_timestamps.pkl EPICKITCHENS.TEST_SPLIT test
+EPICKITCHENS.ORIGINAL_TEST_LIST EPIC_100_test_timestamps.pkl EPICKITCHENS.TEST_SPLIT test
 ```
 
 ## Training/validation on VGG-Sound
+
 To train the model run:
+
 ```
 python tools/run_net.py --cfg configs/VGG-Sound/SLOWFAST_R50.yaml NUM_GPUS num_gpus 
 OUTPUT_DIR /path/to/output_dir VGGSOUND.AUDIO_DATA_DIR /path/to/dataset 

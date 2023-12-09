@@ -355,7 +355,7 @@ def eval_epoch(
     verb_names = load_all_verbs(cfg.EPICKITCHENS.VERBS_FILE)
     noun_names = load_nouns(cfg.EPICKITCHENS.NOUNS_FILE)
 
-    for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
+    for cur_iter, batch in enumerate(
         tqdm(
             val_loader,
             desc="Validation at epoch {}".format(
@@ -364,28 +364,46 @@ def eval_epoch(
             unit="batch",
         ),
     ):
-        # Transfer the data to the current GPU device.
-        if cfg.NUM_GPUS:
-            # Transferthe data to the current GPU device.
-            if isinstance(inputs, list):
-                for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(non_blocking=True)
-            else:
-                inputs = inputs.cuda(non_blocking=True)
-            if isinstance(labels, dict):
-                labels = {k: v.cuda() for k, v in labels.items()}
-            else:
-                labels = labels.cuda()
+        if not "GRU" in cfg.TRAIN.DATASET:
+            inputs, labels, _, _ = batch
 
-            noun_embeddings = noun_embeddings.cuda()
+            # Transfer the data to the current GPU device.
+            if cfg.NUM_GPUS:
+                # Transferthe data to the current GPU device.
+                if isinstance(inputs, list):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                if isinstance(labels, dict):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
 
-        val_meter.data_toc()
-        logger.warning([i.shape for i in inputs])
-        preds = model(
-            x=inputs,
-            lengths=lengths,
-            noun_embeddings=noun_embeddings,
-        )
+            val_meter.data_toc()
+            preds = model(x=inputs)
+        else:
+            inputs, lengths, labels, _, noun_embeddings, _ = batch
+            if cfg.NUM_GPUS:
+                # Transferthe data to the current GPU device.
+                if isinstance(inputs, list):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                if isinstance(labels, dict):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
+
+                noun_embeddings = noun_embeddings.cuda()
+
+            val_meter.data_toc()
+            preds = model(
+                x=inputs,
+                lengths=lengths,
+                noun_embeddings=noun_embeddings,
+            )
 
         verb_preds, noun_preds = preds
 

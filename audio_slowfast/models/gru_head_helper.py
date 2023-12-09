@@ -71,9 +71,10 @@ class GRUResNetBasicHead(nn.Module):
         self.projection_to_dim_in = nn.Linear(gru_hidden_size * 2, sum(dim_in), bias=True)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
-        assert (
-            len(num_classes) == 3
-        ), f"num_classes must be a list of length 3 (for (verb, noun, state)) but was {len(num_classes)}"
+        assert len(num_classes) == (
+            3 if not self.only_action_recognition else 2
+        ), f"num_classes must be a list of length {(3 if not self.only_action_recognition else 2)} but was {len(num_classes)}"
+
         self.num_classes = num_classes
         self.dim_in = dim_in
 
@@ -235,8 +236,6 @@ class GRUResNetBasicHead(nn.Module):
         F = x.shape[-1]
         D = 2 if self.gru.bidirectional else 1
 
-        h_0 = noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1) if noun_embeddings else None
-
         # (B*N, 1, 1, n_features_asf) -> (B*N, n_features_asf)
         # Squeeze all dimensions except the batch dimension (first)
         x = x.squeeze(1).squeeze(1)
@@ -253,7 +252,16 @@ class GRUResNetBasicHead(nn.Module):
             enforce_sorted=False,
         )
 
-        x, _ = self.gru(x, hx=h_0)
+        if not self.only_action_recognition:
+            h_0 = (
+                noun_embeddings.unsqueeze(0).repeat(D * self.gru_num_layers, 1, 1)
+                if noun_embeddings is not None
+                else None
+            )
+
+            x, _ = self.gru(x, hx=h_0)
+        else:
+            x, _ = self.gru(x)
 
         x, _ = torch.nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
 

@@ -25,6 +25,8 @@ def run() -> None:
     dataset = EpicKitchens(cfg=cfg, mode="train")
     sample = dataset[0]
 
+    logger.debug(f"{len(sample)=}")
+
     logger.info("Testing EpicKitchensGRU dataloader")
     dataset = EpicKitchensGRU(cfg=cfg, mode="train")
     sample = dataset[0]

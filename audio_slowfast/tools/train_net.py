@@ -13,7 +13,7 @@ from fvcore.common.config import CfgNode
 from loguru import logger
 from tqdm import tqdm
 from audio_slowfast.models.build import build_model
-from audio_slowfast.tools.eval_net import eval_epoch
+from audio_slowfast.tools.eval_net import eval_epoch, eval_epoch_with_state
 import audio_slowfast.models.losses as losses
 import audio_slowfast.models.optimizer as optim
 import audio_slowfast.utils.checkpoint as cu
@@ -121,7 +121,7 @@ def train_epoch_state(
         preds = model(
             x=inputs,
             lengths=lengths,
-            noun_embeddings=noun_embeddings,
+            noun_embeddings=noun_embeddings if not cfg.MODEL.ONLY_ACTION_RECOGNITION else None,
         )
 
         verb_preds, noun_preds, state_preds = preds
@@ -369,10 +369,7 @@ def train_epoch(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    verb_names = load_all_verbs(cfg.EPICKITCHENS.VERBS_FILE)
-    noun_names = load_nouns(cfg.EPICKITCHENS.NOUNS_FILE)
-
-    for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
+    for cur_iter, batch in enumerate(
         # Write to stderr
         tqdm(
             train_loader,
@@ -383,34 +380,58 @@ def train_epoch(
             unit="batch",
         ),
     ):
-        # Transfer the data to the current GPU device.
-        if cfg.NUM_GPUS:
-            # Transferthe data to the current GPU device.
-            if isinstance(inputs, list):
-                for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(non_blocking=True)
-            else:
-                inputs = inputs.cuda(non_blocking=True)
-            if isinstance(labels, dict):
-                labels = {k: v.cuda() for k, v in labels.items()}
-            else:
-                labels = labels.cuda()
+        if not "GRU" in cfg.TRAIN.DATASET:
+            inputs, labels, _, _ = batch
 
-            noun_embeddings = noun_embeddings.cuda()
+            # Transfer the data to the current GPU device.
+            if cfg.NUM_GPUS:
+                # Transferthe data to the current GPU device.
+                if isinstance(inputs, list):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                if isinstance(labels, dict):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
 
-            if cur_iter % cfg.LOG_PERIOD == 0:
-                display_gpu_info()
+                if cur_iter % cfg.LOG_PERIOD == 0:
+                    display_gpu_info()
 
-        # Update the learning rate.
-        lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
-        optim.set_lr(optimizer, lr)
+            train_meter.data_toc()
+            preds = model(x=inputs)
+        else:
+            inputs, lengths, labels, _, noun_embeddings, _ = batch
+            # Transfer the data to the current GPU device.
+            if cfg.NUM_GPUS:
+                # Transferthe data to the current GPU device.
+                if isinstance(inputs, list):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                if isinstance(labels, dict):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
 
-        train_meter.data_toc()
-        preds = model(
-            x=inputs,
-            lengths=lengths,
-            noun_embeddings=noun_embeddings,
-        )
+                if cur_iter % cfg.LOG_PERIOD == 0:
+                    display_gpu_info()
+
+                noun_embeddings = noun_embeddings.cuda()
+
+                preds = model(
+                    x=inputs,
+                    lengths=lengths,
+                    noun_embeddings=noun_embeddings,
+                )
+
+            # Update the learning rate.
+            lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
+            optim.set_lr(optimizer, lr)
+
+            train_meter.data_toc()
 
         verb_preds, noun_preds = preds
 
@@ -644,7 +665,7 @@ def train(cfg: CfgNode):
 
     # Print config.
     logger.info("Train with config:")
-    logger.info(pprint.pformat(cfg))
+    logger.info(cfg)
 
     # Build the audio model and print model statistics.
     model = build_model(cfg)
@@ -723,7 +744,7 @@ def train(cfg: CfgNode):
         logger.info(f"Training for epoch {cur_epoch}.")
         # Train for one epoch.
         if cfg.MODEL.ONLY_ACTION_RECOGNITION:
-            train_epoch_state(
+            train_epoch(
                 train_loader,
                 model,
                 optimizer,
@@ -765,7 +786,27 @@ def train(cfg: CfgNode):
         # Evaluate the model on validation set.
         if is_eval_epoch:
             logger.info(f"Evaluating the model for epoch {cur_epoch}.")
-            is_best_epoch, _ = eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer, wandb_log)
+            is_best_epoch, _ = (
+                eval_epoch(
+                    val_loader=val_loader,
+                    model=model,
+                    val_meter=val_meter,
+                    cur_epoch=cur_epoch,
+                    cfg=cfg,
+                    writer=writer,
+                    wandb_log=wandb_log,
+                )
+                if cfg.MODEL.ONLY_ACTION_RECOGNITION
+                else eval_epoch_with_state(
+                    val_loader=val_loader,
+                    model=model,
+                    val_meter=val_meter,
+                    cur_epoch=cur_epoch,
+                    cfg=cfg,
+                    writer=writer,
+                    wandb_log=wandb_log,
+                )
+            )
             logger.success(f"Done evaluating the model for epoch {cur_epoch}!")
             if is_best_epoch:
                 logger.success(f"Saving a best checkpoint for epoch {cur_epoch}.")

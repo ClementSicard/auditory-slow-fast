@@ -1,13 +1,12 @@
 TRAIN:
   ENABLE: True
-  DATASET: EpicKitchens
-  BATCH_SIZE: 128
-  EVAL_PERIOD: 1
-  CHECKPOINT_PERIOD: 1
+  DATASET: EpicKitchensGRU
+  BATCH_SIZE: 16
+  EVAL_PERIOD: 2
+  CHECKPOINT_PERIOD: 2
   CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_EPIC.pyth
   CHECKPOINT_EPOCH_RESET: True
   AUTO_RESUME: True
-  SUPERVISION_TYPE: "half"
 
 DATA:
   INPUT_CHANNEL_NUM: [1, 1]
@@ -49,7 +48,8 @@ SOLVER:
   BASE_LR: 0.01
   LR_POLICY: steps_with_relative_lrs
   STEPS: [0, 20, 25]
-  LRS: [1, 0.2, 0.02]
+  LRS: [1, 0.1, 0.01]
+  # LRS: [1, 0.2, 0.02]
   MAX_EPOCH: 30
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
@@ -58,8 +58,8 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 
 MODEL:
-  # MODEL_NAME: AudioSlowFastGRU
-  MODEL_NAME: AudioSlowFast
+  MODEL_NAME: AudioSlowFastGRU
+  # MODEL_NAME: AudioSlowFast
 
   NUM_CLASSES: [97, 300] # This will be updated by the state files into a 3-element list
   VOCAB_FILE: models/asf/config/vocab.txt
@@ -76,8 +76,8 @@ MODEL:
 
 TEST:
   ENABLE: False
-  DATASET: EpicKitchens
-  BATCH_SIZE: 128
+  DATASET: EpicKitchensGRU
+  BATCH_SIZE: 16
 
 DATA_LOADER:
   NUM_WORKERS: 8
@@ -85,6 +85,11 @@ DATA_LOADER:
 
 EPICKITCHENS:
   SKIP_PREPARATION: False
+  SMALL: False
+  SINGLE_BATCH: False
+  MAKE_PLOTS: False
+  VERBS: []
+  ALL_VERBS: True
 
   AUDIO_DATA_FILE: /scratch/work/ptg/EPIC-KITCHENS/EPIC_audio.hdf5
 
@@ -102,20 +107,14 @@ EPICKITCHENS:
   VERBS_FILE: data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
   NOUNS_FILE: data/epic-kitchens-100-annotations/EPIC_100_noun_classes.csv
 
-  VERBS: []
-  ALL_VERBS: True
-
-  SMALL: False
-
   STATE:
     PDDL_DOMAIN: pddl/domain.pddl
     PDDL_PROBLEM: pddl/problem.pddl
     NOUNS_EMBEDDINGS_FILE: data/epic-kitchens-100-annotations/nouns_embeddings.pkl
 
-  # Augmentation
   AUGMENT:
-    ENABLE: True
-    FACTOR: 2.0
+    ENABLE: False
+    FACTOR: 4.0
 
 TENSORBOARD:
   ENABLE: True
@@ -124,7 +123,7 @@ TENSORBOARD:
 NUM_GPUS: 1
 NUM_SHARDS: 1
 RNG_SEED: 25
-OUTPUT_DIR: .
+OUTPUT_DIR: runs/asf-gru
 WANDB:
   ENABLE: True # If no GPU is enabled this will be set to False
   # ENABLE: False # If no GPU is enabled this will be set to False

@@ -5,7 +5,6 @@
 
 import torch
 import torch.nn as nn
-from loguru import logger
 
 
 class ResNetBasicHead(nn.Module):
@@ -54,6 +53,11 @@ class ResNetBasicHead(nn.Module):
             self.dropout = nn.Dropout(dropout_rate)
         # Perform FC in a fully convolutional manner. The FC layer will be
         # initialized with a different std comparing to convolutional layers.
+        if isinstance(num_classes, (list, tuple)):
+            self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
+            self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
+        else:
+            self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
         self.num_classes = num_classes
         # Softmax for evaluation and testing.
         if act_func == "softmax":
@@ -62,12 +66,6 @@ class ResNetBasicHead(nn.Module):
             self.act = nn.Sigmoid()
         else:
             raise NotImplementedError("{} is not supported as an activation" "function.".format(act_func))
-
-        if isinstance(num_classes, (list, tuple)):
-            self.projection_verb = nn.Linear(sum(dim_in), num_classes[0], bias=True)
-            self.projection_noun = nn.Linear(sum(dim_in), num_classes[1], bias=True)
-        else:
-            self.projection = nn.Linear(sum(dim_in), num_classes, bias=True)
 
     def forward(self, inputs):
         assert len(inputs) == self.num_pathways, "Input tensor does not contain {} pathway".format(self.num_pathways)
@@ -81,28 +79,31 @@ class ResNetBasicHead(nn.Module):
         # Perform dropout.
         if hasattr(self, "dropout"):
             x = self.dropout(x)
-
-        # Pass through GRU
-        x, _ = self.gru(x)
-
         if isinstance(self.num_classes, (list, tuple)):
             x_v = self.projection_verb(x)
-            x_v = self.train_inference(x_v)
-
             x_n = self.projection_noun(x)
-            x_n = self.train_inference(x_n)
 
+            # Performs fully convlutional inference.
+            if not self.training:
+                x_v = self.act(x_v)
+                x_v = x_v.mean([1, 2])
+
+            x_v = x_v.view(x_v.shape[0], -1)
+
+            # Performs fully convlutional inference.
+            if not self.training:
+                x_n = self.act(x_n)
+                x_n = x_n.mean([1, 2])
+
+            x_n = x_n.view(x_n.shape[0], -1)
             return (x_v, x_n)
         else:
             x = self.projection(x)
-            x = self.train_inference(x)
 
+            # Performs fully convlutional inference.
+            if not self.training:
+                x = self.act(x)
+                x = x.mean([1, 2])
+
+            x = x.view(x.shape[0], -1)
             return x
-
-    def train_inference(self, x: torch.Tensor) -> torch.Tensor:
-        # Performs fully convlutional inference.
-        if not self.training:
-            x = self.act(x)
-            x = x.mean([1, 2])
-
-        x = x.view(x.shape[0], -1)

@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import csv
 import os
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import clip
@@ -8,6 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 from loguru import logger
+from tempfile import NamedTemporaryFile
 import torch
 from tqdm import tqdm
 from src.pddl import parse_pddl
@@ -18,10 +20,7 @@ from fvcore.common.config import CfgNode
 pio.kaleido.scope.mathjax = None
 
 
-def prepare_dataset(
-    cfg: CfgNode,
-    make_plots: bool = False,
-) -> None:
+def prepare_dataset(cfg: CfgNode) -> None:
     """
     Prepares the dataset by filtering it to keep only the verbs we want and
     making some plots on the distribution.
@@ -64,7 +63,7 @@ def prepare_dataset(
         small=cfg.EPICKITCHENS.SMALL,
     )
 
-    if make_plots:
+    if cfg.EPICKITCHENS.MAKE_PLOTS:
         logger.info("Making plots...")
         # Make plots for all splits
         _make_plots(
@@ -87,59 +86,40 @@ def prepare_dataset(
 
     nouns = load_nouns(path=cfg.EPICKITCHENS.NOUNS_FILE)
 
-    if not cfg.MODEL.ONLY_ACTION_RECOGNITION:
-        # Load PDDL domain
-        actions, attributes = parse_pddl(
-            domain_path=cfg.EPICKITCHENS.STATE.PDDL_DOMAIN,
-            problem_path=cfg.EPICKITCHENS.STATE.PDDL_PROBLEM,
-        )
+    # Load PDDL domain
+    actions, attributes = parse_pddl(
+        domain_path=cfg.EPICKITCHENS.STATE.PDDL_DOMAIN,
+        problem_path=cfg.EPICKITCHENS.STATE.PDDL_PROBLEM,
+    )
 
+    if not cfg.MODEL.ONLY_ACTION_RECOGNITION:
         assert set(map_ids_verbs.values()).issubset(
             set([a.name for a in actions])
         ), f"Some actions are not in the list of verbs: {set(map_ids_verbs.values()) - set([a.name for a in actions])}"
 
-        # Load nouns and compute their CLIP embeddings
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        clip_model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
+    attributes_df = pd.DataFrame(attributes, columns=["attribute"])
+    attributes_df.to_csv(cfg.MODEL.PDDL_ATTRIBUTES, index=False)
 
-        clip_embeddings = (
-            get_nouns_clip_embeddings(
-                nouns=nouns,
-                model=clip_model,
-                path=cfg.EPICKITCHENS.NOUNS_EMBEDDINGS_FILE,
-            )
-            if not cfg.MODEL.ONLY_ACTION_RECOGNITION
-            else None
-        )
+    # Load nouns and compute their CLIP embeddings
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    clip_model, _ = clip.load("ViT-B/32", device=device, download_root="/scratch/cs7561/clip")
 
-        # Extend the datasets with vectorized pre- and post-conditions for each action
-        vectors = {
-            action.name: {
-                "precs": [str(p) for p in action.preconditions],
-                "posts": [str(p) for p in action.postconditions],
-                "precs_vec": action.vectorize(attributes)[0],
-                "posts_vec": action.vectorize(attributes)[1],
-            }
-            for action in actions
+    clip_embeddings = get_nouns_clip_embeddings(
+        nouns=nouns,
+        model=clip_model,
+        path=cfg.EPICKITCHENS.STATE.NOUNS_EMBEDDINGS_FILE,
+    )
+
+    # Extend the datasets with vectorized pre- and post-conditions for each action
+    vectors = {
+        action.name: {
+            "precs": [str(p) for p in action.preconditions],
+            "posts": [str(p) for p in action.postconditions],
+            "precs_vec": action.vectorize(attributes)[0],
+            "posts_vec": action.vectorize(attributes)[1],
         }
-
-        filtered_train_df = extend_data(
-            df=filtered_train_df,
-            map_ids_verbs=map_ids_verbs,
-            vectors=vectors,
-            clip_embeddings=clip_embeddings,
-            only_action_recognition=cfg.MODEL.ONLY_ACTION_RECOGNITION,
-        )
-        filtered_val_df = extend_data(
-            df=filtered_val_df,
-            map_ids_verbs=map_ids_verbs,
-            vectors=vectors,
-            clip_embeddings=clip_embeddings,
-            only_action_recognition=cfg.MODEL.ONLY_ACTION_RECOGNITION,
-        )
-
-        attributes_df = pd.DataFrame(attributes, columns=["attribute"])
-        attributes_df.to_csv(cfg.MODEL.PDDL_ATTRIBUTES, index=False)
+        for action in actions
+    }
 
     if cfg.EPICKITCHENS.AUGMENT.ENABLE:
         logger.info("Augmenting train dataset to balance selected classes...")
@@ -150,6 +130,19 @@ def prepare_dataset(
             factor=cfg.EPICKITCHENS.AUGMENT.FACTOR,
         )
         logger.success("Done augmenting train dataset.")
+
+    filtered_train_df = extend_data(
+        df=filtered_train_df,
+        map_ids_verbs=map_ids_verbs,
+        vectors=vectors,
+        clip_embeddings=clip_embeddings,
+    )
+    filtered_val_df = extend_data(
+        df=filtered_val_df,
+        map_ids_verbs=map_ids_verbs,
+        vectors=vectors,
+        clip_embeddings=clip_embeddings,
+    )
 
     # Save the filtered datasets
     filtered_train_df.to_pickle(cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST)
@@ -354,7 +347,6 @@ def extend_data(
     map_ids_verbs: Dict[int, str],
     vectors: Optional[Dict[str, Any]] = None,
     clip_embeddings: Optional[Dict[str, torch.Tensor]] = None,
-    only_action_recognition: bool = False,
 ) -> pd.DataFrame:
     """
     Extends dataset with vectorized pre- and post-conditions for each action.
@@ -381,17 +373,17 @@ def extend_data(
     `pd.DataFrame`
         The extended dataset
     """
+
     copy_df = df.copy()
     verb_classes = copy_df["verb_class"].map(map_ids_verbs)
 
-    if not only_action_recognition:
-        copy_df.loc[:, "precs"] = verb_classes.map(lambda vc: vectors[vc]["precs"])
-        copy_df.loc[:, "posts"] = verb_classes.map(lambda vc: vectors[vc]["posts"])
-        copy_df.loc[:, "precs_vec"] = verb_classes.map(lambda vc: vectors[vc]["precs_vec"])
-        copy_df.loc[:, "posts_vec"] = verb_classes.map(lambda vc: vectors[vc]["posts_vec"])
+    # Add CLIP embeddings for nouns
+    copy_df.loc[:, "noun_embedding"] = copy_df["noun_class"].map(lambda n: clip_embeddings[n]["embedding"])
 
-        # Add CLIP embeddings for nouns
-        copy_df.loc[:, "noun_embedding"] = copy_df["noun_class"].map(lambda n: clip_embeddings[n]["embedding"])
+    copy_df.loc[:, "precs"] = verb_classes.map(lambda vc: vectors[vc]["precs"] if vc in vectors else [])
+    copy_df.loc[:, "posts"] = verb_classes.map(lambda vc: vectors[vc]["posts"] if vc in vectors else [])
+    copy_df.loc[:, "precs_vec"] = verb_classes.map(lambda vc: vectors[vc]["precs_vec"] if vc in vectors else [])
+    copy_df.loc[:, "posts_vec"] = verb_classes.map(lambda vc: vectors[vc]["posts_vec"] if vc in vectors else [])
 
     return copy_df
 
@@ -399,6 +391,7 @@ def extend_data(
 def augment_data(
     df: pd.DataFrame,
     transforms: List[Callable],
+    output_path: str = NamedTemporaryFile().name,
     factor: float = 1.0,
 ) -> pd.DataFrame:
     """
@@ -433,37 +426,41 @@ def augment_data(
 
     df["transformation"] = "none"
 
-    augmented_rows = []
-    for _, row in tqdm(df.iterrows(), total=len(df), unit="row"):
-        rows = [row.to_dict()]
-        c = row["verb_class"]
-        t_per_row = t_by_class[c]["t_per_sample"]
+    with open(output_path, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=df.columns.to_list())
+        writer.writeheader()
 
-        if 0 < t_per_row <= 1:
-            # Transform the current row with a certain probability
-            augment = np.random.binomial(n=1, p=t_per_row)
+        for _, row in tqdm(df.iterrows(), total=len(df), unit="row"):
+            rows = [row.to_dict()]
+            c = row["verb_class"]
+            t_per_row = t_by_class[c]["t_per_sample"]
 
-            if augment:
-                transformation = np.random.choice(list(transforms.keys()))
-                aug_row = row.copy()
-                aug_row["transformation"] = transformation
+            if 0 < t_per_row <= 1:
+                # Transform the current row with a certain probability
+                augment = np.random.binomial(n=1, p=t_per_row)
 
-                rows.append(aug_row)
+                if augment:
+                    transformation = np.random.choice(list(transforms.keys()))
+                    aug_row = row.copy()
+                    aug_row["transformation"] = transformation
 
-        elif t_per_row > 1:
-            # If we need strictly more than 1 transform per row,
-            # we then select a random transformation for each of the
-            # augmentations
-            for _ in range(round(t_per_row)):
-                transformation = np.random.choice(list(transforms.keys()))
-                aug_row = row.copy()
-                aug_row["transformation"] = transformation
+                    rows.append(aug_row.to_dict())
 
-                rows.append(aug_row)
+            elif t_per_row > 1:
+                # If we need strictly more than 1 transform per row,
+                # we then select a random transformation for each of the
+                # augmentations
+                for _ in range(round(t_per_row)):
+                    transformation = np.random.choice(list(transforms.keys()))
+                    aug_row = row.copy()
+                    aug_row["transformation"] = transformation
 
-        augmented_rows.extend(rows)
+                    rows.append(aug_row.to_dict())
 
-    augmented_df = pd.DataFrame(augmented_rows)
+            for r in rows:
+                writer.writerow(r)
+
+    augmented_df = pd.read_csv(output_path, header=0, index_col=0)
 
     return augmented_df
 

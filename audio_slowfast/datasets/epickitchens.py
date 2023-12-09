@@ -10,6 +10,7 @@ from loguru import logger
 from audio_slowfast.datasets.audio_loader_epic_gru import pack_audio_gru
 
 from src.transforms import get_transforms
+from src.dataset import prepare_dataset
 
 from . import utils as utils
 from .audio_loader_epic import pack_audio
@@ -28,7 +29,6 @@ class EpicKitchens(torch.utils.data.Dataset):
         mode: str,
         record_type: Type[AudioRecord] = EpicKitchensAudioRecord,
         gru_format: bool = False,
-        unique_batch: bool = False,
     ):
         assert mode in [
             "train",
@@ -48,7 +48,9 @@ class EpicKitchens(torch.utils.data.Dataset):
 
         self.audio_dataset = None
         logger.info("Constructing {} Audio {}...".format(self.__class__.__name__, mode))
-        self.unique_batch = unique_batch
+        self.unique_batch = cfg.EPICKITCHENS.SINGLE_BATCH
+        if self.unique_batch:
+            logger.warning("Using a SINGLE batch for debugging.")
 
         self.transforms = get_transforms()
 
@@ -76,7 +78,7 @@ class EpicKitchens(torch.utils.data.Dataset):
             path_annotations_pickle = [
                 os.path.join(
                     self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
-                    self.cfg.EPICKITCHENS.TEST_LIST,
+                    self.cfg.EPICKITCHENS.PROCESSED_TEST_LIST,
                 )
             ]
         else:

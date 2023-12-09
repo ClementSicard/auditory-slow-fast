@@ -9,7 +9,7 @@ DATA_DIR := data
 LOGS_DIR := logs
 VENV_DIR := slowfast
 REPO_DIR := $${SCRATCH}/auditory-slow-fast
-JOB_NAME := slowfast-training
+JOB_NAME := asf-gru
 MAIL_ADDRESS := $${USER}@nyu.edu
 
 CONFIG_PATH := models/asf/config/SLOWFAST_R50.yaml
@@ -128,7 +128,6 @@ update-deps:
 train:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
 	python main.py \
-		--model audio_slowfast \
 		--config $(CONFIG_PATH) \
 		--train
 
@@ -137,19 +136,15 @@ train:
 test:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
 	python main.py \
-		--model audio_slowfast \
 		--config $(CONFIG_PATH) \
-		--test \
-		--verbs break crush pat shake sharpen smell throw water \
-		--augment \
-		--factor 4.0
+		--test
 
 
 .PHONY: job-train
 job-train:
 	@mkdir -p $(LOGS_DIR)
 	@DATE=$$(date +"%Y_%m_%d-%T"); \
-	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-slowfast-train.log"; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-train.log"; \
 	sbatch -N 1 \
 	    --ntasks 1 \
 	    --cpus-per-task 8 \

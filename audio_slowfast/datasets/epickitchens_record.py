@@ -35,7 +35,7 @@ class EpicKitchensAudioRecord(AudioRecord):
 
     @property
     def transformation(self):
-        return self._series["transformation"]
+        return self._series["transformation"] if "transformation" in self._series else "none"
 
     @property
     def label(self):
