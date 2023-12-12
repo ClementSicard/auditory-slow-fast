@@ -399,16 +399,24 @@ def train_epoch(
                 if cur_iter % cfg.LOG_PERIOD == 0:
                     display_gpu_info()
 
+            lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
+            optim.set_lr(optimizer, lr)
             train_meter.data_toc()
+
             preds = model(x=inputs)
         else:
             inputs, lengths, labels, _, noun_embeddings, _ = batch
+
             # Transfer the data to the current GPU device.
             if cfg.NUM_GPUS:
-                # Transferthe data to the current GPU device.
-                if isinstance(inputs, list):
+                # Transfer the data to the current GPU device.
+                if isinstance(inputs, (list)):
                     for i in range(len(inputs)):
-                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                        try:
+                            inputs[i] = inputs[i].cuda(non_blocking=True)
+                        except Exception as e:
+                            logger.exception(f"Error with inputs[{i}]: {inputs[i]}")
+                            raise e
                 else:
                     inputs = inputs.cuda(non_blocking=True)
                 if isinstance(labels, dict):
@@ -421,17 +429,17 @@ def train_epoch(
 
                 noun_embeddings = noun_embeddings.cuda()
 
-                preds = model(
-                    x=inputs,
-                    lengths=lengths,
-                    noun_embeddings=noun_embeddings,
-                )
-
             # Update the learning rate.
             lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
             optim.set_lr(optimizer, lr)
 
             train_meter.data_toc()
+
+            preds = model(
+                x=inputs,
+                lengths=lengths,
+                noun_embeddings=noun_embeddings,
+            )
 
         verb_preds, noun_preds = preds
 
@@ -716,14 +724,14 @@ def train(cfg: CfgNode):
         wandb_log = True
         if cfg.TRAIN.AUTO_RESUME and cfg.WANDB.RUN_ID != "":
             wandb.init(
-                project=cfg.MODEL.MODEL_NAME,
+                project=cfg.MODEL.MODEL_NAME + (" + Augment" if cfg.EPICKITCHENS.AUGMENT.ENABLE else ""),
                 config=cfg,
                 sync_tensorboard=True,
                 resume=cfg.WANDB.RUN_ID,
             )
         else:
             wandb.init(
-                project=cfg.MODEL.MODEL_NAME,
+                project=cfg.MODEL.MODEL_NAME + (" + Augment" if cfg.EPICKITCHENS.AUGMENT.ENABLE else ""),
                 config=cfg,
                 sync_tensorboard=True,
             )

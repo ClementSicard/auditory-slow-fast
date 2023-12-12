@@ -51,6 +51,7 @@ def epickitchens_collate_fn(batch: List[Any]):
 
     metadata = pd.DataFrame(metadata).to_dict("list")
 
+    logger.error("ICIIII")
     return_tuple = (
         padded_spectrograms,
         lengths,
