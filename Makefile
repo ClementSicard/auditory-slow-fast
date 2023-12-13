@@ -146,6 +146,34 @@ train-asf-gru-aug:
 		--config models/asf/config/asf-gru-augment.yaml \
 		--train
 
+.PHONY: train-asf-state
+train-asf-state:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	python main.py \
+		--config models/asf/config/asf-state.yaml \
+		--train
+
+.PHONY: train-asf-aug-state
+train-asf-aug-state:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	python main.py \
+		--config models/asf/config/asf-augment-state.yaml \
+		--train
+
+.PHONY: train-asf-gru-state
+train-asf-gru-state:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	python main.py \
+		--config models/asf/config/asf-gru-state.yaml \
+		--train
+
+.PHONY: train-asf-gru-aug-state
+train-asf-gru-aug-state:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	python main.py \
+		--config models/asf/config/asf-gru-augment-state.yaml \
+		--train
+
 
 .PHONY: test
 test:
@@ -212,6 +240,88 @@ job-train-asf-gru-aug:
 	    --mail-type "BEGIN,END" \
 		--mail-user $(MAIL_ADDRESS) \
 	    --wrap "cd $(REPO_DIR) && make train-asf-gru-aug"
+
+
+.PHONY: job-train-asf-state
+job-train-asf-state:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	JOB_NAME=asf-state \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 36:00:00 \
+	    --mem 16G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make train-$${JOB_NAME}"
+
+.PHONY: job-train-asf-aug-state
+job-train-asf-aug-state:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	JOB_NAME=asf-aug-state \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 36:00:00 \
+	    --mem 16G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make train-$${JOB_NAME}"
+
+.PHONY: job-train-asf-gru-state
+job-train-asf-gru-state:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	JOB_NAME=asf-gru-state \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 36:00:00 \
+	    --mem 16G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make train-$${JOB_NAME}"
+
+.PHONY: job-train-asf-gru-aug-state
+job-train-asf-gru-aug-state:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	JOB_NAME=asf-gru-aug-state \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 36:00:00 \
+	    --mem 16G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make train-$${JOB_NAME}"
+
 
 
 .PHONY: job-test

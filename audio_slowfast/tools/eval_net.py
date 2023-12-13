@@ -134,6 +134,7 @@ def eval_epoch_with_state(
             val_meter.iter_toc()
             # Update and log stats.
             val_meter.update_stats(
+                loss=loss,
                 top1_acc=(
                     verb_top1_acc,
                     noun_top1_acc,

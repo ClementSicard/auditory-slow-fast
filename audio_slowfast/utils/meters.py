@@ -940,7 +940,10 @@ class EPICValMeterWithState(object):
         self.iter_timer = Timer()
         self.data_timer = Timer()
         self.net_timer = Timer()
+
         # Current minibatch accuracies (smoothed over a window).
+        self.mb_loss = ScalarMeter(cfg.LOG_PERIOD)
+
         self.mb_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_top5_acc = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_verb_top1_acc = ScalarMeter(cfg.LOG_PERIOD)
@@ -956,6 +959,8 @@ class EPICValMeterWithState(object):
         self.max_verb_top5_acc = 0.0
         self.max_noun_top1_acc = 0.0
         self.max_noun_top5_acc = 0.0
+
+        self.min_loss = float("+inf")
 
         # Number of correctly classified examples.
         self.num_top1_cor = 0
@@ -980,6 +985,8 @@ class EPICValMeterWithState(object):
         Reset the Meter.
         """
         self.iter_timer.reset()
+
+        self.mb_loss.reset()
         self.mb_top1_acc.reset()
         self.mb_top5_acc.reset()
         self.mb_verb_top1_acc.reset()
@@ -1024,7 +1031,7 @@ class EPICValMeterWithState(object):
         self.net_timer.reset()
 
     # Done for pre-post ✅
-    def update_stats(self, top1_acc, top5_acc, mb_size):
+    def update_stats(self, loss, top1_acc, top5_acc, mb_size):
         """
         Update the current stats.
         Args:
@@ -1032,6 +1039,7 @@ class EPICValMeterWithState(object):
             top5_acc (float): top5 accuracy rate.
             mb_size (int): mini batch size.
         """
+        self.mb_loss.add_value(loss)
         self.mb_verb_top1_acc.add_value(top1_acc[0])
         self.mb_verb_top5_acc.add_value(top5_acc[0])
         self.mb_noun_top1_acc.add_value(top1_acc[1])
@@ -1102,6 +1110,8 @@ class EPICValMeterWithState(object):
         noun_top1_acc = self.num_noun_top1_cor / self.num_samples
         noun_top5_acc = self.num_noun_top5_cor / self.num_samples
 
+        avg_loss = self.mb_loss.get_global_avg()
+
         top1_acc = self.num_top1_cor / self.num_samples
         top5_acc = self.num_top5_cor / self.num_samples
         self.max_verb_top1_acc = max(self.max_verb_top1_acc, verb_top1_acc)
@@ -1109,13 +1119,16 @@ class EPICValMeterWithState(object):
         self.max_noun_top1_acc = max(self.max_noun_top1_acc, noun_top1_acc)
         self.max_noun_top5_acc = max(self.max_noun_top5_acc, noun_top5_acc)
 
-        is_best_epoch = top1_acc > self.max_top1_acc
+        is_best_epoch = avg_loss < self.min_loss
+        self.min_loss = min(self.min_loss, avg_loss)
         self.max_top1_acc = max(self.max_top1_acc, top1_acc)
         self.max_top5_acc = max(self.max_top5_acc, top5_acc)
         stats = {
             "_type": "val_epoch",
             "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
             "time_diff": self.iter_timer.seconds(),
+            "epoch_loss": avg_loss,
+            "min_loss": self.min_loss,
             "verb_top1_acc": verb_top1_acc,
             "verb_top5_acc": verb_top5_acc,
             "noun_top1_acc": noun_top1_acc,

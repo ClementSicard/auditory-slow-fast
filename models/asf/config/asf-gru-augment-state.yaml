@@ -1,6 +1,6 @@
 TRAIN:
   ENABLE: True
-  DATASET: EpicKitchensGRU
+  DATASET: EpicKitchensGRUwithPDDL
   BATCH_SIZE: 16
   EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
@@ -75,7 +75,7 @@ MODEL:
 
 TEST:
   ENABLE: False
-  DATASET: EpicKitchensGRU
+  DATASET: EpicKitchensGRUwithPDDL
   BATCH_SIZE: 16
 
 DATA_LOADER:
@@ -155,7 +155,7 @@ TENSORBOARD:
 NUM_GPUS: 1
 NUM_SHARDS: 1
 RNG_SEED: 25
-OUTPUT_DIR: runs/asf-gru-augment
+OUTPUT_DIR: runs/asf-gru-augment-state
 WANDB:
   ENABLE: True # If no GPU is enabled this will be set to False
   # ENABLE: False # If no GPU is enabled this will be set to False

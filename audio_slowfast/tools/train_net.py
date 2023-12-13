@@ -4,6 +4,7 @@
 """Train an audio classification model."""
 import logging as lg
 import pprint
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -118,7 +119,7 @@ def train_epoch_state(
         optim.set_lr(optimizer, lr)
 
         train_meter.data_toc()
-        preds = model(
+        preds: Tuple[torch.Tensor, torch.Tensor, torch.Tensor] = model(
             x=inputs,
             lengths=lengths,
             noun_embeddings=noun_embeddings if not cfg.MODEL.ONLY_ACTION_RECOGNITION else None,
@@ -157,6 +158,9 @@ def train_epoch_state(
         optimizer.step()
 
         if isinstance(labels, (dict,)):
+            """
+            VERB METRICS/LOSS
+            """
             # Compute the verb accuracies.
             verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(verb_preds, labels["verb"], (1, 5))
 
@@ -171,6 +175,9 @@ def train_epoch_state(
                 verb_top5_acc.item(),
             )
 
+            """
+            NOUN METRICS/LOSS
+            """
             # Compute the noun accuracies.
             noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(noun_preds, labels["noun"], (1, 5))
 
@@ -185,6 +192,9 @@ def train_epoch_state(
                 noun_top5_acc.item(),
             )
 
+            """
+            ACTION METRICS/LOSS
+            """
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
                 (verb_preds, noun_preds),
@@ -202,6 +212,9 @@ def train_epoch_state(
                 action_top5_acc.item(),
             )
 
+            """
+            UPDATE STATS
+            """
             # Update and log stats.
             train_meter.update_stats(
                 top1_acc=(
@@ -708,7 +721,7 @@ def train(cfg: CfgNode):
         val_meter = (
             EPICValMeter(max_iter=len(val_loader), cfg=cfg)
             if cfg.MODEL.ONLY_ACTION_RECOGNITION
-            else EPICValMeterWithState(epoch_iters=len(train_loader), cfg=cfg)
+            else EPICValMeterWithState(max_iter=len(train_loader), cfg=cfg)
         )
     else:
         train_meter = TrainMeter(epoch_iters=len(train_loader), cfg=cfg)
