@@ -722,16 +722,20 @@ def train(cfg: CfgNode):
 
     if cfg.WANDB.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
         wandb_log = True
+        project_name = cfg.MODEL.MODEL_NAME
+        project_name += " + Augment" if cfg.EPICKITCHENS.AUGMENT.ENABLE else ""
+        project_name += " + State" if not cfg.MODEL.ONLY_ACTION_RECOGNITION else ""
+
         if cfg.TRAIN.AUTO_RESUME and cfg.WANDB.RUN_ID != "":
             wandb.init(
-                project=cfg.MODEL.MODEL_NAME + (" + Augment" if cfg.EPICKITCHENS.AUGMENT.ENABLE else ""),
+                project=project_name,
                 config=cfg,
                 sync_tensorboard=True,
                 resume=cfg.WANDB.RUN_ID,
             )
         else:
             wandb.init(
-                project=cfg.MODEL.MODEL_NAME + (" + Augment" if cfg.EPICKITCHENS.AUGMENT.ENABLE else ""),
+                project=project_name,
                 config=cfg,
                 sync_tensorboard=True,
             )
@@ -741,15 +745,12 @@ def train(cfg: CfgNode):
         wandb_log = False
 
     # Perform the training loop.
-    logger.info("Start epoch: {}".format(start_epoch))
-
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
         # Shuffle the dataset.
         logger.info(f"Epoch {cur_epoch + 1} started. Shuffling dataset.")
         loader.shuffle_dataset(train_loader, cur_epoch)
-        logger.success("Done!")
 
-        logger.info(f"Training for epoch {cur_epoch}.")
+        logger.info(f"Training for epoch {cur_epoch + 1}.")
         # Train for one epoch.
         if cfg.MODEL.ONLY_ACTION_RECOGNITION:
             train_epoch(

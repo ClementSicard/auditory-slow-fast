@@ -8,7 +8,7 @@ def run():
     x = torch.randn(100000000, 10).cuda()
 
     while True:
-        x = x * 2
+        x = x.matmul(x)
         x = x / 2
         time.sleep(1)
 
