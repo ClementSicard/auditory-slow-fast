@@ -1,0 +1,1021 @@
+{
+    "actions": [
+        "take",
+        "put",
+        "open",
+        "close",
+        "fold",
+        "pour",
+        "rip",
+        "insert",
+        "move",
+        "throw",
+        "dry",
+        "shake",
+        "scoop",
+        "squeeze",
+        "peel",
+        "empty",
+        "apply",
+        "turn-on",
+        "turn-off",
+        "mix",
+        "press",
+        "lift",
+        "cut",
+        "flip",
+        "turn",
+        "break",
+        "fill",
+        "hold",
+        "touch",
+        "drop",
+        "stretch",
+        "hang",
+        "add",
+        "divide",
+        "wash",
+        "attach",
+        "remove",
+        "scrape",
+        "pat"
+    ],
+    "definitions": [
+        {
+            "id": 0,
+            "actions": [
+                "put",
+                "drop"
+            ],
+            "name": "put-down",
+            "description": "put down X",
+            "params": [
+                "X"
+            ],
+            "check": [
+                "in"
+            ],
+            "extra": {
+                "params": "Y",
+                "pre": [
+                    "(not (on ?X ?Y))"
+                ],
+                "eff": [
+                    "(on ?X ?Y)"
+                ]
+            },
+            "preconditions": [
+                "(in ?X hand)",
+                "(touching ?X hand)",
+                "(not (onsurface ?X))",
+                "(is-holdable ?X)",
+                "(within-reach ?X)"
+            ],
+            "effects": [
+                "(not (in ?X hand))",
+                "(onsurface ?X)",
+                "(not (touching ?X hand))",
+                "(is-holdable ?X)",
+                "(within-reach ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 1,
+            "actions": [
+                "take",
+                "lift"
+            ],
+            "name": "take",
+            "description": "take X and Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (in ?X hand))",
+                "(not (in ?Y hand))",
+                "(is-holdable ?X)",
+                "(is-holdable ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(onsurface ?X)",
+                "(onsurface ?Y)",
+                "(not (touching ?X hand))",
+                "(not (touching ?Y hand))"
+            ],
+            "effects": [
+                "(in ?X hand)",
+                "(in ?Y hand)",
+                "(not (onsurface ?X))",
+                "(not (onsurface ?Y))",
+                "(is-holdable ?X)",
+                "(is-holdable ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(touching ?X hand)",
+                "(touching ?Y hand)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 2,
+            "actions": [
+                "open"
+            ],
+            "name": "open",
+            "description": "open X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-openable ?X)",
+                "(within-reach ?X)",
+                "(touching ?X hand)",
+                "(not (opened ?X))"
+            ],
+            "effects": [
+                "(is-openable ?X)",
+                "(within-reach ?X)",
+                "(not (touching ?X hand))",
+                "(opened ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 3,
+            "actions": [
+                "close"
+            ],
+            "name": "close",
+            "description": "close X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-openable ?X)",
+                "(within-reach ?X)",
+                "(touching ?X hand)",
+                "(opened ?X)"
+            ],
+            "effects": [
+                "(is-openable ?X)",
+                "(within-reach ?X)",
+                "(not (touching ?X hand))",
+                "(not (opened ?X))"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 4,
+            "actions": [
+                "pour"
+            ],
+            "name": "pour",
+            "description": "pour X in Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (= ?X ?Y))",
+                "(above ?X ?Y)",
+                "(not (full ?Y))",
+                "(is-container ?Y)",
+                "(is-pourable ?X)",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(not (= ?X ?Y))",
+                "(not (above ?X ?Y))",
+                "(not (full ?Y))",
+                "(is-container ?Y)",
+                "(is-pourable ?X)",
+                "(within-reach ?X)",
+                "(in ?X ?Y)",
+                "(not (in ?X hand))"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 5,
+            "actions": [
+                "fold"
+            ],
+            "name": "fold",
+            "description": "fold X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-foldable ?X)",
+                "(not (is-rigid ?X)",
+                "(not (folded ?X))",
+                "(within-reach ?X)",
+                "(touching ?X hand)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(is-foldable ?X)",
+                "(not (is-rigid ?X)",
+                "(folded ?X)",
+                "(within-reach ?X)",
+                "(touching ?X hand)",
+                "(in ?X hand)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 6,
+            "actions": [
+                "rip"
+            ],
+            "name": "rip",
+            "description": "rip X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-tearable ?X)",
+                "(within-reach ?X)",
+                "(not (torn ?X))",
+                "(in ?X hand)",
+                "(touching ?X hand)"
+            ],
+            "effects": [
+                "(torn ?X)",
+                "(is-tearable ?X)",
+                "(in ?X hand)",
+                "(touching ?X hand)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 7,
+            "actions": [
+                "insert"
+            ],
+            "name": "insert",
+            "description": "insert X into Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (on ?X ?Y))",
+                "(is-holdable ?X)",
+                "(touching ?X hand)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(not (closed ?Y))",
+                "(not (full ?Y))",
+                "(can-fit ?X ?Y)"
+            ],
+            "effects": [
+                "(on ?X ?Y)",
+                "(is-holdable ?X)",
+                "(not (touching ?X hand))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 8,
+            "actions": [
+                "move"
+            ],
+            "name": "move-into",
+            "description": "move X into Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(is-movable ?X)",
+                "(touching ?X hand)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(is-container ?Y)",
+                "(not (in ?X ?Y))"
+            ],
+            "effects": [
+                "(is-movable ?X)",
+                "(not (touching ?X hand))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(is-container ?Y)",
+                "(in ?X ?Y)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 9,
+            "actions": [
+                "throw"
+            ],
+            "name": "throw",
+            "description": "throw X away in Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(in ?X hand)",
+                "(is-container ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(not (full ?Y))",
+                "(is-waste ?X)"
+            ],
+            "effects": [
+                "(not (in ?X hand))",
+                "(is-container ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(is-waste ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 10,
+            "actions": [
+                "dry"
+            ],
+            "name": "dry",
+            "description": "dry X with Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(wet ?X)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?Y hand)",
+                "(can-dry ?Y)"
+            ],
+            "effects": [
+                "(not (wet ?X))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?Y hand)",
+                "(can-dry ?Y)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 11,
+            "actions": [
+                "shake"
+            ],
+            "name": "shake",
+            "description": "shake X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-shakeable ?X)",
+                "(not (shaken ?X))",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(shaken ?X)",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 12,
+            "actions": [
+                "empty"
+            ],
+            "name": "empty-into",
+            "description": "empty X into Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (is-empty ?X))",
+                "(in ?X hand)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(not (full ?Y))",
+                "(is-container ?Y)",
+                "(not (in ?X ?Y))"
+            ],
+            "effects": [
+                "(is-empty ?X)",
+                "(not (is-empty ?Y))",
+                "(is-container ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?X ?Y)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 13,
+            "actions": [
+                "turn-on"
+            ],
+            "name": "turn-on",
+            "description": "turn-on X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(not (is-active ?X))",
+                "(within-reach ?X)"
+            ],
+            "effects": [
+                "(is-active ?X)",
+                "(within-reach ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 14,
+            "actions": [
+                "turn-off"
+            ],
+            "name": "turn-off",
+            "description": "turn-off X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-active ?X)",
+                "(within-reach ?X)"
+            ],
+            "effects": [
+                "(not (is-active ?X))",
+                "(within-reach ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 15,
+            "actions": [
+                "squeeze"
+            ],
+            "name": "squeeze",
+            "description": "squeeze X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-deformable ?X)",
+                "(not (deformed ?X))",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(is-deformable ?X)",
+                "(deformed ?X)",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 16,
+            "actions": [
+                "mix"
+            ],
+            "name": "mix",
+            "description": "mix X with Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(is-mixable ?X)",
+                "(not (mixed ?X))",
+                "(in ?Y hand)",
+                "(within-reach ?X)"
+            ],
+            "effects": [
+                "(is-mixable ?X)",
+                "(mixed ?X)",
+                "(in ?Y hand)",
+                "(within-reach ?X)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 17,
+            "actions": [
+                "scoop"
+            ],
+            "name": "scoop",
+            "description": "scoop X",
+            "params": [
+                "X",
+                "tool"
+            ],
+            "preconditions": [
+                "(is-scoopable ?X)",
+                "(within-reach ?X)",
+                "(in ?Y hand)",
+                "(is-empty ?Y)",
+                "(not (in ?Y ?X))"
+            ],
+            "effects": [
+                "(not (is-empty ?Y))",
+                "(within-reach ?X)",
+                "(in ?Y hand)",
+                "(in ?Y ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 18,
+            "actions": [
+                "peel"
+            ],
+            "name": "peel",
+            "description": "peel X",
+            "params": [
+                "X"
+            ],
+            "check": [
+                "off",
+                "away"
+            ],
+            "extra": {
+                "params": "Y",
+                "pre": [
+                    "(on ?X ?Y)",
+                    "(touching ?X ?Y)",
+                    "(touching ?Y hand)"
+                ],
+                "eff": [
+                    "(not (on ?X ?Y))",
+                    "(not (touching ?X ?Y))",
+                    "(not (touching ?Y hand))"
+                ]
+            },
+            "preconditions": [
+                "(is-peelable ?X)",
+                "(not (peeled ?X))",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(peeled ?X)",
+                "(not (is-peelable ?X))",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 19,
+            "actions": [
+                "apply"
+            ],
+            "name": "apply",
+            "description": "apply X to Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (on ?X ?Y))",
+                "(is-fluid ?X)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(not (full ?Y))",
+                "(is-solid ?Y)"
+            ],
+            "effects": [
+                "(on ?X ?Y)",
+                "(is-fluid ?X)",
+                "(not (is-empty ?Y))",
+                "(is-solid ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 20,
+            "actions": [
+                "press"
+            ],
+            "name": "press-down",
+            "description": "press down X",
+            "params": [
+                "X"
+            ],
+            "check": [
+                "on"
+            ],
+            "extra": {
+                "params": "Y",
+                "pre": [
+                    "(part-of ?X, ?Y)",
+                    "(within-reach ?Y)"
+                ],
+                "eff": [
+                    "(part-of ?X, ?Y)",
+                    "(within-reach ?Y)"
+                ]
+            },
+            "preconditions": [
+                "(is-deformable ?X)",
+                "(not (deformed ?X))",
+                "(within-reach ?X)",
+                "(touching ?X hand)"
+            ],
+            "effects": [
+                "(is-deformable ?X)",
+                "(deformed ?X)",
+                "(within-reach ?X)",
+                "(not (touching ?X hand))"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 21,
+            "actions": [
+                "cut",
+                "divide"
+            ],
+            "name": "cut",
+            "description": "cut X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-cuttable ?X)",
+                "(within-reach ?X)",
+                "(not (cut ?X))"
+            ],
+            "effects": [
+                "(is-cuttable ?X)",
+                "(within-reach ?X)",
+                "(cut ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 22,
+            "actions": [
+                "flip",
+                "turn"
+            ],
+            "name": "flip",
+            "description": "flip X",
+            "params": [
+                "X"
+            ],
+            "check": [
+                "over"
+            ],
+            "extra": {
+                "params": null,
+                "pre": [
+                    "(in ?X hand)",
+                    "(touching ?X hand)"
+                ],
+                "eff": [
+                    "(in ?X hand)",
+                    "(touching ?X hand)"
+                ]
+            },
+            "preconditions": [
+                "(is-flippable ?X)",
+                "(within-reach ?X)",
+                "(not (flipped ?X))"
+            ],
+            "effects": [
+                "(is-flippable ?X)",
+                "(within-reach ?X)",
+                "(flipped ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 23,
+            "actions": [
+                "break"
+            ],
+            "name": "break",
+            "description": "break X",
+            "params": [
+                "X"
+            ],
+            "check": [
+                "in",
+                "into"
+            ],
+            "extra": {
+                "params": "Y",
+                "pre": [
+                    "(not (in ?X ?Y))",
+                    "(not (full ?Y))"
+                ],
+                "eff": [
+                    "(in ?X ?Y)",
+                    "(not (is-empty ?Y))"
+                ]
+            },
+            "preconditions": [
+                "(is-breakable ?X)",
+                "(within-reach ?X)",
+                "(not (broken ?X))",
+                "(in ?X hand)",
+                "(touching ?X hand)"
+            ],
+            "effects": [
+                "(broken ?X)",
+                "(not (is-breakable ?X))",
+                "(in ?X hand)",
+                "(touching ?X hand)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 24,
+            "actions": [
+                "fill"
+            ],
+            "name": "pofillur",
+            "description": "fill X with Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (full ?X))",
+                "(is-container ?X)",
+                "(is-fluid ?Y)",
+                "(within-reach ?X)",
+                "(not (in ?Y ?X))"
+            ],
+            "effects": [
+                "(not (is-empty ?X))",
+                "(is-container ?X)",
+                "(is-fluid ?Y)",
+                "(within-reach ?X)",
+                "(in ?Y ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 25,
+            "actions": [
+                "hold",
+                "touch"
+            ],
+            "name": "hold",
+            "description": "hold X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(touching ?X hand)",
+                "(within-reach ?X)",
+                "(onsurface ?X)"
+            ],
+            "effects": [
+                "(touching ?X hand)",
+                "(within-reach ?X)",
+                "(onsurface ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 26,
+            "actions": [
+                "stretch"
+            ],
+            "name": "stretch",
+            "description": "stretch X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(is-deformable ?X)",
+                "(not (stretched ?X))",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(is-deformable ?X)",
+                "(stretched ?X)",
+                "(within-reach ?X)",
+                "(in ?X hand)"
+            ],
+            "generated": 1
+        },
+        {
+            "id": 27,
+            "actions": [
+                "attach",
+                "hang"
+            ],
+            "name": "attach",
+            "description": "attach X to Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (is-attached ?X))",
+                "(not (attched-to ?X Y?))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(is-attached ?X)",
+                "(attched-to ?X Y?)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(not (in ?X hand))"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 28,
+            "actions": [
+                "add"
+            ],
+            "name": "add",
+            "description": "add X to/into Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (on ?X ?Y))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(not (full ?Y))",
+                "(can-fit ?X ?Y)"
+            ],
+            "effects": [
+                "(on ?X ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 29,
+            "actions": [
+                "wash"
+            ],
+            "name": "wash",
+            "description": "wash X",
+            "params": [
+                "X"
+            ],
+            "preconditions": [
+                "(not (wet ?X))",
+                "(within-reach ?X)",
+                "(in ?X hand)",
+                "(not (is-clean ?X))"
+            ],
+            "effects": [
+                "(wet ?X)",
+                "(within-reach ?X)",
+                "(in ?X hand)",
+                "(is-clean ?X)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 30,
+            "actions": [
+                "remove"
+            ],
+            "name": "remove",
+            "description": "remove X from Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(on ?X ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(not (touching ?X hand))"
+            ],
+            "effects": [
+                "(not (on ?X ?Y))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(touching ?X hand)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 31,
+            "actions": [
+                "scrape"
+            ],
+            "name": "scrape",
+            "description": "scrape X using Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "check": [
+                "from",
+                "out"
+            ],
+            "extra": {
+                "params": "Z",
+                "pre": [
+                    "(in ?X ?Z))",
+                    "(attched-to ?X ?Z)"
+                ],
+                "eff": [
+                    "(not (in ?X ?Z))",
+                    "(not (attched-to ?X ?Z))"
+                ]
+            },
+            "preconditions": [
+                "(is-attached ?X)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?Y hand)"
+            ],
+            "effects": [
+                "(not (is-attached ?X))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?Y hand)"
+            ],
+            "generated": 0
+        },
+        {
+            "id": 32,
+            "actions": [
+                "pat"
+            ],
+            "name": "pat",
+            "description": "pat X against Y",
+            "params": [
+                "X",
+                "Y"
+            ],
+            "preconditions": [
+                "(not (touching ?X ?Y))",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?X hand)"
+            ],
+            "effects": [
+                "(touching ?X ?Y)",
+                "(within-reach ?X)",
+                "(within-reach ?Y)",
+                "(in ?X hand)"
+            ],
+            "generated": 0
+        }
+    ],
+    "impossible": [
+        "check",
+        "eat",
+        "look",
+        "adjust"
+    ],
+    "potential": [
+        "scrub",
+        "pull",
+        "wrap",
+        "unroll",
+        "filter",
+        "slide",
+        "water",
+        "gather",
+        "turn-down",
+        "sort",
+        "sprinkle",
+        "coat",
+        "use",
+        "stab",
+        "unwrap",
+        "lock"
+    ],
+    "generatedVerbs": [
+        "rip",
+        "insert",
+        "move",
+        "shake",
+        "squeeze",
+        "peel",
+        "mix",
+        "break",
+        "stretch"
+    ]
+}
