@@ -54,7 +54,7 @@
         (wet ?x)
         (within-reach ?x)
     )
-    (:action put-down
+    (:action put
         :parameters (?x)
         :precondition (and
             (in-hand ?x)
@@ -205,7 +205,7 @@
             (within-reach ?y)
         )
     )
-    (:action move-into
+    (:action move
         :parameters (?x ?y)
         :precondition (and
             (is-movable ?x)
@@ -273,7 +273,7 @@
             (in-hand ?x)
         )
     )
-    (:action empty-into
+    (:action empty
         :parameters (?x ?y)
         :precondition (and
             (not (is-empty ?x))
@@ -395,7 +395,7 @@
             (within-reach ?y)
         )
     )
-    (:action press-down
+    (:action press
         :parameters (?x)
         :precondition (and
             (is-deformable ?x)
@@ -452,7 +452,7 @@
             (touching-hand ?x)
         )
     )
-    (:action pofillur
+    (:action fill
         :parameters (?x ?y)
         :precondition (and
             (not (full ?x))

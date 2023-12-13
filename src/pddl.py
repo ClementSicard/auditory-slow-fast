@@ -247,6 +247,7 @@ def parse_pddl(domain_path: str, problem_path: str) -> Tuple[List[Action], List[
     ----------
     `domain_path` : `str`
         Path to the domain file.
+
     `problem_path` : `str`
         Path to the problem file.
 
