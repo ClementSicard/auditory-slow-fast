@@ -130,11 +130,11 @@ EPICKITCHENS:
   ORIGINAL_VAL_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
   ORIGINAL_TEST_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
 
-  PROCESSED_TRAIN_LIST: runs/asf-gru/full_train_no_augment.pkl
+  PROCESSED_TRAIN_LIST: runs/asf-gru-state/full_train_no_augment.pkl
 
   # Here, for validation and test sets, processed means only filtered to the verbs we chose. No augmentation is applied.
-  PROCESSED_VAL_LIST: runs/asf-gru/full_val_no_augment.pkl
-  PROCESSED_TEST_LIST: runs/asf-gru/full_val_no_augment.pkl
+  PROCESSED_VAL_LIST: runs/asf-gru-state/full_val_no_augment.pkl
+  PROCESSED_TEST_LIST: runs/asf-gru-state/full_val_no_augment.pkl
 
   # Vocab files
   VERBS_FILE: data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
