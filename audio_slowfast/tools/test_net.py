@@ -282,6 +282,11 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
             logger.info("Successfully saved prediction results to {}".format(save_path))
 
+    project_name = cfg.MODEL.MODEL_NAME
+    project_name += " + Augment" if cfg.EPICKITCHENS.AUGMENT.ENABLE else ""
+    project_name += " + State" if not cfg.MODEL.ONLY_ACTION_RECOGNITION else ""
+
+    logger.warning(f"Test results for {project_name}")
     preds, preds_clips, labels, metadata = test_meter.finalize_metrics()
     return test_meter, preds, preds_clips, labels, metadata
 
