@@ -106,7 +106,7 @@ def multitask_topk_accuracies(preds, labels, ks):
     return [(x / preds[0].size(0)) * 100.0 for x in num_multitask_topks_correct]
 
 
-def state_metrics(preds, labels, lengths):
+def state_metrics(preds, labels, lengths, split="Val"):
     """
     Computes the f1 score.
     Args:
@@ -176,20 +176,20 @@ def state_metrics(preds, labels, lengths):
         accuracy_posts[i, :] = np.mean(curr_label_precs == curr_pred_precs)
 
     metrics = {
-        "Val/state/f1_macro_precs": f1_macro_precs.mean().item(),
-        "Val/state/f1_macro_posts": f1_macro_posts.mean().item(),
-        "Val/state/f1_micro_precs": f1_micro_precs.mean().item(),
-        "Val/state/f1_micro_posts": f1_micro_posts.mean().item(),
-        "Val/state/recall_macro_precs": recall_macro_precs.mean().item(),
-        "Val/state/recall_macro_posts": recall_macro_posts.mean().item(),
-        "Val/state/recall_micro_precs": recall_micro_precs.mean().item(),
-        "Val/state/recall_micro_posts": recall_micro_posts.mean().item(),
-        "Val/state/precision_macro_precs": precision_macro_precs.mean().item(),
-        "Val/state/precision_macro_posts": precision_macro_posts.mean().item(),
-        "Val/state/precision_micro_precs": precision_micro_precs.mean().item(),
-        "Val/state/precision_micro_posts": precision_micro_posts.mean().item(),
-        "Val/state/accuracy_precs": accuracy_precs.mean().item(),
-        "Val/state/accuracy_posts": accuracy_posts.mean().item(),
+        f"{split}/state/f1_macro_precs": f1_macro_precs.mean().item(),
+        f"{split}/state/f1_macro_posts": f1_macro_posts.mean().item(),
+        f"{split}/state/f1_micro_precs": f1_micro_precs.mean().item(),
+        f"{split}/state/f1_micro_posts": f1_micro_posts.mean().item(),
+        f"{split}/state/recall_macro_precs": recall_macro_precs.mean().item(),
+        f"{split}/state/recall_macro_posts": recall_macro_posts.mean().item(),
+        f"{split}/state/recall_micro_precs": recall_micro_precs.mean().item(),
+        f"{split}/state/recall_micro_posts": recall_micro_posts.mean().item(),
+        f"{split}/state/precision_macro_precs": precision_macro_precs.mean().item(),
+        f"{split}/state/precision_macro_posts": precision_macro_posts.mean().item(),
+        f"{split}/state/precision_micro_precs": precision_micro_precs.mean().item(),
+        f"{split}/state/precision_micro_posts": precision_micro_posts.mean().item(),
+        f"{split}/state/accuracy_precs": accuracy_precs.mean().item(),
+        f"{split}/state/accuracy_posts": accuracy_posts.mean().item(),
     }
 
     return metrics

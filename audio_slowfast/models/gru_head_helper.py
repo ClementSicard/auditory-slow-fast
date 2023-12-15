@@ -73,7 +73,7 @@ class GRUResNetBasicHead(nn.Module):
         # initialized with a different std comparing to convolutional layers.
         assert len(num_classes) == (
             3 if not self.only_action_recognition else 2
-        ), f"num_classes must be a list of length {(3 if not self.only_action_recognition else 2)} but was {len(num_classes)}"
+        ), f"num_classes must be a list of length {(3 if not self.only_action_recognition else 2)} but was {len(num_classes)}: {num_classes}"
 
         self.num_classes = num_classes
         self.dim_in = dim_in
