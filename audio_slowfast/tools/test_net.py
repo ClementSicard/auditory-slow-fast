@@ -116,7 +116,7 @@ def perform_test_with_state(test_loader, model, test_meter, cfg, writer=None):
         test_meter.iter_tic()
 
     # Log epoch stats and print the final testing results.
-    if cfg.TEST.DATASET != "epickitchens":
+    if not cfg.TEST.DATASET.startswith("EpicKtichens"):
         all_preds = test_meter.audio_preds.clone().detach()
         all_labels = test_meter.audio_labels
         if cfg.NUM_GPUS:
@@ -168,9 +168,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             unit="batch",
         )
     ):
-        if cur_iter > 2:
-            break
-
         if not "GRU" in cfg.TEST.DATASET:
             inputs, labels, audio_idx, meta = batch
 
@@ -249,7 +246,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
                 audio_idx.detach(),
             )
 
-            test_meter.log_iter_stats(cur_iter)
+            # test_meter.log_iter_stats(cur_iter)
         else:
             # Gather all the predictions across all the devices to perform ensemble.
             if cfg.NUM_GPUS > 1:
@@ -321,22 +318,27 @@ def test(cfg):
     test_loader = loader.construct_loader(cfg, "test")
     logger.info("Testing model for {} iterations".format(len(test_loader)))
 
-    assert len(test_loader.dataset) % cfg.TEST.NUM_ENSEMBLE_VIEWS == 0
+    if not "GRU" in cfg.TEST.DATASET:
+        assert len(test_loader.dataset) % cfg.TEST.NUM_ENSEMBLE_VIEWS == 0
 
     # Create meters for multi-view testing.
     if cfg.TEST.DATASET.startswith("EpicKitchens"):
         test_meter = (
             EPICTestMeter(
-                len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS,
-                cfg.TEST.NUM_ENSEMBLE_VIEWS,
+                len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS
+                if not "GRU" in cfg.TEST.DATASET
+                else len(test_loader.dataset),
+                cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1,
                 cfg.MODEL.NUM_CLASSES,
                 len(test_loader),
                 cfg.DATA.ENSEMBLE_METHOD,
             )
             if cfg.MODEL.ONLY_ACTION_RECOGNITION
             else EPICTestMeterWithState(
-                len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS,
-                cfg.TEST.NUM_ENSEMBLE_VIEWS,
+                len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS
+                if not "GRU" in cfg.TEST.DATASET
+                else len(test_loader.dataset),
+                cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1,
                 cfg.MODEL.NUM_CLASSES,
                 len(test_loader),
                 cfg.DATA.ENSEMBLE_METHOD,

@@ -85,7 +85,7 @@ def train_epoch_state(
     verb_names = load_all_verbs(cfg.EPICKITCHENS.VERBS_FILE)
     noun_names = load_nouns(cfg.EPICKITCHENS.NOUNS_FILE)
 
-    for cur_iter, (inputs, lengths, labels, _, noun_embeddings, _) in enumerate(
+    for cur_iter, batch in enumerate(
         # Write to stderr
         tqdm(
             train_loader,
@@ -96,34 +96,60 @@ def train_epoch_state(
             unit="batch",
         ),
     ):
-        # Transfer the data to the current GPU device.
-        if cfg.NUM_GPUS:
-            # Transferthe data to the current GPU device.
-            if isinstance(inputs, list):
-                for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(non_blocking=True)
-            else:
-                inputs = inputs.cuda(non_blocking=True)
-            if isinstance(labels, dict):
-                labels = {k: v.cuda() for k, v in labels.items()}
-            else:
-                labels = labels.cuda()
+        if not "GRU" in cfg.TRAIN.DATASET:
+            inputs, labels, _, _ = batch
 
-            noun_embeddings = noun_embeddings.cuda()
+            # Transfer the data to the current GPU device.
+            if cfg.NUM_GPUS:
+                # Transferthe data to the current GPU device.
+                if isinstance(inputs, list):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                if isinstance(labels, dict):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
 
-            if cur_iter % cfg.LOG_PERIOD == 0:
-                display_gpu_info()
+                if cur_iter % cfg.LOG_PERIOD == 0:
+                    display_gpu_info()
 
-        # Update the learning rate.
-        lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
-        optim.set_lr(optimizer, lr)
+            lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
+            optim.set_lr(optimizer, lr)
+            train_meter.data_toc()
 
-        train_meter.data_toc()
-        preds: Tuple[torch.Tensor, torch.Tensor, torch.Tensor] = model(
-            x=inputs,
-            lengths=lengths,
-            noun_embeddings=noun_embeddings if not cfg.MODEL.ONLY_ACTION_RECOGNITION else None,
-        )
+            preds = model(x=inputs)
+        else:
+            inputs, lengths, labels, _, noun_embeddings, _ = batch
+            # Transfer the data to the current GPU device.
+            if cfg.NUM_GPUS:
+                # Transferthe data to the current GPU device.
+                if isinstance(inputs, list):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                if isinstance(labels, dict):
+                    labels = {k: v.cuda() for k, v in labels.items()}
+                else:
+                    labels = labels.cuda()
+
+                noun_embeddings = noun_embeddings.cuda()
+
+                if cur_iter % cfg.LOG_PERIOD == 0:
+                    display_gpu_info()
+
+            # Update the learning rate.
+            lr = optim.get_epoch_lr(cur_epoch + float(cur_iter) / data_size, cfg)
+            optim.set_lr(optimizer, lr)
+
+            train_meter.data_toc()
+            preds: Tuple[torch.Tensor, torch.Tensor, torch.Tensor] = model(
+                x=inputs,
+                lengths=lengths,
+                noun_embeddings=noun_embeddings if not cfg.MODEL.ONLY_ACTION_RECOGNITION else None,
+            )
 
         verb_preds, noun_preds, state_preds = preds
 
@@ -257,18 +283,6 @@ def train_epoch_state(
                 )
 
             if wandb_log:
-                # Log confusion matrix for verb and noun
-                verb_confusion_matrix = wandb.plot.confusion_matrix(
-                    probs=verb_preds.detach().cpu().numpy(),
-                    y_true=labels["verb"].detach().cpu().numpy(),
-                    class_names=verb_names,
-                )
-                noun_confusion_matrix = wandb.plot.confusion_matrix(
-                    probs=noun_preds.detach().cpu().numpy(),
-                    y_true=labels["noun"].detach().cpu().numpy(),
-                    class_names=noun_names,
-                )
-
                 wandb.log(
                     {
                         "Train/loss": loss,
@@ -282,8 +296,6 @@ def train_epoch_state(
                         "Train/verb/Top5_acc": verb_top5_acc,
                         "Train/noun/Top1_acc": noun_top1_acc,
                         "Train/noun/Top5_acc": noun_top5_acc,
-                        "Train/verb/confusion_matrix": verb_confusion_matrix,
-                        "Train/noun/confusion_matrix": noun_confusion_matrix,
                         "train_step": data_size * cur_epoch + cur_iter,
                     },
                 )

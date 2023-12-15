@@ -1,9 +1,9 @@
 TRAIN:
   ENABLE: True
-  DATASET: EpicKitchensWithPDDL
-  BATCH_SIZE: 128
+  DATASET: EpicKitchensGRUwithPDDL
+  BATCH_SIZE: 5
   EVAL_PERIOD: 1
-  CHECKPOINT_PERIOD: 1
+  CHECKPOINT_PERIOD: 50
   CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_EPIC.pyth
   CHECKPOINT_EPOCH_RESET: True
   AUTO_RESUME: True
@@ -45,11 +45,12 @@ BN:
   NUM_BATCHES_PRECISE: 64
 
 SOLVER:
-  BASE_LR: 0.001
+  BASE_LR: 0.01
   LR_POLICY: steps_with_relative_lrs
-  STEPS: [0, 15, 17]
+  STEPS: [0, 20, 25]
   LRS: [1, 0.1, 0.01]
-  MAX_EPOCH: 20
+  # LRS: [1, 0.2, 0.02]
+  MAX_EPOCH: 30
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: -1.0
@@ -57,7 +58,7 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 
 MODEL:
-  MODEL_NAME: AudioSlowFast
+  MODEL_NAME: AudioSlowFastGRU
   # MODEL_NAME: AudioSlowFast
 
   NUM_CLASSES: [97, 300] # This will be updated by the state files into a 3-element list
@@ -65,6 +66,7 @@ MODEL:
   PDDL_ATTRIBUTES: models/asf/config/attributes.csv
   ARCH: slowfast
   LOSS_FUNC: cross_entropy
+  STATE_LOSS_FUNC: masked_loss
   DROPOUT_RATE: 0.5
 
   ONLY_ACTION_RECOGNITION: False
@@ -74,15 +76,15 @@ MODEL:
 
 TEST:
   ENABLE: False
-  DATASET: EpicKitchensWithPDDL
-  BATCH_SIZE: 128
+  DATASET: EpicKitchensGRUwithPDDL
+  BATCH_SIZE: 16
 
 DATA_LOADER:
-  NUM_WORKERS: 4
-  PIN_MEMORY: False
+  NUM_WORKERS: 8
+  PIN_MEMORY: True
 
 EPICKITCHENS:
-  SKIP_PREPARATION: False
+  SKIP_PREPARATION: True
   SMALL: False
   SINGLE_BATCH: True
   MAKE_PLOTS: False
@@ -128,11 +130,11 @@ EPICKITCHENS:
   ORIGINAL_VAL_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
   ORIGINAL_TEST_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
 
-  PROCESSED_TRAIN_LIST: runs/asf-state/full_train_augment_1.pkl
+  PROCESSED_TRAIN_LIST: runs/asf-gru-state-tests/full_train_no_augment.pkl
 
   # Here, for validation and test sets, processed means only filtered to the verbs we chose. No augmentation is applied.
-  PROCESSED_VAL_LIST: runs/asf-state/full_val_augment_1.pkl
-  PROCESSED_TEST_LIST: runs/asf-state/full_val_augment_1.pkl
+  PROCESSED_VAL_LIST: runs/asf-gru-state-tests/full_val_no_augment.pkl
+  PROCESSED_TEST_LIST: runs/asf-gru-state-tests/full_val_no_augment.pkl
 
   # Vocab files
   VERBS_FILE: data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
@@ -154,7 +156,7 @@ TENSORBOARD:
 NUM_GPUS: 1
 NUM_SHARDS: 1
 RNG_SEED: 25
-OUTPUT_DIR: runs/asf-state
+OUTPUT_DIR: runs/asf-gru-state-tests
 WANDB:
   # ENABLE: True # If no GPU is enabled this will be set to False
   ENABLE: False # If no GPU is enabled this will be set to False

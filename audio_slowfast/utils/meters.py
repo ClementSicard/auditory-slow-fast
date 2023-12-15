@@ -1150,6 +1150,9 @@ class EPICValMeterWithState(object):
             "top1_acc": top1_acc,
             "verb_top1_acc": verb_top1_acc,
             "noun_top1_acc": noun_top1_acc,
+            "top5_acc": top5_acc,
+            "verb_top5_acc": verb_top5_acc,
+            "noun_top5_acc": noun_top5_acc,
         }
 
 
@@ -1340,7 +1343,14 @@ class EPICValMeter(object):
         }
         logging.log_json_stats(stats)
 
-        return is_best_epoch, {"top1_acc": top1_acc, "verb_top1_acc": verb_top1_acc, "noun_top1_acc": noun_top1_acc}
+        return is_best_epoch, {
+            "top1_acc": top1_acc,
+            "verb_top1_acc": verb_top1_acc,
+            "noun_top1_acc": noun_top1_acc,
+            "top5_acc": top5_acc,
+            "verb_top5_acc": verb_top5_acc,
+            "noun_top5_acc": noun_top5_acc,
+        }
 
 
 class EPICTestMeterWithState(object):
@@ -1525,6 +1535,11 @@ class EPICTestMeterWithState(object):
 
         verb_topks = metrics.topk_accuracies(self.verb_audio_preds, self.verb_audio_labels, ks)
         noun_topks = metrics.topk_accuracies(self.noun_audio_preds, self.noun_audio_labels, ks)
+        action_topks = metrics.multitask_topk_accuracies(
+            (self.verb_audio_preds.cuda(), self.noun_audio_preds.cuda()),
+            (self.verb_audio_labels.cuda(), self.noun_audio_labels.cuda()),
+            (1, 5),
+        )
 
         logger.warning("Check this!!!")
 
@@ -1535,6 +1550,8 @@ class EPICTestMeterWithState(object):
             self.stats["verb_top{}_acc".format(k)] = "{:.{prec}f}".format(verb_topk, prec=2)
         for k, noun_topk in zip(ks, noun_topks):
             self.stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(noun_topk, prec=2)
+        for k, action_topk in zip(ks, action_topks):
+            self.stats["action_top{}_acc".format(k)] = "{:.{prec}f}".format(action_topk, prec=2)
 
         logging.log_json_stats(self.stats)
         return (
@@ -1711,6 +1728,11 @@ class EPICTestMeter(object):
 
         verb_topks = metrics.topk_accuracies(self.verb_audio_preds, self.verb_audio_labels, ks)
         noun_topks = metrics.topk_accuracies(self.noun_audio_preds, self.noun_audio_labels, ks)
+        action_topks = metrics.multitask_topk_accuracies(
+            (self.verb_audio_preds.cuda(), self.noun_audio_preds.cuda()),
+            (self.verb_audio_labels.cuda(), self.noun_audio_labels.cuda()),
+            (1, 5),
+        )
 
         assert len({len(ks), len(verb_topks)}) == 1
         assert len({len(ks), len(noun_topks)}) == 1
@@ -1719,7 +1741,10 @@ class EPICTestMeter(object):
             self.stats["verb_top{}_acc".format(k)] = "{:.{prec}f}".format(verb_topk, prec=2)
         for k, noun_topk in zip(ks, noun_topks):
             self.stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(noun_topk, prec=2)
+        for k, action_topk in zip(ks, action_topks):
+            self.stats["action_top{}_acc".format(k)] = "{:.{prec}f}".format(action_topk, prec=2)
         logging.log_json_stats(self.stats)
+
         return (
             (self.verb_audio_preds.numpy().copy(), self.noun_audio_preds.numpy().copy()),
             (self.verb_audio_preds_clips.numpy().copy(), self.noun_audio_preds_clips.numpy().copy()),

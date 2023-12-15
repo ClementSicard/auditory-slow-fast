@@ -44,7 +44,7 @@ class EpicKitchens(torch.utils.data.Dataset):
         if self.mode in ["train", "val", "train+val"]:
             self._num_clips = 1
         elif self.mode in ["test"]:
-            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS
+            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1
 
         self.audio_dataset = None
         logger.info("Constructing {} Audio {}...".format(self.__class__.__name__, mode))
@@ -98,6 +98,7 @@ class EpicKitchens(torch.utils.data.Dataset):
 
         for file in path_annotations_pickle:
             file_df = pd.read_pickle(file)
+
             for tup in file_df.iterrows() if not self.unique_batch else file_df[: self.cfg.TRAIN.BATCH_SIZE].iterrows():
                 for idx in range(self._num_clips):
                     self._audio_records.append(

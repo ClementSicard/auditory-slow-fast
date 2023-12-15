@@ -162,12 +162,23 @@ class GRUResNetBasicHead(nn.Module):
             x_v = self.projection_verb(x)  # (B*N, 1, 1, F) -> (B*N, 1, 1, N_v)
             x_v = self.fc_inference(x_v, self.act)
             x_v = x_v.view(B, N, N_v)  # (B*N, 1, 1, N_v) -> (B, N, N_v)
-            x_v = x_v.mean(dim=1)  # (B, N, N_v) -> (B, N_v)
 
             x_n = self.projection_noun(x)  # (B*N, 1, 1, F) -> (B*N, 1, 1, N_n)
             x_n = self.fc_inference(x_n, self.act)
             x_n = x_n.view(B, N, N_n)  # (B*N, 1, 1, N_n) -> (B, N, N_n)
-            x_n = x_n.mean(dim=1)  # (B, N, N_n) -> (B, N_n)
+
+            x_n_mean = torch.zeros(B, N_n).to(x_n.device)
+            x_v_mean = torch.zeros(B, N_v).to(x_v.device)
+            for i, length in enumerate(lengths):
+                # First index is slected, hence dim=0 for 1st dimension
+                x_n_mean[i] = x_n[i, :length, :].mean(dim=0)
+                x_v_mean[i] = x_v[i, :length, :].mean(dim=0)
+
+            x_n = x_n_mean
+            x_v = x_v_mean
+
+            assert x_n.shape == (B, N_n), f"x_n.shape must be {(B, N_n)} but was {x_n.shape}"
+            assert x_v.shape == (B, N_v), f"x_v.shape must be {(B, N_v)} but was {x_v.shape}"
 
             if not self.only_action_recognition:
                 x_s = self.project_state(x)  # (B*N, 1, 1, F) -> (B*N, 1, 3, P)
@@ -187,19 +198,24 @@ class GRUResNetBasicHead(nn.Module):
     def fc_inference(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
         # Performs fully convolutional inference.
         if not self.training:
+            logger.warning(f"{x.shape=}")
             x = act(x)
+            logger.warning(f"{x.shape=}")
             x = x.mean([1, 2])
+            logger.warning(f"{x.shape=}")
 
         x = x.view(x.shape[0], -1)
+        logger.warning(f"{x.shape=}")
         return x
 
     def fc_inference_state(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
         # Performs fully convolutional inference.
+        # At the beginning, x has shape (B*N, 1, 3, P)
         if not self.training:
-            x = act(x)
-            x = x.mean(1)
+            x = act(x)  # (B*N, 1, 3, P) -> (B*N, 1, 3, P)
 
-        x = x.view(x.shape[0], -1)
+        x = x.mean(1)  # (B*N, 1, 3, P) -> (B*N, 3, P)
+
         return x
 
     def _gru(

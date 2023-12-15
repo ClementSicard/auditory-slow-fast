@@ -63,6 +63,8 @@ def prepare_dataset(cfg: CfgNode) -> None:
         small=cfg.EPICKITCHENS.SMALL,
     )
 
+    logger.debug(f"Validation dataset: {len(val_df)} rows")
+
     if cfg.EPICKITCHENS.MAKE_PLOTS:
         logger.info("Making plots...")
         # Make plots for all splits
@@ -128,6 +130,7 @@ def prepare_dataset(cfg: CfgNode) -> None:
             df=filtered_train_df,
             transforms=transforms,
             factor=cfg.EPICKITCHENS.AUGMENT.FACTOR,
+            balance=cfg.EPICKITCHENS.AUGMENT.BALANCE,
         )
         logger.success("Done augmenting train dataset.")
 
@@ -137,6 +140,7 @@ def prepare_dataset(cfg: CfgNode) -> None:
         vectors=vectors,
         clip_embeddings=clip_embeddings,
     )
+
     filtered_val_df = extend_data(
         df=filtered_val_df,
         map_ids_verbs=map_ids_verbs,
@@ -147,7 +151,9 @@ def prepare_dataset(cfg: CfgNode) -> None:
     # Save the filtered datasets
     filtered_train_df.to_pickle(cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST)
     filtered_val_df.to_pickle(cfg.EPICKITCHENS.PROCESSED_VAL_LIST)
-    logger.success("Dataset prepared!")
+    logger.success(
+        f"Dataset prepared! Train set saved to {cfg.EPICKITCHENS.PROCESSED_TRAIN_LIST} and validation set saved to {cfg.EPICKITCHENS.PROCESSED_VAL_LIST}"
+    )
 
 
 def load_verbs(
@@ -392,6 +398,7 @@ def augment_data(
     df: pd.DataFrame,
     transforms: List[Callable],
     output_path: str = NamedTemporaryFile().name,
+    balance: bool = True,
     factor: float = 1.0,
 ) -> pd.DataFrame:
     """
@@ -433,28 +440,38 @@ def augment_data(
         for _, row in tqdm(df.iterrows(), total=len(df), unit="row"):
             rows = [row.to_dict()]
             c = row["verb_class"]
-            t_per_row = t_by_class[c]["t_per_sample"]
 
-            if 0 < t_per_row <= 1:
-                # Transform the current row with a certain probability
-                augment = np.random.binomial(n=1, p=t_per_row)
+            # If we want to balance the dataset
+            if balance:
+                t_per_row = t_by_class[c]["t_per_sample"]
 
-                if augment:
-                    transformation = np.random.choice(list(transforms.keys()))
+                if 0 < t_per_row <= 1:
+                    # Transform the current row with a certain probability
+                    augment = np.random.binomial(n=1, p=t_per_row)
+
+                    if augment:
+                        transformation = np.random.choice(list(transforms.keys()))
+                        aug_row = row.copy()
+                        aug_row["transformation"] = transformation
+
+                        rows.append(aug_row.to_dict())
+
+                elif t_per_row > 1:
+                    # If we need strictly more than 1 transform per row,
+                    # we then select a random transformation for each of the
+                    # augmentations
+                    for _ in range(round(t_per_row)):
+                        transformation = np.random.choice(list(transforms.keys()))
+                        aug_row = row.copy()
+                        aug_row["transformation"] = transformation
+
+                        rows.append(aug_row.to_dict())
+
+            # If we DON'T want to balance the dataset
+            else:
+                for transform in transforms.keys():
                     aug_row = row.copy()
-                    aug_row["transformation"] = transformation
-
-                    rows.append(aug_row.to_dict())
-
-            elif t_per_row > 1:
-                # If we need strictly more than 1 transform per row,
-                # we then select a random transformation for each of the
-                # augmentations
-                for _ in range(round(t_per_row)):
-                    transformation = np.random.choice(list(transforms.keys()))
-                    aug_row = row.copy()
-                    aug_row["transformation"] = transformation
-
+                    aug_row["transformation"] = transform
                     rows.append(aug_row.to_dict())
 
             for r in rows:

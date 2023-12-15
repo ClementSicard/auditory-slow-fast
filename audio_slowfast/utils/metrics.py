@@ -3,8 +3,11 @@
 
 """Functions for computing metrics."""
 
+from loguru import logger
 import numpy as np
+from sklearn.metrics import f1_score, recall_score, precision_score
 import torch
+import torch.masked.maskedtensor
 
 
 def topks_correct(preds, labels, ks):
@@ -101,3 +104,92 @@ def multitask_topk_accuracies(preds, labels, ks):
     """
     num_multitask_topks_correct = multitask_topks_correct(preds, labels, ks)
     return [(x / preds[0].size(0)) * 100.0 for x in num_multitask_topks_correct]
+
+
+def state_metrics(preds, labels, lengths):
+    """
+    Computes the f1 score.
+    Args:
+        preds (array): array of predictions. Dimension is N.
+        labels (array): array of labels. Dimension is N.
+        lengths (array): array of lengths. Dimension is N.
+    """
+    softmax = torch.nn.Softmax(dim=3)
+    if len(preds.shape) == 4:
+        preds = softmax(preds)  # (B,N,P,3) -> (B,N,P,3)
+        preds = preds.argmax(dim=3)  # (B,N,P,3) -> (B,N,P)
+        labels = labels.argmax(dim=3)  # Remove the one-hot encoding
+    else:
+        preds = preds.mean(dim=2)  # (B,P,3) -> (B,P)
+        labels = labels.argmax(dim=2)  # Remove the one-hot encoding
+
+    B, N, P = preds.shape
+
+    f1_macro_precs = torch.zeros(B, N)
+    f1_micro_precs = torch.zeros(B, N)
+    recall_macro_precs = torch.zeros(B, N)
+    recall_micro_precs = torch.zeros(B, N)
+    precision_macro_precs = torch.zeros(B, N)
+    precision_micro_precs = torch.zeros(B, N)
+    accuracy_precs = torch.zeros(B, N)
+
+    f1_macro_posts = torch.zeros(B, N)
+    f1_micro_posts = torch.zeros(B, N)
+    recall_macro_posts = torch.zeros(B, N)
+    recall_micro_posts = torch.zeros(B, N)
+    precision_macro_posts = torch.zeros(B, N)
+    precision_micro_posts = torch.zeros(B, N)
+    accuracy_posts = torch.zeros(B, N)
+
+    preds = preds.cpu().numpy()
+    labels = labels.cpu().numpy()
+
+    for i, length in enumerate(lengths):
+        curr_pred_precs = preds[i, 0, :]
+        curr_label_precs = labels[i, 0, :]
+
+        f1_macro_precs[i, :] = f1_score(curr_label_precs, curr_pred_precs, average="macro", zero_division=0)
+        f1_micro_precs[i, :] = f1_score(curr_label_precs, curr_pred_precs, average="micro", zero_division=0)
+        recall_macro_precs[i, :] = recall_score(curr_label_precs, curr_pred_precs, average="macro", zero_division=0)
+        recall_micro_precs[i, :] = recall_score(curr_label_precs, curr_pred_precs, average="micro", zero_division=0)
+        precision_macro_precs[i, :] = precision_score(
+            curr_label_precs, curr_pred_precs, average="macro", zero_division=0
+        )
+        precision_micro_precs[i, :] = precision_score(
+            curr_label_precs, curr_pred_precs, average="micro", zero_division=0
+        )
+        accuracy_precs[i, :] = np.mean(curr_label_precs == curr_pred_precs)
+
+        curr_pred_precs = preds[i, length - 1, :]
+        curr_label_precs = labels[i, length - 1, :]
+
+        f1_macro_posts[i, :] = f1_score(curr_label_precs, curr_pred_precs, average="macro", zero_division=0)
+        f1_micro_posts[i, :] = f1_score(curr_label_precs, curr_pred_precs, average="micro", zero_division=0)
+        recall_macro_posts[i, :] = recall_score(curr_label_precs, curr_pred_precs, average="macro", zero_division=0)
+        recall_micro_posts[i, :] = recall_score(curr_label_precs, curr_pred_precs, average="micro", zero_division=0)
+        precision_macro_posts[i, :] = precision_score(
+            curr_label_precs, curr_pred_precs, average="macro", zero_division=0
+        )
+        precision_micro_posts[i, :] = precision_score(
+            curr_label_precs, curr_pred_precs, average="micro", zero_division=0
+        )
+        accuracy_posts[i, :] = np.mean(curr_label_precs == curr_pred_precs)
+
+    metrics = {
+        "Val/state/f1_macro_precs": f1_macro_precs.mean().item(),
+        "Val/state/f1_macro_posts": f1_macro_posts.mean().item(),
+        "Val/state/f1_micro_precs": f1_micro_precs.mean().item(),
+        "Val/state/f1_micro_posts": f1_micro_posts.mean().item(),
+        "Val/state/recall_macro_precs": recall_macro_precs.mean().item(),
+        "Val/state/recall_macro_posts": recall_macro_posts.mean().item(),
+        "Val/state/recall_micro_precs": recall_micro_precs.mean().item(),
+        "Val/state/recall_micro_posts": recall_micro_posts.mean().item(),
+        "Val/state/precision_macro_precs": precision_macro_precs.mean().item(),
+        "Val/state/precision_macro_posts": precision_macro_posts.mean().item(),
+        "Val/state/precision_micro_precs": precision_micro_precs.mean().item(),
+        "Val/state/precision_micro_posts": precision_micro_posts.mean().item(),
+        "Val/state/accuracy_precs": accuracy_precs.mean().item(),
+        "Val/state/accuracy_posts": accuracy_posts.mean().item(),
+    }
+
+    return metrics

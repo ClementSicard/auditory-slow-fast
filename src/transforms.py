@@ -17,6 +17,6 @@ def get_transforms(p: float = 1.0) -> Dict[str, BaseWaveformTransform]:
     return {
         "polarity_inversion": PolarityInversion(p=p),
         "gaussian_noise": AddGaussianNoise(p=p),
-        "time_stretch": TimeStretch(p=p),
+        # "time_stretch": TimeStretch(p=p),
         "pitch_shift": PitchShift(p=p),
     }

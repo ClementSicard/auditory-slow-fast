@@ -66,7 +66,7 @@ def eval_epoch_with_state(
             noun_embeddings = noun_embeddings.cuda()
 
         val_meter.data_toc()
-        logger.warning([i.shape for i in inputs])
+
         preds = model(
             x=inputs,
             lengths=lengths,
@@ -86,7 +86,9 @@ def eval_epoch_with_state(
                 cfg=cfg,
             )
 
-            # Compute the verb accuracies.
+            """
+            VERB METRICS
+            """
             verb_top1_acc, verb_top5_acc = metrics.topk_accuracies(verb_preds, labels["verb"], (1, 5))
 
             # Combine the errors across the GPUs.
@@ -100,6 +102,9 @@ def eval_epoch_with_state(
                 verb_top5_acc.item(),
             )
 
+            """
+            NOUN METRICS
+            """
             # Compute the noun accuracies.
             noun_top1_acc, noun_top5_acc = metrics.topk_accuracies(noun_preds, labels["noun"], (1, 5))
 
@@ -114,6 +119,9 @@ def eval_epoch_with_state(
                 noun_top5_acc.item(),
             )
 
+            """
+            ACTION METRICS
+            """
             # Compute the action accuracies.
             action_top1_acc, action_top5_acc = metrics.multitask_topk_accuracies(
                 (verb_preds, noun_preds),
@@ -130,6 +138,17 @@ def eval_epoch_with_state(
                 action_top1_acc.item(),
                 action_top5_acc.item(),
             )
+
+            """
+            STATE METRICS
+            """
+            state_metrics = metrics.state_metrics(preds=state_preds, labels=labels["state"], lengths=lengths)
+
+            logger.debug(f"state_metrics:\n{state_metrics}")
+
+            """
+            Done with metrics
+            """
 
             val_meter.iter_toc()
             # Update and log stats.
@@ -162,22 +181,12 @@ def eval_epoch_with_state(
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
                         "Val/state/loss": loss_state,
+                        **state_metrics,
                     },
                     global_step=len(val_loader) * cur_epoch + cur_iter,
                 )
 
             if wandb_log:
-                # Log confusion matrix for verb and noun
-                verb_confusion_matrix = wandb.plot.confusion_matrix(
-                    probs=verb_preds.detach().cpu().numpy(),
-                    y_true=labels["verb"].detach().cpu().numpy(),
-                    class_names=verb_names,
-                )
-                noun_confusion_matrix = wandb.plot.confusion_matrix(
-                    probs=noun_preds.detach().cpu().numpy(),
-                    y_true=labels["noun"].detach().cpu().numpy(),
-                    class_names=noun_names,
-                )
                 wandb.log(
                     {
                         "Val/loss": loss,
@@ -190,6 +199,7 @@ def eval_epoch_with_state(
                         "Val/noun/Top1_acc": noun_top1_acc,
                         "Val/noun/Top5_acc": noun_top5_acc,
                         "Val/state/loss": loss_state,
+                        **state_metrics,
                         "val_step": len(val_loader) * cur_epoch + cur_iter,
                     },
                 )
@@ -313,8 +323,11 @@ def eval_epoch_with_state(
             wandb.log(
                 {
                     "Val/epoch/Top1_acc": top1_dict["top1_acc"],
-                    "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
-                    "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/Verb_Top1_acc": top1_dict["verb_top1_acc"],
+                    "Val/epoch/Noun_Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/Top5_acc": top1_dict["top5_acc"],
+                    "Val/epoch/Verb_Top5_acc": top1_dict["verb_top5_acc"],
+                    "Val/epoch/Noun_Top5_acc": top1_dict["noun_top5_acc"],
                     "epoch": cur_epoch,
                 },
             )
@@ -616,8 +629,11 @@ def eval_epoch(
             writer.add_scalars(
                 {
                     "Val/epoch/Top1_acc": top1_dict["top1_acc"],
-                    "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
-                    "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/Verb_Top1_acc": top1_dict["verb_top1_acc"],
+                    "Val/epoch/Noun_Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/Top5_acc": top1_dict["top5_acc"],
+                    "Val/epoch/Verb_Top5_acc": top1_dict["verb_top5_acc"],
+                    "Val/epoch/Noun_Top5_acc": top1_dict["noun_top5_acc"],
                 },
                 global_step=cur_epoch,
             )
@@ -633,8 +649,11 @@ def eval_epoch(
             wandb.log(
                 {
                     "Val/epoch/Top1_acc": top1_dict["top1_acc"],
-                    "Val/epoch/verb/Top1_acc": top1_dict["verb_top1_acc"],
-                    "Val/epoch/noun/Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/Verb_Top1_acc": top1_dict["verb_top1_acc"],
+                    "Val/epoch/Noun_Top1_acc": top1_dict["noun_top1_acc"],
+                    "Val/epoch/Top5_acc": top1_dict["top5_acc"],
+                    "Val/epoch/Verb_Top5_acc": top1_dict["verb_top5_acc"],
+                    "Val/epoch/Noun_Top5_acc": top1_dict["noun_top5_acc"],
                     "epoch": cur_epoch,
                 },
             )

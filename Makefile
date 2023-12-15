@@ -8,9 +8,13 @@ OUTPUT_DIR := output
 DATA_DIR := data
 LOGS_DIR := logs
 VENV_DIR := slowfast
-REPO_DIR := $${SCRATCH}/auditory-slow-fast
+SCRATCH := /scratch/cs7561
+REPO_DIR := $(SCRATCH)/auditory-slow-fast
 JOB_NAME := asf-gru
 MAIL_ADDRESS := $${USER}@nyu.edu
+DURATION := 48:00:00
+WANDB_CACHE_DIR := $(SCRATCH)/.cache/wandb
+WANDB_DATA_DIR := $(SCRATCH)/.cache/wandb/data
 
 CONFIG_PATH := models/asf/config/SLOWFAST_R50.yaml
 
@@ -68,7 +72,7 @@ bash-gpu:
 	@echo "Running interactive bash session"
 	@srun --job-name "bash" \
 		--cpus-per-task 8 \
-		--mem 64G \
+		--mem 16G \
 		--gres gpu:1 \
 		--time 4:00:00 \
 		--pty bash
@@ -125,9 +129,20 @@ update-deps:
 	@pip install -U -r requirements.txt
 
 
+.PHONY: train-original
+train-original:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/asf-original.yaml \
+		--train
+
 .PHONY: train-asf
 train-asf:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
 		--config models/asf/config/asf-augment.yaml \
 		--train
@@ -135,6 +150,8 @@ train-asf:
 .PHONY: train-asf-gru
 train-asf-gru:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
 		--config models/asf/config/asf-gru.yaml \
 		--train
@@ -142,6 +159,8 @@ train-asf-gru:
 .PHONY: train-asf-gru-aug
 train-asf-gru-aug:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
 		--config models/asf/config/asf-gru-augment.yaml \
 		--train
@@ -149,6 +168,8 @@ train-asf-gru-aug:
 .PHONY: train-asf-state
 train-asf-state:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
 		--config models/asf/config/asf-state.yaml \
 		--train
@@ -156,6 +177,8 @@ train-asf-state:
 .PHONY: train-asf-aug-state
 train-asf-aug-state:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
 		--config models/asf/config/asf-augment-state.yaml \
 		--train
@@ -163,6 +186,8 @@ train-asf-aug-state:
 .PHONY: train-asf-gru-state
 train-asf-gru-state:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
 		--config models/asf/config/asf-gru-state.yaml \
 		--train
@@ -170,6 +195,8 @@ train-asf-gru-state:
 .PHONY: train-asf-gru-aug-state
 train-asf-gru-aug-state:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
 		--config models/asf/config/asf-gru-augment-state.yaml \
 		--train
@@ -178,8 +205,10 @@ train-asf-gru-aug-state:
 .PHONY: test
 test:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
-		--config $(CONFIG_PATH) \
+		--config models/asf/config/asf-augment.yaml \
 		--test
 
 
@@ -192,7 +221,7 @@ job-train-asf:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 36:00:00 \
+	    --time $(DURATION) \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
@@ -211,7 +240,7 @@ job-train-asf-gru:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 36:00:00 \
+	    --time $(DURATION) \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
@@ -231,7 +260,7 @@ job-train-asf-gru-aug:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 36:00:00 \
+	    --time $(DURATION) \
 	    --mem 64G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
@@ -252,7 +281,27 @@ job-train-asf-state:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 36:00:00 \
+	    --time $(DURATION) \
+	    --mem 16G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make train-$${JOB_NAME}"
+
+.PHONY: job-train-original
+job-train-original:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	JOB_NAME=original \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time $(DURATION) \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
@@ -272,7 +321,7 @@ job-train-asf-aug-state:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 36:00:00 \
+	    --time $(DURATION) \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
@@ -292,7 +341,7 @@ job-train-asf-gru-state:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 36:00:00 \
+	    --time $(DURATION) \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
@@ -312,7 +361,7 @@ job-train-asf-gru-aug-state:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 36:00:00 \
+	    --time $(DURATION) \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
@@ -328,16 +377,17 @@ job-train-asf-gru-aug-state:
 job-test:
 	@mkdir -p $(LOGS_DIR)
 	@DATE=$$(date +"%Y_%m_%d_%T"); \
-	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-slowfast-train.log"; \
+	JOB_NAME=test-asf-gru; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
 	sbatch -N 1 \
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
-		--gres=gpu:v100:1 \
-	    --time 12:00:00 \
+		--gres=gpu:1 \
+	    --time 2:00:00 \
 	    --mem 16G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
-	    --job-name $(JOB_NAME) \
+	    --job-name $${JOB_NAME} \
 	    --open-mode append \
 	    --mail-type "BEGIN,END" \
 		--mail-user $(MAIL_ADDRESS) \
