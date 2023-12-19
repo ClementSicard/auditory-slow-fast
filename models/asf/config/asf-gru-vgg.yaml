@@ -1,10 +1,10 @@
 TRAIN:
   ENABLE: True
-  DATASET: EpicKitchensGRUwithPDDL
+  DATASET: EpicKitchensGRU
   BATCH_SIZE: 16
   EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
-  CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_EPIC.pyth
+  CHECKPOINT_FILE_PATH: models/asf/weights/SLOWFAST_VGG.pyth
   CHECKPOINT_EPOCH_RESET: True
   AUTO_RESUME: True
 
@@ -47,10 +47,10 @@ BN:
 SOLVER:
   BASE_LR: 0.01
   LR_POLICY: steps_with_relative_lrs
-  STEPS: [0, 7, 9]
+  STEPS: [0, 20, 25]
   LRS: [1, 0.1, 0.01]
   # LRS: [1, 0.2, 0.02]
-  MAX_EPOCH: 10
+  MAX_EPOCH: 30
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: -1.0
@@ -66,16 +66,17 @@ MODEL:
   PDDL_ATTRIBUTES: models/asf/config/attributes.csv
   ARCH: slowfast
   LOSS_FUNC: cross_entropy
+  STATE_LOSS_FUNC: masked_loss
   DROPOUT_RATE: 0.5
 
-  ONLY_ACTION_RECOGNITION: False
+  ONLY_ACTION_RECOGNITION: True
 
   # Adds CLIP
   CLIP_MODEL: ViT-B/32
 
 TEST:
   ENABLE: False
-  DATASET: EpicKitchensGRUwithPDDL
+  DATASET: EpicKitchensGRU
   BATCH_SIZE: 16
 
 DATA_LOADER:
@@ -87,41 +88,8 @@ EPICKITCHENS:
   SMALL: False
   SINGLE_BATCH: False
   MAKE_PLOTS: False
-  VERBS:
-    - add
-    - apply
-    - attach
-    - break
-    - close
-    - cut
-    - dry
-    - empty
-    - fill
-    - flip
-    - fold
-    - hold
-    - insert
-    - mix
-    - move
-    - open
-    - pat
-    - peel
-    - pour
-    - press
-    - put
-    - remove
-    - rip
-    - scoop
-    - scrape
-    - shake
-    - squeeze
-    - stretch
-    - take
-    - throw
-    - turn-off
-    - turn-on
-    - wash
-  ALL_VERBS: False
+  VERBS: []
+  ALL_VERBS: True
 
   AUDIO_DATA_FILE: /scratch/work/ptg/EPIC-KITCHENS/EPIC_audio.hdf5
 
@@ -129,24 +97,23 @@ EPICKITCHENS:
   ORIGINAL_VAL_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
   ORIGINAL_TEST_LIST: data/epic-kitchens-100-annotations/EPIC_100_validation.pkl
 
-  PROCESSED_TRAIN_LIST: runs/asf-gru-augment-state/full_train_augment_1.pkl
+  PROCESSED_TRAIN_LIST: runs/asf-gru-vgg/full_train_no_augment.pkl
 
   # Here, for validation and test sets, processed means only filtered to the verbs we chose. No augmentation is applied.
-  PROCESSED_VAL_LIST: runs/asf-gru-augment-state/full_val_augment_1.pkl
-  PROCESSED_TEST_LIST: runs/asf-gru-augment-state/full_val_augment_1.pkl
+  PROCESSED_VAL_LIST: runs/asf-gru-vgg/full_val_no_augment.pkl
+  PROCESSED_TEST_LIST: runs/asf-gru-vgg/full_val_no_augment.pkl
 
   # Vocab files
   VERBS_FILE: data/epic-kitchens-100-annotations/EPIC_100_verb_classes.csv
   NOUNS_FILE: data/epic-kitchens-100-annotations/EPIC_100_noun_classes.csv
 
   STATE:
-    PDDL_DOMAIN: pddl/full_domain.pddl
+    PDDL_DOMAIN: pddl/domain.pddl
     PDDL_PROBLEM: pddl/problem.pddl
     NOUNS_EMBEDDINGS_FILE: data/epic-kitchens-100-annotations/nouns_embeddings.pkl
 
   AUGMENT:
-    ENABLE: True
-    BALANCE: False
+    ENABLE: False
     FACTOR: 1.0001
 
 TENSORBOARD:
@@ -156,7 +123,7 @@ TENSORBOARD:
 NUM_GPUS: 1
 NUM_SHARDS: 1
 RNG_SEED: 25
-OUTPUT_DIR: runs/asf-gru-augment-state
+OUTPUT_DIR: runs/asf-gru-vgg
 WANDB:
   ENABLE: True # If no GPU is enabled this will be set to False
   # ENABLE: False # If no GPU is enabled this will be set to False

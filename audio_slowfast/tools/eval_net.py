@@ -508,17 +508,6 @@ def eval_epoch(
                 )
 
             if wandb_log:
-                # Log confusion matrix for verb and noun
-                verb_confusion_matrix = wandb.plot.confusion_matrix(
-                    probs=verb_preds.detach().cpu().numpy(),
-                    y_true=labels["verb"].detach().cpu().numpy(),
-                    class_names=verb_names,
-                )
-                noun_confusion_matrix = wandb.plot.confusion_matrix(
-                    probs=noun_preds.detach().cpu().numpy(),
-                    y_true=labels["noun"].detach().cpu().numpy(),
-                    class_names=noun_names,
-                )
                 wandb.log(
                     {
                         "Val/loss": loss,

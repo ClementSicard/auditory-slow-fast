@@ -58,15 +58,12 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 
 MODEL:
+  NUM_CLASSES: [97, 300]
+  ARCH: slowfast
   MODEL_NAME: AudioSlowFast
-  # MODEL_NAME: AudioSlowFast
-
-  NUM_CLASSES: [97, 300] # This will be updated by the state files into a 3-element list
   VOCAB_FILE: models/asf/config/vocab.txt
   PDDL_ATTRIBUTES: models/asf/config/attributes.csv
-  ARCH: slowfast
   LOSS_FUNC: cross_entropy
-  STATE_LOSS_FUNC: masked_loss
   DROPOUT_RATE: 0.5
 
   ONLY_ACTION_RECOGNITION: True
@@ -80,8 +77,8 @@ TEST:
   BATCH_SIZE: 128
 
 DATA_LOADER:
-  NUM_WORKERS: 4
-  PIN_MEMORY: False
+  NUM_WORKERS: 8
+  PIN_MEMORY: True
 
 EPICKITCHENS:
   SKIP_PREPARATION: False
@@ -123,7 +120,7 @@ TENSORBOARD:
 
 NUM_GPUS: 1
 NUM_SHARDS: 1
-RNG_SEED: 25
+RNG_SEED: 0
 OUTPUT_DIR: runs/asf-augment-unbalanced
 WANDB:
   ENABLE: True # If no GPU is enabled this will be set to False
