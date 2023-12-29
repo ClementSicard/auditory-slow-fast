@@ -121,6 +121,9 @@ def main(args: Dict[str, Any]) -> None:
 
         sleep(1)
         launch_job(cfg=cfg, init_method=None, func=train)
+
+        cfg = get_cfg()
+        cfg.merge_from_file(args["config"])
         launch_job(cfg=cfg, init_method=None, func=test)
 
     elif args["test"]:

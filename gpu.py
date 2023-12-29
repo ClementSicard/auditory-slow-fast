@@ -1,10 +1,11 @@
+import argparse
 import time
 
 import torch
 from loguru import logger
 
 
-def gpu_stress_test():
+def gpu_stress_test(n: int):
     # Check if CUDA is available
     if torch.cuda.is_available():
         # Set the device to GPU
@@ -12,9 +13,8 @@ def gpu_stress_test():
         logger.info("Running GPU stress test on:", torch.cuda.get_device_name(device))
 
         # Create large random matrices
-        matrix_size = 6200  # You can adjust this size
-        A = torch.randn(matrix_size, matrix_size, device=device)
-        B = torch.randn(matrix_size, matrix_size, device=device)
+        A = torch.randn(n, n, device=device)
+        B = torch.randn(n, n, device=device)
 
         # Perform matrix multiplication repeatedly
         while True:
@@ -29,4 +29,8 @@ def gpu_stress_test():
 
 
 if __name__ == "__main__":
-    gpu_stress_test()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", help="Size of the matrix to be multiplied", type=int, default=6200)
+    args = parser.parse_args()
+
+    gpu_stress_test(args.n)

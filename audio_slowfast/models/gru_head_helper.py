@@ -1,5 +1,4 @@
 from typing import List, Optional
-from loguru import logger
 
 import torch
 import torch.nn as nn
@@ -198,14 +197,10 @@ class GRUResNetBasicHead(nn.Module):
     def fc_inference(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
         # Performs fully convolutional inference.
         if not self.training:
-            logger.warning(f"{x.shape=}")
             x = act(x)
-            logger.warning(f"{x.shape=}")
             x = x.mean([1, 2])
-            logger.warning(f"{x.shape=}")
 
         x = x.view(x.shape[0], -1)
-        logger.warning(f"{x.shape=}")
         return x
 
     def fc_inference_state(self, x: torch.Tensor, act: nn.Module) -> torch.Tensor:
