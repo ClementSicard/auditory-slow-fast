@@ -23,23 +23,21 @@ from tqdm import tqdm
 
 @DATASET_REGISTRY.register()
 class EpicKitchensSlide(EpicKitchens):
-    def __init__(self, cfg: CfgNode, mode: str, record_type: Type[EpicKitchensAudioRecord] = EpicKitchensAudioRecord):
+    def __init__(
+        self,
+        cfg: CfgNode,
+        mode: str,
+    ):
         assert mode in ["test"], "Split '{}' not supported for {}".format(mode, self.__class__.__name__)
-        self.cfg = cfg
-        self.mode = mode
-        self.record_type = record_type
 
-        self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1
+        super().__init__(
+            cfg=cfg,
+            mode=mode,
+            record_type=EpicKitchensAudioRecord,
+            gru_format=False,
+        )
 
-        self.audio_dataset = None
-        logger.info("Constructing {} Audio {}...".format(self.__class__.__name__, mode))
-        self.unique_batch = cfg.EPICKITCHENS.SINGLE_BATCH
-        if self.unique_batch:
-            logger.warning("Using a SINGLE batch for debugging.")
-
-        self._construct_loader(cfg)
-
-    def _construct_loader(self, cfg: CfgNode):
+    def _construct_loader(self):
         """
         Construct the video loader.
         """
@@ -102,7 +100,7 @@ class EpicKitchensSlide(EpicKitchens):
                         datetime.datetime.min + datetime.timedelta(seconds=win_stop_sec)
                     ).strftime("%H:%M:%S.%f")
                     # TODO: FOR AUDIO, REPLACE TARGET FPS BY AUDIO FRAMES PER SECOND
-                    ek_ann["action_stop_frame"] = action_stop_sec * cfg.AUDIO_DATA.SAMPLING_RATE
+                    ek_ann["action_stop_frame"] = action_stop_sec * self.cfg.AUDIO_DATA.SAMPLING_RATE
 
                     if not self.cfg.TEST.SLIDE.PER_ACTION_INSTANCE:
                         # up to three sim actions per frame in validation set
@@ -113,7 +111,7 @@ class EpicKitchensSlide(EpicKitchens):
                         video_timestamp = f'{ek_ann["video_id"]}_{win_label_sec:.2f}'
                         if video_timestamp not in video_times:
                             video_times[video_timestamp] = iii
-                            self._audio_records.append(EpicKitchensAudioRecord((tup[0], ek_ann), cfg=cfg))
+                            self._audio_records.append(EpicKitchensAudioRecord((tup[0], ek_ann), cfg=self.cfg))
                             self._audio_records[-1].time_end = video_durs[ek_ann["video_id"]]
                             self._temporal_idx.append(0)
                             iii += 1
@@ -136,7 +134,7 @@ class EpicKitchensSlide(EpicKitchens):
                         win_start_sec = win_start_sec if win_start_sec > 0.0 else 0.0
                         win_label_sec = win_label_sec if win_label_sec > 0.0 else 0.0
                         continue
-                    self._audio_records.append(EpicKitchensAudioRecord((tup[0], ek_ann), cfg=cfg))
+                    self._audio_records.append(EpicKitchensAudioRecord((tup[0], ek_ann), cfg=self.cfg))
                     self._audio_records[-1].time_end = video_durs[ek_ann["video_id"]]
                     self._temporal_idx.append(0)
                     if win_stop_sec > action_stop_sec and self.cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS:
@@ -165,57 +163,87 @@ class EpicKitchensSlide(EpicKitchens):
             )
         )
 
-    def __getitem__(self, index):
-        """
-        Given the video index, return the list of frames, label, and video
-        index if the video can be fetched and decoded successfully, otherwise
-        repeatly find a random video that can be decoded as a replacement.
-        Args:
-            index (int): the video index provided by the pytorch sampler.
-        Returns:
-            frames (tensor): the frames of sampled from the video. The dimension
-                is `channel` x `num frames` x `height` x `width`.
-            label (int): the label of the current video.
-            index (int): if the video provided by pytorch sampler can be
-                decoded, then return the index of the video. If not, return the
-                index of the video replacement that can be decoded.
-        """
-        if self.mode in ["test"]:
-            temporal_sample_index = self._temporal_idx[index] // self.cfg.TEST.NUM_SPATIAL_CROPS
-            if self.cfg.TEST.NUM_SPATIAL_CROPS == 3:
-                spatial_sample_index = self._temporal_idx[index] % self.cfg.TEST.NUM_SPATIAL_CROPS
-            elif self.cfg.TEST.NUM_SPATIAL_CROPS == 1:
-                spatial_sample_index = 1
-            min_scale, max_scale, crop_size = [self.cfg.DATA.TEST_CROP_SIZE] * 3
-            assert len({min_scale, max_scale, crop_size}) == 1
-            # The testing is deterministic and no jitter should be performed.
-            # min_scale, max_scale, and crop_size are expect to be the same.
-        else:
-            raise NotImplementedError("Does not support {} mode".format(self.mode))
+    # def __getitem__(self, index):
+    #     """
+    #     Given the video index, return the list of frames, label, and video
+    #     index if the video can be fetched and decoded successfully, otherwise
+    #     repeatly find a random video that can be decoded as a replacement.
+    #     Args:
+    #         index (int): the video index provided by the pytorch sampler.
+    #     Returns:
+    #         frames (tensor): the frames of sampled from the video. The dimension
+    #             is `channel` x `num frames` x `height` x `width`.
+    #         label (int): the label of the current video.
+    #         index (int): if the video provided by pytorch sampler can be
+    #             decoded, then return the index of the video. If not, return the
+    #             index of the video replacement that can be decoded.
+    #     """
+    #     if self.mode in ["test"]:
+    #         # TODO: REMOVE SPATIAL CROPS AND USE REGULAR TEMPORAL IDX?
+    #         # temporal_sample_index = self._temporal_idx[index] // self.cfg.TEST.NUM_SPATIAL_CROPS
+    #         # if self.cfg.TEST.NUM_SPATIAL_CROPS == 3:
+    #         #     spatial_sample_index = self._temporal_idx[index] % self.cfg.TEST.NUM_SPATIAL_CROPS
+    #         # elif self.cfg.TEST.NUM_SPATIAL_CROPS == 1:
+    #         #     spatial_sample_index = 1
+    #         temporal_sample_index = self._temporal_idx[index]
+    #         # min_scale, max_scale, crop_size = [self.cfg.DATA.TEST_CROP_SIZE] * 3
+    #         # assert len({min_scale, max_scale, crop_size}) == 1
+    #         # The testing is deterministic and no jitter should be performed.
+    #         # min_scale, max_scale, and crop_size are expect to be the same.
+    #     else:
+    #         raise NotImplementedError("Does not support {} mode".format(self.mode))
 
-        frames = pack_frames_to_video_clip(self.cfg, self._audio_records[index], temporal_sample_index)
+    #     # frames = pack_frames_to_video_clip(self.cfg, self._audio_records[index], temporal_sample_index)
 
-        if self.cfg.MODEL.MODEL_NAME == "SlowFast":
-            # Perform color normalization.
-            frames = frames.float()
-            frames = frames / 255.0
-            frames = frames - torch.tensor(self.cfg.DATA.MEAN)
-            frames = frames / torch.tensor(self.cfg.DATA.STD)
-            # T H W C -> C T H W.
-            frames = frames.permute(3, 0, 1, 2)
-            # Perform data augmentation.
-            frames = self.spatial_sampling(
-                frames,
-                spatial_idx=spatial_sample_index,
-                min_scale=min_scale,
-                max_scale=max_scale,
-                crop_size=crop_size,
-            )
+    #     spectrogram = pack_audio(
+    #         cfg=self.cfg,
+    #         audio_dataset=self.audio_dataset,
+    #         audio_record=self._audio_records[index],
+    #         temporal_sample_index=temporal_sample_index,
+    #         transform=None,
+    #     )
 
-            label = self._audio_records[index].label
-            frames = utils.pack_pathway_output(self.cfg, frames)
-            metadata = self._audio_records[index].metadata
-            return frames, label, index, metadata
+    #     # if self.cfg.MODEL.MODEL_NAME == "SlowFast":
+    #     #     # Perform color normalization.
+    #     #     frames = frames.float()
+    #     #     frames = frames / 255.0
+    #     #     frames = frames - torch.tensor(self.cfg.DATA.MEAN)
+    #     #     frames = frames / torch.tensor(self.cfg.DATA.STD)
+    #     #     # T H W C -> C T H W.
+    #     #     frames = frames.permute(3, 0, 1, 2)
+    #     #     # Perform data augmentation.
+    #     #     frames = self.spatial_sampling(
+    #     #         frames,
+    #     #         spatial_idx=spatial_sample_index,
+    #     #         min_scale=min_scale,
+    #     #         max_scale=max_scale,
+    #     #         crop_size=crop_size,
+    #     #     )
+
+    #     #     label = self._audio_records[index].label
+    #     #     frames = utils.pack_pathway_output(self.cfg, frames)
+    #     #     metadata = self._audio_records[index].metadata
+    #     #     return frames, label, index, metadata
+
+    #     # Normalization.
+    #     spectrogram = spectrogram.float()
+    #     if self.mode in ["train", "train+val"]:
+    #         # Data augmentation.
+    #         # C T F -> C F T
+    #         spectrogram = spectrogram.permute(0, 2, 1)
+    #         # SpecAugment
+    #         spectrogram = spec_augment(spectrogram)
+    #         # C F T -> C T F -> (1, 400, 128)
+    #         spectrogram = spectrogram.permute(0, 2, 1)
+
+    #     label = self._audio_records[index].label
+    #     spectrogram = utils.pack_pathway_output(self.cfg, spectrogram)
+    #     metadata = self._audio_records[index].metadata
+
+    #     # TODO: remove this hack
+    #     # spectrogram = [spectrogram, spectrogram]
+
+    #     return spectrogram, label, index, metadata
 
     def __len__(self):
         return len(self._audio_records)
