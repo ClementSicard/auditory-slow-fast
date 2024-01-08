@@ -98,7 +98,7 @@ class EpicKitchensSlide(EpicKitchens):
                 desc="Creating empty audio records for all videos",
             ):
                 start = 0
-                end = self.cfg.TEST.SLIDE.WIN_SIZE  # TODO: Check if that is the right logic
+                end = self.cfg.TEST.SLIDE.WIN_SIZE
 
                 # Slide over the dataset
                 while start < video.duration:
