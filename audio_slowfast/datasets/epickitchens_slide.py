@@ -51,6 +51,8 @@ class EpicKitchensSlide(EpicKitchens):
 
         if not self.cfg.TEST.SLIDE.PER_ACTION_INSTANCE and not self.cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS:
             self._construct_loader_whole_video()
+        else:
+            raise NotImplementedError("Only whole video mode is supported for now")
 
     def _construct_loader_whole_video(self):
         """
