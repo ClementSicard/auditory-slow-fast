@@ -64,12 +64,24 @@ def pack_audio(
 
 
 def _log_specgram(cfg, audio, window_size=10, step_size=5, eps=1e-6):
-    nperseg = int(round(window_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
-    noverlap = int(round(step_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
+    stft_window_size = int(round(window_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
+    stft_hop_size = int(round(step_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
     from librosa import filters, stft
 
+    assert (
+        stft_window_size > stft_hop_size
+    ), f"nperseg ({stft_window_size}) must be greater than noverlap ({stft_hop_size})."
+    stft_hop_size = stft_window_size - stft_hop_size
+
     # mel-spec
-    spec = stft(audio, n_fft=2048, window="hann", hop_length=noverlap, win_length=nperseg, pad_mode="constant")
+    spec = stft(
+        audio,
+        n_fft=2048,
+        window="hann",
+        hop_length=stft_hop_size,
+        win_length=stft_window_size,
+        pad_mode="constant",
+    )
     mel_basis = filters.mel(
         sr=cfg.AUDIO_DATA.SAMPLING_RATE,
         n_fft=cfg.AUDIO_DATA.N_FFT,
