@@ -7,6 +7,7 @@ import datetime
 
 from loguru import logger
 from fvcore.common.file_io import PathManager
+from tqdm import tqdm
 
 
 from .build import DATASET_REGISTRY
@@ -147,8 +148,7 @@ class EpicKitchensSlide(EpicKitchens):
 
                 assert video_df.shape[0] > 0, f"No annotations for {video_id}"
 
-                # TODO: Get middle frame instead of fully contained like here
-                # Get the annotations for this video and this time window
+                # Get the annotations for this video and this time window based on the labels for the middle frame
                 video_df = video_df[
                     (video_df["start_s"] <= middle_frame_in_s) & (middle_frame_in_s <= video_df["stop_s"])
                 ]
