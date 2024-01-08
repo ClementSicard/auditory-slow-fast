@@ -3,9 +3,6 @@ from typing import Type
 
 import h5py
 import pandas as pd
-import torch
-import torch.utils.data
-import numpy as np
 import datetime
 
 from loguru import logger
@@ -17,8 +14,6 @@ from .epickitchens_record import EpicKitchensAudioRecord, timestamp_to_sec
 from .epickitchens import EpicKitchens
 from fvcore.common.config import CfgNode
 from . import utils as utils
-from .audio_loader_epic import pack_audio
-from tqdm import tqdm, trange
 
 
 @DATASET_REGISTRY.register()
