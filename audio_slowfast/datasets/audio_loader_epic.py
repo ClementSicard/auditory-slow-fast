@@ -141,8 +141,8 @@ def _extract_sound_feature(
         samples = transform(samples, sample_rate=cfg.AUDIO_DATA.SAMPLING_RATE)
 
     spectrogram = _log_specgram(
-        cfg,
-        samples,
+        cfg=cfg,
+        audio=samples,
         window_size=cfg.AUDIO_DATA.WINDOW_LENGTH,
         step_size=cfg.AUDIO_DATA.HOP_LENGTH,
     )

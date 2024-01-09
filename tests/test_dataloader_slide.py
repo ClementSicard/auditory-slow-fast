@@ -17,12 +17,29 @@ def run() -> None:
 
     cfg.DATA_LOADER.NUM_WORKERS = 4
     cfg.TRAIN.BATCH_SIZE = 1
+    cfg.TEST.BATCH_SIZE = 1
 
-    logger.info("Testing EpicKitchens dataloader")
+    logger.info("Testing EpicKitchensSlide dataloader with sliding over the whole video")
+    cfg.TEST.SLIDE.PER_ACTION_INSTANCE = False
+    cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS = False
     dataset = EpicKitchensSlide(cfg=cfg, mode="test")
     sample = dataset[0]
 
-    logger.debug(f"{len(sample)=}")
+    print()
+
+    logger.info("Testing EpicKitchensSlide dataloader with sliding over the whole action")
+    cfg.TEST.SLIDE.PER_ACTION_INSTANCE = False
+    cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS = True
+    dataset = EpicKitchensSlide(cfg=cfg, mode="test")
+    sample = dataset[0]
+
+    print()
+
+    logger.info("Testing EpicKitchensSlide dataloader with one record per action")
+    cfg.TEST.SLIDE.PER_ACTION_INSTANCE = True
+    cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS = True
+    dataset = EpicKitchensSlide(cfg=cfg, mode="test")
+    sample = dataset[0]
 
 
 if __name__ == "__main__":

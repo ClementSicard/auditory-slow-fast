@@ -36,7 +36,6 @@ class EpicKitchensSlide(EpicKitchens):
         """
         Construct the video loader.
         """
-        logger.error(f"EPIC-KITCHENS for class {self.__class__.__name__}")
         self.path_annotations_pickle = [
             os.path.join(
                 self.cfg.EPICKITCHENS.ANNOTATIONS_DIR,
@@ -52,10 +51,12 @@ class EpicKitchensSlide(EpicKitchens):
 
         if not self.cfg.TEST.SLIDE.PER_ACTION_INSTANCE and not self.cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS:
             self._construct_loader_whole_video()
+        elif self.cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS:
+            self._construct_loader_action_bounds(per_instance=self.cfg.TEST.SLIDE.PER_ACTION_INSTANCE)
         else:
             raise NotImplementedError("Only whole video mode is supported for now")
 
-    def _construct_loader_whole_video(self):
+    def _construct_loader_whole_video(self) -> None:
         """
         Constructs the datalaoder by sliding over the whole video.
         It works as follows:
@@ -175,6 +176,85 @@ class EpicKitchensSlide(EpicKitchens):
                 nb_annotations,
             )
         )
+
+    def _construct_loader_action_bounds(self, per_instance: bool = False) -> None:
+        """
+        Generating the dataloader within action bounds.
+
+        Parameters
+        ----------
+        `per_instance`: `bool`
+            If `True`, we create one record per instance. Otherwise, we create one record per window, sliding the window over the whole annotation duration.
+        """
+        logger.info(f"Constructing dataloader for whole video mode")
+
+        for file in self.path_annotations_pickle:
+            # Load the annotations
+            file_df = pd.read_pickle(file)
+
+            # Get the timestams in seconds
+            file_df["start_s"] = file_df["start_timestamp"].map(timestamp_to_sec)
+            file_df["stop_s"] = file_df["stop_timestamp"].map(timestamp_to_sec)
+
+            for i, annotation in tqdm(
+                file_df.iterrows(),
+                total=file_df.shape[0],
+                unit=" annotation(s)",
+                desc="Parsing annotations",
+            ):
+                action_end = annotation["stop_s"]
+                start = annotation["start_s"]
+
+                # If the action duration is shorted than the window size, we just add one
+                # sample of the full length of the action, as well as the case for
+                # per-instance
+                if per_instance:
+                    new_record = EpicKitchensAudioRecord((i, annotation), cfg=self.cfg)
+                    self._audio_records.append(new_record)
+
+                    # Using initial testing strategy
+                    for idx in range(self._num_clips):
+                        self._temporal_idx.append(idx)
+                        self._temporal_idx.append(idx)  # TODO: Use initial testing strategy?
+
+                # Otherwise, we slide a window over the whole action
+                else:
+                    action_end = annotation["stop_s"]
+                    end = start + self.cfg.TEST.SLIDE.WIN_SIZE
+
+                    if action_end - start < self.cfg.TEST.SLIDE.WIN_SIZE:
+                        new_record = EpicKitchensAudioRecord((i, annotation), cfg=self.cfg)
+                        self._audio_records.append(new_record)
+                        self._temporal_idx.append(0)
+
+                    while start < action_end:
+                        # Here, we use min of end and action_end for indexing because
+                        # 0-padding will happen in the pack_audio function when creating
+                        # spectrograms of the right length
+                        end = min(end, action_end)
+
+                        new_record = EpicKitchensAudioRecord((i, annotation), cfg=self.cfg)
+                        new_record._series["start_timestamp"] = (
+                            datetime.datetime.min + datetime.timedelta(seconds=start)
+                        ).strftime("%H:%M:%S.%f")
+                        new_record._series["stop_timestamp"] = (
+                            datetime.datetime.min + datetime.timedelta(seconds=end)
+                        ).strftime("%H:%M:%S.%f")
+
+                        self._audio_records.append(new_record)
+                        self._temporal_idx.append(0)
+
+                        # Update the start and end of the sliding window
+                        start += self.cfg.TEST.SLIDE.HOP_SIZE
+                        end = start + self.cfg.TEST.SLIDE.WIN_SIZE
+
+            logger.info(
+                "Constructing {} dataloader (size: {:,}) from {}".format(
+                    self.__class__.__name__,
+                    len(self._audio_records),
+                    self.path_annotations_pickle,
+                )
+            )
 
     def __len__(self):
         return len(self._audio_records)
