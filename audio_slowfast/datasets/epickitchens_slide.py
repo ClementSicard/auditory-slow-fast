@@ -2,6 +2,7 @@ import os
 from typing import Type
 
 import h5py
+import numpy as np
 import pandas as pd
 import datetime
 
@@ -102,7 +103,7 @@ class EpicKitchensSlide(EpicKitchens):
                 end = self.cfg.TEST.SLIDE.WIN_SIZE
 
                 # Slide over the dataset
-                while start < video.duration:
+                while (start + end) / 2 < video.duration:
                     end = min(end, video.duration)  # TODO: should we keep this or 0-pad instead?
                     ek_ann = {
                         "video_id": video.video_id,
@@ -150,21 +151,18 @@ class EpicKitchensSlide(EpicKitchens):
                 assert video_df.shape[0] > 0, f"No annotations for {video_id}"
 
                 # Get the annotations for this video and this time window based on the labels for the middle frame
-                video_df = video_df[
+                video_df: pd.DataFrame = video_df[
                     (video_df["start_s"] <= middle_frame_in_s) & (middle_frame_in_s <= video_df["stop_s"])
                 ]
 
                 if video_df.shape[0] == 0:
                     continue
 
-                nb_annotations += 1
-
-                #! By default, take the first annotation if there are >= 1 returns in the annotation file
-                annotation = video_df.iloc[0]
-
-                current_record._series["verb_class"] = annotation["verb_class"]
-                current_record._series["noun_class"] = annotation["noun_class"]
-                current_record._series["participant_id"] = annotation["participant_id"]
+                # Deals with overlaps by adding every pair of verb/noun classes.
+                # For evaluation, the accuracy will be computed on checking the presence in a zip() of the two lists
+                current_record._series["verb_class"] = video_df["verb_class"].to_numpy()
+                current_record._series["noun_class"] = video_df["noun_class"].to_numpy()
+                current_record._series["participant_id"] = video_df["participant_id"].to_numpy()
 
                 self._audio_records[i] = current_record
 
@@ -186,7 +184,7 @@ class EpicKitchensSlide(EpicKitchens):
         `per_instance`: `bool`
             If `True`, we create one record per instance. Otherwise, we create one record per window, sliding the window over the whole annotation duration.
         """
-        logger.info(f"Constructing dataloader for whole video mode")
+        logger.info(f"Constructing dataloader for action bounds mode" + (" per instance" if per_instance else ""))
 
         for file in self.path_annotations_pickle:
             # Load the annotations
@@ -227,7 +225,7 @@ class EpicKitchensSlide(EpicKitchens):
                         self._audio_records.append(new_record)
                         self._temporal_idx.append(0)
 
-                    while start < action_end:
+                    while (start + end) / 2 <= action_end:
                         # Here, we use min of end and action_end for indexing because
                         # 0-padding will happen in the pack_audio function when creating
                         # spectrograms of the right length
