@@ -17,7 +17,8 @@ def run() -> None:
 
     cfg.DATA_LOADER.NUM_WORKERS = 4
     cfg.TRAIN.BATCH_SIZE = 1
-    cfg.TEST.BATCH_SIZE = 1
+    cfg.TEST.BATCH_SIZE = 128
+    # cfg.EPICKITCHENS.SINGLE_BATCH = False
 
     logger.info("Testing EpicKitchensSlide dataloader with sliding over the whole video")
     cfg.TEST.SLIDE.PER_ACTION_INSTANCE = False

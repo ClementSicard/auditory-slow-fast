@@ -71,6 +71,7 @@ class EpicKitchensSlide(EpicKitchens):
             - Get the annotations for this video and this time window
             - If there are annotations, fill the audio record with the annotation
         """
+        max_overlap = 4  # Empirically, the max overlap is 4
 
         logger.info(f"Constructing dataloader for whole video mode")
         # get the video duration
@@ -113,10 +114,16 @@ class EpicKitchensSlide(EpicKitchens):
                         "stop_timestamp": (datetime.datetime.min + datetime.timedelta(seconds=end)).strftime(
                             "%H:%M:%S.%f"
                         ),
+                        "verb_class": np.array([-1] * max_overlap),
+                        "noun_class": np.array([-1] * max_overlap),
                     }
                     new_record = EpicKitchensAudioRecord((i, ek_ann), cfg=self.cfg)
+
+                    if self.unique_batch and len(self._audio_records) >= self.cfg.TEST.BATCH_SIZE:
+                        break
+
                     self._audio_records.append(new_record)
-                    self._temporal_idx.append(0)  # TODO: Do we still want this?
+                    self._temporal_idx.append(0)
 
                     start += self.cfg.TEST.SLIDE.HOP_SIZE
                     end = start + self.cfg.TEST.SLIDE.WIN_SIZE
@@ -161,8 +168,17 @@ class EpicKitchensSlide(EpicKitchens):
 
                 # Deals with overlaps by adding every pair of verb/noun classes.
                 # For evaluation, the accuracy will be computed on checking the presence in a zip() of the two lists
-                current_record._series["verb_class"] = video_df["verb_class"].to_numpy()
-                current_record._series["noun_class"] = video_df["noun_class"].to_numpy()
+
+                # Create an array of size 4, filled with all values of "verb_class" and padded by the first value
+                # This is done to deal with the case where there is only one annotation
+                verb_classes = np.array([video_df["verb_class"].to_numpy()[0]] * 4)
+                verb_classes[: video_df.shape[0]] = video_df["verb_class"].to_numpy()
+
+                noun_classes = np.array([video_df["noun_class"].to_numpy()[0]] * 4)
+                noun_classes[: video_df.shape[0]] = video_df["noun_class"].to_numpy()
+
+                current_record._series["verb_class"] = verb_classes
+                current_record._series["noun_class"] = noun_classes
                 current_record._series["participant_id"] = video_df["participant_id"].to_numpy()
 
                 max_overlaps = max(max_overlaps, video_df.shape[0])
@@ -199,7 +215,7 @@ class EpicKitchensSlide(EpicKitchens):
             file_df["stop_s"] = file_df["stop_timestamp"].map(timestamp_to_sec)
 
             for i, annotation in tqdm(
-                file_df.iterrows() if not self.unique_batch else file_df[: self.cfg.TRAIN.BATCH_SIZE].iterrows(),
+                file_df.iterrows() if not self.unique_batch else file_df[: self.cfg.TEST.BATCH_SIZE].iterrows(),
                 total=file_df.shape[0],
                 unit=" annotation(s)",
                 desc="Parsing annotations",
