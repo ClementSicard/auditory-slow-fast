@@ -128,6 +128,7 @@ class EpicKitchensSlide(EpicKitchens):
             )
 
             nb_annotations = 0
+            max_overlaps = 0
 
             # Loop over all audio_records
             for i in tqdm(
@@ -164,6 +165,8 @@ class EpicKitchensSlide(EpicKitchens):
                 current_record._series["noun_class"] = video_df["noun_class"].to_numpy()
                 current_record._series["participant_id"] = video_df["participant_id"].to_numpy()
 
+                max_overlaps = max(max_overlaps, video_df.shape[0])
+
                 self._audio_records[i] = current_record
 
         logger.info(
@@ -174,6 +177,7 @@ class EpicKitchensSlide(EpicKitchens):
                 nb_annotations,
             )
         )
+        logger.info(f"Max overlap is {max_overlaps}")
 
     def _construct_loader_action_bounds(self, per_instance: bool = False) -> None:
         """
@@ -195,7 +199,7 @@ class EpicKitchensSlide(EpicKitchens):
             file_df["stop_s"] = file_df["stop_timestamp"].map(timestamp_to_sec)
 
             for i, annotation in tqdm(
-                file_df.iterrows(),
+                file_df.iterrows() if not self.unique_batch else file_df[: self.cfg.TRAIN.BATCH_SIZE].iterrows(),
                 total=file_df.shape[0],
                 unit=" annotation(s)",
                 desc="Parsing annotations",
@@ -209,11 +213,7 @@ class EpicKitchensSlide(EpicKitchens):
                 if per_instance:
                     new_record = EpicKitchensAudioRecord((i, annotation), cfg=self.cfg)
                     self._audio_records.append(new_record)
-
-                    # Using initial testing strategy
-                    for idx in range(self._num_clips):
-                        self._temporal_idx.append(idx)
-                        self._temporal_idx.append(idx)  # TODO: Use initial testing strategy?
+                    self._temporal_idx.append(0)
 
                 # Otherwise, we slide a window over the whole action
                 else:

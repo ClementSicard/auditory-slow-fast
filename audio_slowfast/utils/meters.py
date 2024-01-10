@@ -1753,6 +1753,181 @@ class EPICTestMeter(object):
         )
 
 
+class EPICTestMeterSlide(object):
+    """
+    Perform the multi-view ensemble for testing: each audio with an unique index
+    will be sampled with multiple clips, and the predictions of the clips will
+    be aggregated to produce the final prediction for the audio.
+    The accuracy is calculated with the given ground truth labels.
+    """
+
+    def __init__(
+        self,
+        num_audios,
+        num_clips,
+        num_cls,
+        overall_iters,
+        ensemble_method="sum",
+        per_action_instance=True,
+    ):
+        """
+        Construct tensors to store the predictions and labels. Expect to get
+        num_clips predictions from each audio, and calculate the metrics on
+        num_audios audios.
+        Args:
+            num_audios (int): number of audios to test.
+            num_clips (int): number of clips sampled from each audio for
+                aggregating the final prediction for the audio.
+            num_cls (int): number of classes for each prediction.
+            overall_iters (int): overall iterations for testing.
+            ensemble_method (str): method to perform the ensemble, options
+                include "sum", and "max".
+        """
+
+        # Timers
+        self.iter_timer = Timer()
+        self.data_timer = Timer()
+        self.net_timer = Timer()
+
+        self.num_clips = num_clips
+        self.overall_iters = overall_iters
+        self.per_action_instance = per_action_instance
+
+        self.ensemble_method = ensemble_method
+        # Initialize tensors.
+        self.verb_audio_preds = torch.zeros((num_audios, num_cls[0]))
+        self.noun_audio_preds = torch.zeros((num_audios, num_cls[1]))
+
+        if not self.per_action_instance:
+            max_overlap = 4  # Empirically measured, the max number of overlaps is 4
+            self.verb_audio_labels = torch.zeros((num_audios, max_overlap)).long()
+            self.noun_audio_labels = torch.zeros((num_audios, max_overlap)).long()
+        else:
+            self.verb_audio_labels = torch.zeros((num_audios)).long()
+            self.noun_audio_labels = torch.zeros((num_audios)).long()
+        self.metadata = np.zeros(num_audios, dtype=object)
+        self.clip_count = torch.zeros((num_audios)).long()
+        # self.topk_accs = []
+        # self.stats = {}
+
+        # Reset metric.
+        self.reset()
+
+    def reset(self):
+        """
+        Reset the metric.
+        """
+        self.clip_count.zero_()
+        self.verb_audio_preds.zero_()
+        self.verb_audio_labels.zero_()
+        self.noun_audio_preds.zero_()
+        self.noun_audio_labels.zero_()
+        self.metadata.fill(0)
+
+    def update_stats(self, preds, labels, metadata, clip_ids):
+        """
+        Collect the predictions from the current batch and perform on-the-flight
+        summation as ensemble.
+        Args:
+            preds (tensor): predictions from the current batch. Dimension is
+                N x C where N is the batch size and C is the channel size
+                (num_cls).
+            labels (tensor): the corresponding labels of the current batch.
+                Dimension is N.
+            clip_ids (tensor): clip indexes of the current batch, dimension is
+                N.
+        """
+        for ind in range(preds[0].shape[0]):
+            vid_id = int(clip_ids[ind]) // self.num_clips
+            self.verb_audio_labels[vid_id] = labels[0][ind]
+            self.verb_audio_preds[vid_id] += preds[0][ind]
+            self.noun_audio_labels[vid_id] = labels[1][ind]
+            self.noun_audio_preds[vid_id] += preds[1][ind]
+            self.metadata[vid_id] = metadata["narration_id"][ind]
+            self.clip_count[vid_id] += 1
+
+    def log_iter_stats(self, cur_iter):
+        """
+        Log the stats.
+        Args:
+            cur_iter (int): the current iteration of testing.
+        """
+        eta_sec = self.iter_timer.seconds() * (self.overall_iters - cur_iter)
+        eta = str(datetime.timedelta(seconds=int(eta_sec)))
+        stats = {
+            "split": "test_iter",
+            "cur_iter": "{}".format(cur_iter + 1),
+            "eta": eta,
+            "time_diff": self.iter_timer.seconds(),
+        }
+        logging.log_json_stats(stats)
+
+    def iter_tic(self):
+        """
+        Start to record time.
+        """
+        self.iter_timer.reset()
+
+    def iter_toc(self):
+        """
+        Stop to record time.
+        """
+        self.iter_timer.pause()
+
+    def finalize_metrics(self, ks=(1, 5)):
+        """
+        Calculate and log the final ensembled metrics.
+        ks (tuple): list of top-k values for topk_accuracies. For example,
+            ks = (1, 5) correspods to top-1 and top-5 accuracy.
+        """
+        if not all(self.clip_count == self.num_clips):
+            logger.warning(
+                "clip count {} ~= num clips {}".format(
+                    ", ".join(["{}: {}".format(i, k) for i, k in enumerate(self.clip_count.tolist())]),
+                    self.num_clips,
+                )
+            )
+
+        verb_topks = metrics.topk_accuracies_slide(
+            self.verb_audio_preds,
+            self.verb_audio_labels,
+            ks,
+            self.per_action_instance,  # TODO: Update topk-accuracies to handle this
+        )
+
+        noun_topks = metrics.topk_accuracies_slide(
+            self.noun_audio_preds,
+            self.noun_audio_labels,
+            ks,
+            self.per_action_instance,
+        )
+        action_topks = metrics.multitask_topk_accuracies_slide(
+            (self.verb_audio_preds.cuda(), self.noun_audio_preds.cuda()),
+            (self.verb_audio_labels.cuda(), self.noun_audio_labels.cuda()),
+            ks,
+            self.per_action_instance,
+        )
+
+        assert len({len(ks), len(verb_topks)}) == 1
+        assert len({len(ks), len(noun_topks)}) == 1
+        assert len({len(ks), len(action_topks)}) == 1
+
+        stats = {"split": "test_final"}
+        for k, action_topk in zip(ks, action_topks):
+            stats["action_top{}_acc".format(k)] = "{:.{prec}f}".format(action_topk, prec=2)
+        for k, verb_topk in zip(ks, verb_topks):
+            stats["verb_top{}_acc".format(k)] = "{:.{prec}f}".format(verb_topk, prec=2)
+        for k, noun_topk in zip(ks, noun_topks):
+            stats["noun_top{}_acc".format(k)] = "{:.{prec}f}".format(noun_topk, prec=2)
+        logging.log_json_stats(stats)
+
+        return (
+            (self.verb_audio_preds.numpy().copy(), self.noun_audio_preds.numpy().copy()),
+            (self.verb_audio_labels.numpy().copy(), self.noun_audio_labels.numpy().copy()),
+            self.metadata.copy(),
+        )
+
+
 # Done for pre-post ✅
 def get_map(preds, labels):
     """

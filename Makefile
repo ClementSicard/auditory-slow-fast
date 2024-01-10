@@ -259,7 +259,7 @@ test:
 	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
 	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
-		--config models/asf/config/asf-augment.yaml \
+		--config models/asf/config/asf-slide.yaml \
 		--test
 
 

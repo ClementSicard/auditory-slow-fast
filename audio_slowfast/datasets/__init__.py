@@ -6,4 +6,5 @@ from .epickitchens import EpicKitchens  # noqa
 from .epickitchens_pddl import EpicKitchensWithPDDL  # noqa
 from .epickitchens_gru import EpicKitchensGRU  # noqa
 from .epickitchens_gru_pddl import EpicKitchensGRUwithPDDL  # noqa
+from .epickitchens_slide import EpicKitchensSlide  # noqa
 from .vggsound import Vggsound  # noqa
