@@ -1,5 +1,5 @@
 import os
-from typing import Type
+from typing import List, Type
 
 import h5py
 import pandas as pd
@@ -29,13 +29,14 @@ class EpicKitchens(torch.utils.data.Dataset):
         mode: str,
         record_type: Type[AudioRecord] = EpicKitchensAudioRecord,
         gru_format: bool = False,
-    ):
-        assert mode in [
+        modes: List[str] = [
             "train",
             "val",
             "test",
             "train+val",
-        ], "Split '{}' not supported for {}".format(mode, self.__class__.__name__)
+        ],
+    ):
+        assert mode in modes, "Split '{}' not supported for {}".format(mode, self.__class__.__name__)
         self.cfg = cfg
         self.mode = mode
         self.record_type = record_type
@@ -46,8 +47,9 @@ class EpicKitchens(torch.utils.data.Dataset):
         elif self.mode in ["test"]:
             self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1
 
-        self.audio_dataset = None
-        logger.info("Constructing {} Audio {}...".format(self.__class__.__name__, mode))
+        self.audio_dataset = h5py.File(self.cfg.EPICKITCHENS.AUDIO_DATA_FILE, "r")
+
+        logger.info("Constructing {} dataset on split '{}'...".format(self.__class__.__name__, mode))
         self.unique_batch = cfg.EPICKITCHENS.SINGLE_BATCH
         if self.unique_batch:
             logger.warning("Using a SINGLE batch for debugging.")

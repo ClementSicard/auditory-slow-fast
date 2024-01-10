@@ -97,6 +97,17 @@ _C.TEST.NUM_ENSEMBLE_VIEWS = 10
 
 # Path to saving prediction results file.
 _C.TEST.SAVE_RESULTS_PATH = ""
+
+_C.TEST.SLIDE = CfgNode()
+_C.TEST.SLIDE.ENABLE = False
+_C.TEST.SLIDE.WIN_SIZE = 1.0
+_C.TEST.SLIDE.HOP_SIZE = 1.0
+_C.TEST.SLIDE.LABEL_FRAME = 0.5
+_C.TEST.SLIDE.INSIDE_ACTION_BOUNDS = True
+_C.TEST.SLIDE.PER_ACTION_INSTANCE = True
+
+#
+#
 # -----------------------------------------------------------------------------
 # ResNet options
 # -----------------------------------------------------------------------------
@@ -400,6 +411,9 @@ _C.EPICKITCHENS.AUGMENT = CfgNode()
 _C.EPICKITCHENS.AUGMENT.BALANCE = True
 _C.EPICKITCHENS.AUGMENT.ENABLE = False
 _C.EPICKITCHENS.AUGMENT.FACTOR = 1.0
+
+
+_C.EPICKITCHENS.VIDEO_DURS = "EPIC_100_video_info.csv"
 
 
 # -----------------------------------------------------------------------------

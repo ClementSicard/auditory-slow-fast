@@ -259,7 +259,34 @@ test:
 	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
 	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
-		--config models/asf/config/asf-augment.yaml \
+		--config models/asf/config/asf-slide.yaml \
+		--test
+
+.PHONY: test-whole-vid
+test-whole-vid:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/slide/asf-original-whole-video.yaml \
+		--test
+
+.PHONY: test-per-instance
+test-per-instance:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/slide/asf-original-per-instance.yaml \
+		--test
+
+.PHONY: test-action-bounds
+test-action-bounds:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/slide/asf-original-action-bounds.yaml \
 		--test
 
 
@@ -543,3 +570,63 @@ job-test:
 	    --mail-type "BEGIN,END" \
 		--mail-user $(MAIL_ADDRESS) \
 	    --wrap "cd $(REPO_DIR) && make test"
+
+.PHONY: job-test-whole-vid
+job-test-whole-vid:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
+	JOB_NAME=twv; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 4:00:00 \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test-whole-vid"
+
+.PHONY: job-test-per-instance
+job-test-per-instance:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
+	JOB_NAME=tpi; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 4:00:00 \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test-per-instance"
+
+.PHONY: job-test-action-bounds
+job-test-action-bounds:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
+	JOB_NAME=tab; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 4:00:00 \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test-action-bounds"

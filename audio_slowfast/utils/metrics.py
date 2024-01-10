@@ -40,6 +40,44 @@ def topks_correct(preds, labels, ks):
     return topks_correct
 
 
+def topks_correct_slide(preds, labels, ks, per_action_instance=True, weight=None):
+    """
+    Given the predictions, labels, and a list of top-k values, compute the
+    number of correct predictions for each top-k value.
+
+    Args:
+        preds (array): array of predictions. Dimension is batchsize
+            N x ClassNum.
+        labels (array): array of labels. Dimension is batchsize N.
+        ks (list): list of top-k values. For example, ks = [1, 5] correspods
+            to top-1 and top-5.
+
+    Returns:
+        topks_correct (list): list of numbers, where the `i`-th entry
+            corresponds to the number of top-`ks[i]` correct predictions.
+    """
+    weight = torch.ones(preds.size(0)) / preds.size(0) if weight == None else weight / torch.sum(weight)
+    assert preds.size(0) == labels.size(0), "Batch dim of predictions and labels must match"
+    # Find the top max_k predictions for each sample
+    _top_max_k_vals, top_max_k_inds = torch.topk(preds, max(ks), dim=1, largest=True, sorted=True)
+    # (batch_size, max_k) -> (max_k, batch_size).
+    top_max_k_inds = top_max_k_inds.t()
+    # (batch_size, ) -> (max_k, batch_size).
+    if per_action_instance:
+        rep_max_k_labels = labels.view(1, -1).expand_as(top_max_k_inds)
+        top_max_k_correct = top_max_k_inds.eq(rep_max_k_labels)
+    else:
+        top_max_k_correct = torch.zeros_like(top_max_k_inds)
+        for label in labels.t():
+            rep_max_k_labels = label.view(1, -1).expand_as(top_max_k_inds)
+            top_max_k_correct_ = top_max_k_inds.eq(rep_max_k_labels)
+            top_max_k_correct |= top_max_k_correct_
+    # (i, j) = 1 if top i-th prediction for the j-th sample is correct.
+    # Compute the number of topk correct predictions for each k.
+    topks_correct = [(weight * top_max_k_correct[:k, :]).contiguous().view(-1).float().sum() for k in ks]
+    return topks_correct
+
+
 def multitask_topks_correct(preds, labels, ks=(1,)):
     """
     Args:
@@ -70,6 +108,48 @@ def multitask_topks_correct(preds, labels, ks=(1,)):
     return multitask_topks_correct
 
 
+def multitask_topks_correct_slide(preds, labels, ks=(1,), per_action_instance=True, weight=None):
+    """
+    Args:
+        preds: tuple(torch.FloatTensor), each tensor should be of shape
+            [batch_size, class_count], class_count can vary on a per task basis, i.e.
+            outputs[i].shape[1] can be different to outputs[j].shape[j].
+        labels: tuple(torch.LongTensor), each tensor should be of shape [batch_size]
+        ks: tuple(int), compute accuracy at top-k for the values of k specified
+            in this parameter.
+    Returns:
+        tuple(float), same length at topk with the corresponding accuracy@k in.
+    """
+    weight = torch.ones(preds[0].size(0)).to(preds[0].device) if weight is None else weight
+    num_vids = torch.sum(weight)
+    weight = weight / num_vids
+    max_k = int(np.max(ks))
+    task_count = len(preds)
+    batch_size = labels[0].size(0)
+    all_correct = torch.zeros(max_k, batch_size).type(torch.ByteTensor).to(preds[0].device)
+    logger.debug(f"{all_correct.device=}")
+    # if torch.cuda.is_available():
+    #    all_correct = all_correct.cuda()
+    for output, label in zip(preds, labels):
+        _, max_k_idx = output.topk(max_k, dim=1, largest=True, sorted=True)
+        # Flip batch_size, class_count as .view doesn't work on non-contiguous
+        max_k_idx = max_k_idx.t()
+        if per_action_instance:
+            correct_for_task = max_k_idx.eq(label.view(1, -1).expand_as(max_k_idx))
+        else:
+            correct_for_task = torch.zeros_like(max_k_idx)
+            for l in label.t():
+                correct_for_task_ = max_k_idx.eq(l.view(1, -1).expand_as(max_k_idx))
+                correct_for_task |= correct_for_task_
+        logger.debug(f"{correct_for_task.device=}")
+        all_correct.add_(correct_for_task)
+    multitask_topks_correct = [
+        (weight * torch.ge((all_correct[:k]).float().sum(0), task_count)).float().sum(0) for k in ks
+    ]
+
+    return multitask_topks_correct
+
+
 def topk_errors(preds, labels, ks):
     """
     Computes the top-k error for each k.
@@ -94,6 +174,18 @@ def topk_accuracies(preds, labels, ks):
     return [(x / preds.size(0)) * 100.0 for x in num_topks_correct]
 
 
+def topk_accuracies_slide(preds, labels, ks, per_action_instance=True, weight=None):
+    """
+    Computes the top-k accuracy for each k.
+    Args:
+        preds (array): array of predictions. Dimension is N.
+        labels (array): array of labels. Dimension is N.
+        ks (list): list of ks to calculate the top accuracies.
+    """
+    num_topks_correct = topks_correct_slide(preds, labels, ks, per_action_instance, weight)
+    return [x * 100.0 for x in num_topks_correct]
+
+
 def multitask_topk_accuracies(preds, labels, ks):
     """
     Computes the top-k accuracy for each k.
@@ -104,6 +196,18 @@ def multitask_topk_accuracies(preds, labels, ks):
     """
     num_multitask_topks_correct = multitask_topks_correct(preds, labels, ks)
     return [(x / preds[0].size(0)) * 100.0 for x in num_multitask_topks_correct]
+
+
+def multitask_topk_accuracies_slide(preds, labels, ks, per_action_instance=True, weight=None):
+    """
+    Computes the top-k accuracy for each k.
+    Args:
+        preds (array): array of predictions. Dimension is N.
+        labels (array): array of labels. Dimension is N.
+        ks (list): list of ks to calculate the top accuracies.
+    """
+    num_multitask_topks_correct = multitask_topks_correct_slide(preds, labels, ks, per_action_instance, weight)
+    return [x * 100.0 for x in num_multitask_topks_correct]
 
 
 def state_metrics(preds, labels, lengths, split="Val"):

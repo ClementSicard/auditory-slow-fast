@@ -115,15 +115,27 @@ def get_num_spectrogram_frames(duration: float, cfg: CfgNode) -> int:
 
 
 def timestamp_to_sec(timestamp):
-    x = time.strptime(timestamp, "%H:%M:%S.%f")
+    time_parts = timestamp.split(".")
+    base_time = time_parts[0]
+    microsecond_part = time_parts[1].rstrip("0") if len(time_parts) > 1 else "0"
+
+    if not microsecond_part:
+        microsecond_part = "0"
+
+    x = time.strptime(base_time, "%H:%M:%S")
+
+    # Calculate the divisor based on the length of the microsecond part
+    divisor = 10 ** len(microsecond_part)
+
     sec = (
         float(
             timedelta(
                 hours=x.tm_hour,
                 minutes=x.tm_min,
                 seconds=x.tm_sec,
+                microseconds=int(microsecond_part),
             ).total_seconds()
         )
-        + float(timestamp.split(".")[-1]) / 100
+        + int(microsecond_part) / divisor
     )
     return sec

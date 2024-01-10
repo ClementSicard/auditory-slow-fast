@@ -11,7 +11,7 @@ from audio_slowfast.datasets.epickitchens_gru import EpicKitchensGRU
 from audio_slowfast.datasets.epickitchens_gru_pddl import EpicKitchensGRUwithPDDL
 
 
-CONFIG_PATH = "models/asf/config/SLOWFAST_R50.yaml"
+CONFIG_PATH = "models/asf/config/asf-original.yaml"
 
 
 def run() -> None:
@@ -25,15 +25,15 @@ def run() -> None:
     dataset = EpicKitchens(cfg=cfg, mode="train")
     sample = dataset[0]
 
-    logger.debug(f"{len(sample)=}")
+    # logger.debug(f"{len(sample)=}")
 
-    logger.info("Testing EpicKitchensGRU dataloader")
-    dataset = EpicKitchensGRU(cfg=cfg, mode="train")
-    sample = dataset[0]
+    # logger.info("Testing EpicKitchensGRU dataloader")
+    # dataset = EpicKitchensGRU(cfg=cfg, mode="train")
+    # sample = dataset[0]
 
-    logger.info("Testing EpicKitchensGRU dataloader")
-    dataset = EpicKitchensGRUwithPDDL(cfg=cfg, mode="train")
-    sample = dataset[0]
+    # logger.info("Testing EpicKitchensGRU dataloader")
+    # dataset = EpicKitchensGRUwithPDDL(cfg=cfg, mode="train")
+    # sample = dataset[0]
 
 
 if __name__ == "__main__":
