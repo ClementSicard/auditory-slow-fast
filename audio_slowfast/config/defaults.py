@@ -245,9 +245,9 @@ _C.AUDIO_DATA.N_FFT = 2048
 # Duration of audio clip from which to extract the spectrogram
 _C.AUDIO_DATA.CLIP_SECS = 1.279
 
-_C.AUDIO_DATA.WINDOW_LENGTH = 10
+_C.AUDIO_DATA.WINDOW_LENGTH = 10.0
 
-_C.AUDIO_DATA.HOP_LENGTH = 5
+_C.AUDIO_DATA.HOP_LENGTH = 5.0
 
 # Number of timesteps of the input spectrogram
 _C.AUDIO_DATA.NUM_FRAMES = 256

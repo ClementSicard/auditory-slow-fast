@@ -46,7 +46,7 @@ def perform_test_slide(test_loader, model, test_meter, cfg, writer=None):
 
     test_meter.iter_tic()
 
-    for cur_iter, batch in enumerate(
+    for _, batch in enumerate(
         tqdm(
             test_loader,
             desc="Testing",
@@ -87,6 +87,7 @@ def perform_test_slide(test_loader, model, test_meter, cfg, writer=None):
             noun_preds, noun_labels, audio_idx = preds[1], labels["noun"], audio_idx
 
         test_meter.iter_toc()
+
         # Update and log stats.
         test_meter.update_stats(
             (verb_preds.detach().cpu(), noun_preds.detach().cpu()),
@@ -405,7 +406,7 @@ def test(cfg):
 
     # Create audio testing loaders.
     test_loader = loader.construct_loader(cfg, "test")
-    logger.info("Testing model for {} iterations".format(len(test_loader)))
+    logger.info("Testing model for {:,} iterations".format(len(test_loader)))
 
     if not "GRU" in cfg.TEST.DATASET:
         assert len(test_loader.dataset) % cfg.TEST.NUM_ENSEMBLE_VIEWS == 0
@@ -488,17 +489,21 @@ def test(cfg):
     if du.is_master_proc():
         if cfg.TEST.DATASET.startswith("EpicKitchens"):
             if cfg.MODEL.ONLY_ACTION_RECOGNITION:
-                logger.debug(f"{preds[0].shape=}, {preds[1].shape=}")
                 results = {
                     "verb_output": preds[0],
+                    "verb_labels": labels[0],
                     "noun_output": preds[1],
+                    "noun_labels": labels[1],
                     "narration_id": metadata,
                 }
             else:
                 results = {
                     "verb_output": preds[0],
+                    "verb_labels": labels[0],
                     "noun_output": preds[1],
+                    "noun_labels": labels[1],
                     "state_output": preds[2],
+                    "state_labels": labels[2],
                     "narration_id": metadata,
                 }
 
@@ -510,7 +515,7 @@ def test(cfg):
                 elif cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS:
                     scores_path = os.path.join(scores_path, "inside_action_bounds")
                 else:
-                    scores_path = os.path.join(scores_path, "slide")
+                    scores_path = os.path.join(scores_path, f"slide-{cfg.AUDIO_DATA.HOP_LENGTH}")
 
             if not os.path.exists(scores_path):
                 os.makedirs(scores_path)

@@ -2,8 +2,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
 """Functions for computing metrics."""
-
-from loguru import logger
 import numpy as np
 from sklearn.metrics import f1_score, recall_score, precision_score
 import torch
@@ -127,7 +125,6 @@ def multitask_topks_correct_slide(preds, labels, ks=(1,), per_action_instance=Tr
     task_count = len(preds)
     batch_size = labels[0].size(0)
     all_correct = torch.zeros(max_k, batch_size).type(torch.ByteTensor).to(preds[0].device)
-    logger.debug(f"{all_correct.device=}")
     # if torch.cuda.is_available():
     #    all_correct = all_correct.cuda()
     for output, label in zip(preds, labels):
@@ -141,7 +138,6 @@ def multitask_topks_correct_slide(preds, labels, ks=(1,), per_action_instance=Tr
             for l in label.t():
                 correct_for_task_ = max_k_idx.eq(l.view(1, -1).expand_as(max_k_idx))
                 correct_for_task |= correct_for_task_
-        logger.debug(f"{correct_for_task.device=}")
         all_correct.add_(correct_for_task)
     multitask_topks_correct = [
         (weight * torch.ge((all_correct[:k]).float().sum(0), task_count)).float().sum(0) for k in ks

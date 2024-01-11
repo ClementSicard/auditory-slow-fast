@@ -1846,6 +1846,38 @@ class EPICTestMeterSlide(object):
             self.metadata[vid_id] = metadata["narration_id"][ind]
             self.clip_count[vid_id] += 1
 
+        top1_act = (
+            metrics.multitask_topk_accuracies_slide(
+                (self.verb_audio_preds.cuda(), self.noun_audio_preds.cuda()),
+                (self.verb_audio_labels.cuda(), self.noun_audio_labels.cuda()),
+                (1,),
+                self.per_action_instance,
+            )[0]
+            .detach()
+            .cpu()
+        )
+        top1_verb = (
+            metrics.topk_accuracies_slide(
+                self.verb_audio_preds,
+                self.verb_audio_labels,
+                (1,),
+                self.per_action_instance,
+            )[0]
+            .detach()
+            .cpu()
+        )
+        top1_noun = (
+            metrics.topk_accuracies_slide(
+                self.noun_audio_preds,
+                self.noun_audio_labels,
+                (1,),
+                self.per_action_instance,
+            )[0]
+            .detach()
+            .cpu()
+        )
+        logger.info(f"A: {top1_act:.2f}\tV: {top1_verb:.2f}\tN: {top1_noun:.2f}")
+
     def log_iter_stats(self, cur_iter):
         """
         Log the stats.
