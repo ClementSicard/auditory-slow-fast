@@ -714,7 +714,7 @@ job-test-per-instance:
 	    --ntasks 1 \
 	    --cpus-per-task 8 \
 		--gres=gpu:1 \
-	    --time 4:00:00 \
+	    --time 5:00:00 \
 	    --mem 64G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \

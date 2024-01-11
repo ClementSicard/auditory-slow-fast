@@ -511,11 +511,11 @@ def test(cfg):
 
             if cfg.TEST.SLIDE.ENABLE:
                 if cfg.TEST.SLIDE.PER_ACTION_INSTANCE:
-                    scores_path = os.path.join(scores_path, "per_action_instance")
+                    scores_path = os.path.join(scores_path, str(cfg.TEST.SLIDE.WIN_SIZE), "per_action_instance")
                 elif cfg.TEST.SLIDE.INSIDE_ACTION_BOUNDS:
-                    scores_path = os.path.join(scores_path, "inside_action_bounds")
+                    scores_path = os.path.join(scores_path, str(cfg.TEST.SLIDE.WIN_SIZE), "inside_action_bounds")
                 else:
-                    scores_path = os.path.join(scores_path, f"slide-{cfg.AUDIO_DATA.HOP_LENGTH}")
+                    scores_path = os.path.join(scores_path, str(cfg.TEST.SLIDE.WIN_SIZE), "slide")
 
             if not os.path.exists(scores_path):
                 os.makedirs(scores_path)

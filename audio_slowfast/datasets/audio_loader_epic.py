@@ -68,9 +68,11 @@ def _log_specgram(cfg, audio, window_size=10, step_size=5, eps=1e-6):
     stft_hop_size = int(round(step_size * cfg.AUDIO_DATA.SAMPLING_RATE / 1e3))
     from librosa import filters, stft
 
-    if stft_window_size > stft_hop_size:
-        logger.warning(f"nperseg ({stft_window_size}) must be greater than noverlap ({stft_hop_size}).")
-    stft_hop_size = stft_window_size - stft_hop_size
+    # if stft_window_size > stft_hop_size:
+    #     logger.warning(f"nperseg ({stft_window_size}) must be greater than noverlap ({stft_hop_size}).")
+
+    if stft_window_size - stft_hop_size > 0:
+        stft_hop_size = stft_window_size - stft_hop_size
 
     # mel-spec
     spec = stft(
