@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from audio_slowfast.config.defaults import get_cfg
 from audio_slowfast.datasets.epickitchens_slide import EpicKitchensSlide
 
-CONFIG_PATH = "models/asf/config/asf-slide.yaml"
+CONFIG_PATH = "models/asf/config/slide/asf-original-whole-video.yaml"
 
 
 def run() -> None:

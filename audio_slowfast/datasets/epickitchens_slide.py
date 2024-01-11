@@ -73,7 +73,9 @@ class EpicKitchensSlide(EpicKitchens):
         """
         max_overlap = 4  # Empirically, the max overlap is 4
 
-        logger.info(f"Constructing dataloader for whole video mode")
+        logger.info(
+            f"Constructing dataloader for whole video mode with STFT hop length {self.cfg.AUDIO_DATA.HOP_LENGTH}"
+        )
         # get the video duration
         video_durs = pd.read_csv(
             os.path.join(
@@ -91,7 +93,7 @@ class EpicKitchensSlide(EpicKitchens):
             file_df["stop_s"] = file_df["stop_timestamp"].map(timestamp_to_sec)
 
             # Only evaluate on videos that are in the dataset
-            video_durs = video_durs[video_durs["video_id"].isin(file_df["video_id"].unique())]
+            video_durs = video_durs[video_durs["video_id"].isin(file_df["video_id"].unique())].reset_index(drop=True)
 
             # Loop over all videos
             for i, video in tqdm(
@@ -184,6 +186,7 @@ class EpicKitchensSlide(EpicKitchens):
                 max_overlaps = max(max_overlaps, video_df.shape[0])
 
                 self._audio_records[i] = current_record
+                nb_annotations += 1
 
         logger.info(
             "Constructing {} dataloader (size: {:,}) from {} with {:,} completed annotations".format(
@@ -240,6 +243,7 @@ class EpicKitchensSlide(EpicKitchens):
                         new_record = EpicKitchensAudioRecord((i, annotation), cfg=self.cfg)
                         self._audio_records.append(new_record)
                         self._temporal_idx.append(0)
+                        continue
 
                     while (start + end) / 2 <= action_end:
                         # Here, we use min of end and action_end for indexing because

@@ -262,13 +262,46 @@ test:
 		--config models/asf/config/asf-slide.yaml \
 		--test
 
-.PHONY: test-whole-vid
-test-whole-vid:
+.PHONY: test-whole-vid-2s
+test-whole-vid-2s:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
 	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
 	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
 	python main.py \
-		--config models/asf/config/slide/asf-original-whole-video.yaml \
+		--config models/asf/config/slide/asf-original-whole-video-2s.yaml \
+		--test
+
+.PHONY: test-whole-vid-4s
+test-whole-vid-4s:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/slide/asf-original-whole-video-4s.yaml \
+		--test
+.PHONY: test-whole-vid-8s
+test-whole-vid-8s:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/slide/asf-original-whole-video-8s.yaml \
+		--test
+.PHONY: test-whole-vid-1s
+test-whole-vid-1s:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/slide/asf-original-whole-video-1s.yaml \
+		--test
+.PHONY: test-whole-vid-0.5s
+test-whole-vid-0.5s:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/slide/asf-original-whole-video-0,5s.yaml \
 		--test
 
 .PHONY: test-per-instance
@@ -571,11 +604,11 @@ job-test:
 		--mail-user $(MAIL_ADDRESS) \
 	    --wrap "cd $(REPO_DIR) && make test"
 
-.PHONY: job-test-whole-vid
-job-test-whole-vid:
+.PHONY: job-test-whole-vid-2s
+job-test-whole-vid-2s:
 	@mkdir -p $(LOGS_DIR)
 	@DATE=$$(date +"%Y_%m_%d_%T"); \
-	JOB_NAME=twv; \
+	JOB_NAME=twv2s; \
 	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
 	sbatch -N 1 \
 	    --ntasks 1 \
@@ -589,7 +622,87 @@ job-test-whole-vid:
 	    --open-mode append \
 	    --mail-type "BEGIN,END" \
 		--mail-user $(MAIL_ADDRESS) \
-	    --wrap "cd $(REPO_DIR) && make test-whole-vid"
+	    --wrap "cd $(REPO_DIR) && make test-whole-vid-2s"
+
+.PHONY: job-test-whole-vid-1s
+job-test-whole-vid-1s:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
+	JOB_NAME=twv1s; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 4:00:00 \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test-whole-vid-1s"
+
+.PHONY: job-test-whole-vid-4s
+job-test-whole-vid-4s:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
+	JOB_NAME=twv4s; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 4:00:00 \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test-whole-vid-4s"
+
+.PHONY: job-test-whole-vid-8s
+job-test-whole-vid-8s:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
+	JOB_NAME=twv8s; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 4:00:00 \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test-whole-vid-8s"
+
+.PHONY: job-test-whole-vid-0.5s
+job-test-whole-vid-0.5s:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d_%T"); \
+	JOB_NAME=twv0.5s; \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time 4:00:00 \
+	    --mem 64G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make test-whole-vid-0.5s"
 
 .PHONY: job-test-per-instance
 job-test-per-instance:
