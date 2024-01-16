@@ -144,6 +144,15 @@ train-original:
 		--config models/asf/config/asf-original.yaml \
 		--train
 
+.PHONY: train-original-inter
+train-original-inter:
+	@$(CONDA_ACTIVATE) $(VENV_DIR)
+	WANDB_CACHE_DIR=$(WANDB_CACHE_DIR) \
+	WANDB_DATA_DIR=$(WANDB_DATA_DIR) \
+	python main.py \
+		--config models/asf/config/inter/asf-original-inter.yaml \
+		--train
+
 .PHONY: train-asf
 train-asf:
 	@$(CONDA_ACTIVATE) $(VENV_DIR)
@@ -454,6 +463,26 @@ job-train-original:
 		--gres=gpu:1 \
 	    --time $(DURATION) \
 	    --mem 16G \
+	    --error $${LOG_FILE} \
+	    --output $${LOG_FILE} \
+	    --job-name $${JOB_NAME} \
+	    --open-mode append \
+	    --mail-type "BEGIN,END" \
+		--mail-user $(MAIL_ADDRESS) \
+	    --wrap "cd $(REPO_DIR) && make train-$${JOB_NAME}"
+
+.PHONY: job-train-original-inter
+job-train-original-inter:
+	@mkdir -p $(LOGS_DIR)
+	@DATE=$$(date +"%Y_%m_%d-%T"); \
+	JOB_NAME=original-inter \
+	LOG_FILE="$(REPO_DIR)/$(LOGS_DIR)/$${DATE}-$${JOB_NAME}.log"; \
+	sbatch -N 1 \
+	    --ntasks 1 \
+	    --cpus-per-task 8 \
+		--gres=gpu:1 \
+	    --time $(DURATION) \
+	    --mem 32G \
 	    --error $${LOG_FILE} \
 	    --output $${LOG_FILE} \
 	    --job-name $${JOB_NAME} \

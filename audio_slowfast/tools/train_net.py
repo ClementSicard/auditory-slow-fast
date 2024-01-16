@@ -750,6 +750,7 @@ def train(cfg: CfgNode):
         project_name = cfg.MODEL.MODEL_NAME
         project_name += " + Augment" if cfg.EPICKITCHENS.AUGMENT.ENABLE else ""
         project_name += " + State" if not cfg.MODEL.ONLY_ACTION_RECOGNITION else ""
+        project_name += " + InterES" if not cfg.TRAIN.DATASET.endswith("InterES") else ""
         project_name += " (from VGG-SOUND)" if "VGG" in cfg.TRAIN.CHECKPOINT_FILE_PATH else ""
 
         if cfg.TRAIN.AUTO_RESUME and cfg.WANDB.RUN_ID != "":
