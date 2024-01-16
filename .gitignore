@@ -182,3 +182,4 @@ cython_debug/
 runs/
 scores/
 results/
+notebooks/waveforms

@@ -172,9 +172,6 @@ class EpicKitchens(torch.utils.data.Dataset):
         spectrogram = utils.pack_pathway_output(self.cfg, spectrogram)
         metadata = self._audio_records[index].metadata
 
-        # TODO: remove this hack
-        # spectrogram = [spectrogram, spectrogram]
-
         return spectrogram, label, index, metadata
 
     def _get_item_gru(self, index: int):

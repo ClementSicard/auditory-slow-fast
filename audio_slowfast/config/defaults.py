@@ -361,6 +361,15 @@ _C.DATA_LOADER.PIN_MEMORY = True
 _C.DATA_LOADER.ENABLE_MULTI_THREAD_DECODE = False
 
 
+# ---------------------------------------------------------------------------- #
+# EPIC-SOUNDS Dataset options
+# ---------------------------------------------------------------------------- #
+_C.EPICSOUNDS = CfgNode()
+
+_C.EPICSOUNDS.TRAIN_LIST = "data/epic-sounds-annotations/EPIC_Sounds_train.csv"
+_C.EPICSOUNDS.VAL_LIST = "data/epic-sounds-annotations/EPIC_Sounds_validation.csv"
+_C.EPICSOUNDS.TEST_LIST = "data/epic-sounds-annotations/EPIC_Sounds_validation.csv"
+
 # -----------------------------------------------------------------------------
 # EPIC-KITCHENS Dataset options
 # -----------------------------------------------------------------------------
