@@ -182,3 +182,6 @@ cython_debug/
 runs/
 scores/
 results/
+runs
+audio-cm.pkl audio-gru-cm.pkl validation.pkl visu-cm.pkl
+*.pkl
