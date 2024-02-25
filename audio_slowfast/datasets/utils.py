@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-
-import logging
 import random
 import time
 from datetime import timedelta
-import numpy as np
 
+import numpy as np
 import torch
-from torch.utils.data.distributed import DistributedSampler
 from fvcore.common.config import CfgNode
+from torch.utils.data.distributed import DistributedSampler
 
 
 def get_start_end_idx(audio_size, clip_size, clip_idx, num_clips, start_sample=0):

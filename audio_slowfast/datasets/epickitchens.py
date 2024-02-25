@@ -5,20 +5,19 @@ import h5py
 import pandas as pd
 import torch
 import torch.utils.data
+from fvcore.common.config import CfgNode
 from fvcore.common.file_io import PathManager
 from loguru import logger
-from audio_slowfast.datasets.audio_loader_epic_gru import pack_audio_gru
 
+from audio_slowfast.datasets.audio_loader_epic_gru import pack_audio_gru
 from src.transforms import get_transforms
-from src.dataset import prepare_dataset
 
 from . import utils as utils
 from .audio_loader_epic import pack_audio
 from .audio_record import AudioRecord
-from .epickitchens_record import EpicKitchensAudioRecord
 from .build import DATASET_REGISTRY
+from .epickitchens_record import EpicKitchensAudioRecord
 from .spec_augment import spec_augment
-from fvcore.common.config import CfgNode
 
 
 @DATASET_REGISTRY.register()
@@ -45,7 +44,7 @@ class EpicKitchens(torch.utils.data.Dataset):
         if self.mode in ["train", "val", "train+val"]:
             self._num_clips = 1
         elif self.mode in ["test"]:
-            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1
+            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS if "GRU" not in cfg.TEST.DATASET else 1
 
         self.audio_dataset = h5py.File(self.cfg.EPICKITCHENS.AUDIO_DATA_FILE, "r")
 

@@ -1,10 +1,8 @@
-import os
-
-import h5py
-from .epickitchens_record_gru import EpicKitchensAudioRecordGRU
-from .epickitchens import EpicKitchens
-from .build import DATASET_REGISTRY
 from fvcore.common.config import CfgNode
+
+from .build import DATASET_REGISTRY
+from .epickitchens import EpicKitchens
+from .epickitchens_record_gru import EpicKitchensAudioRecordGRU
 
 
 @DATASET_REGISTRY.register()
