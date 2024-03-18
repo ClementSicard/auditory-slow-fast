@@ -3,11 +3,14 @@
 
 """Multi-view test an audio classification model."""
 
-import numpy as np
 import os
 import pickle
+
+import numpy as np
 import torch
 from fvcore.common.file_io import PathManager
+from loguru import logger
+from tqdm import tqdm
 
 import audio_slowfast.utils.checkpoint as cu
 import audio_slowfast.utils.distributed as du
@@ -16,11 +19,13 @@ import audio_slowfast.utils.misc as misc
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast.datasets import loader
 from audio_slowfast.models import build_model
-from audio_slowfast.utils.meters import EPICTestMeterWithState, TestMeter, EPICTestMeter, EPICTestMeterSlide
+from audio_slowfast.utils.meters import (
+    EPICTestMeter,
+    EPICTestMeterSlide,
+    EPICTestMeterWithState,
+    TestMeter,
+)
 from audio_slowfast.utils.vggsound_metrics import get_stats
-
-from loguru import logger
-from tqdm import tqdm
 
 
 @torch.no_grad()
@@ -138,7 +143,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             unit="batch",
         )
     ):
-        if not "GRU" in cfg.TEST.DATASET:
+        if "GRU" not in cfg.TEST.DATASET:
             inputs, labels, audio_idx, meta = batch
 
             if cfg.NUM_GPUS:
@@ -408,7 +413,7 @@ def test(cfg):
     test_loader = loader.construct_loader(cfg, "test")
     logger.info("Testing model for {:,} iterations".format(len(test_loader)))
 
-    if not "GRU" in cfg.TEST.DATASET:
+    if "GRU" not in cfg.TEST.DATASET:
         assert len(test_loader.dataset) % cfg.TEST.NUM_ENSEMBLE_VIEWS == 0
 
     # Create meters for multi-view testing.
@@ -425,20 +430,24 @@ def test(cfg):
                 )
             else:
                 test_meter = EPICTestMeter(
-                    len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS
-                    if not "GRU" in cfg.TEST.DATASET
-                    else len(test_loader.dataset),
-                    cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1,
+                    (
+                        len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS
+                        if "GRU" not in cfg.TEST.DATASET
+                        else len(test_loader.dataset)
+                    ),
+                    cfg.TEST.NUM_ENSEMBLE_VIEWS if "GRU" not in cfg.TEST.DATASET else 1,
                     cfg.MODEL.NUM_CLASSES,
                     len(test_loader),
                     cfg.DATA.ENSEMBLE_METHOD,
                 )
         else:
             test_meter = EPICTestMeterWithState(
-                len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS
-                if not "GRU" in cfg.TEST.DATASET
-                else len(test_loader.dataset),
-                cfg.TEST.NUM_ENSEMBLE_VIEWS if not "GRU" in cfg.TEST.DATASET else 1,
+                (
+                    len(test_loader.dataset) // cfg.TEST.NUM_ENSEMBLE_VIEWS
+                    if "GRU" not in cfg.TEST.DATASET
+                    else len(test_loader.dataset)
+                ),
+                cfg.TEST.NUM_ENSEMBLE_VIEWS if "GRU" not in cfg.TEST.DATASET else 1,
                 cfg.MODEL.NUM_CLASSES,
                 len(test_loader),
                 cfg.DATA.ENSEMBLE_METHOD,

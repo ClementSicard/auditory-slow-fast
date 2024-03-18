@@ -3,28 +3,28 @@
 
 """Train an audio classification model."""
 import logging as lg
-import pprint
 from typing import Tuple
 
 import numpy as np
 import torch
 import wandb
-from fvcore.nn.precise_bn import update_bn_stats
 from fvcore.common.config import CfgNode
+from fvcore.nn.precise_bn import update_bn_stats
 from loguru import logger
 from tqdm import tqdm
-from audio_slowfast.models.build import build_model
-from audio_slowfast.tools.eval_net import eval_epoch, eval_epoch_with_state
+
 import audio_slowfast.models.losses as losses
 import audio_slowfast.models.optimizer as optim
+import audio_slowfast.tools.train_utils as train_utils
 import audio_slowfast.utils.checkpoint as cu
 import audio_slowfast.utils.distributed as du
 import audio_slowfast.utils.logging as logging
 import audio_slowfast.utils.metrics as metrics
 import audio_slowfast.utils.misc as misc
-import audio_slowfast.tools.train_utils as train_utils
 import audio_slowfast.visualization.tensorboard_vis as tb
 from audio_slowfast.datasets import loader
+from audio_slowfast.models.build import build_model
+from audio_slowfast.tools.eval_net import eval_epoch, eval_epoch_with_state
 from audio_slowfast.utils.meters import (
     EPICTrainMeter,
     EPICTrainMeterWithState,
@@ -33,8 +33,8 @@ from audio_slowfast.utils.meters import (
     TrainMeter,
     ValMeter,
 )
+from src.dataset import load_all_verbs, load_nouns
 from src.utils import display_gpu_info
-from src.dataset import load_nouns, load_all_verbs
 
 # Silence minor loggers
 numba_logger = lg.getLogger("numba")
@@ -82,8 +82,8 @@ def train_epoch_state(
     train_meter.iter_tic()
     data_size = len(train_loader)
 
-    verb_names = load_all_verbs(cfg.EPICKITCHENS.VERBS_FILE)
-    noun_names = load_nouns(cfg.EPICKITCHENS.NOUNS_FILE)
+    load_all_verbs(cfg.EPICKITCHENS.VERBS_FILE)
+    load_nouns(cfg.EPICKITCHENS.NOUNS_FILE)
 
     for cur_iter, batch in enumerate(
         # Write to stderr
@@ -96,7 +96,7 @@ def train_epoch_state(
             unit="batch",
         ),
     ):
-        if not "GRU" in cfg.TRAIN.DATASET:
+        if "GRU" not in cfg.TRAIN.DATASET:
             inputs, labels, _, _ = batch
 
             # Transfer the data to the current GPU device.
@@ -405,7 +405,7 @@ def train_epoch(
             unit="batch",
         ),
     ):
-        if not "GRU" in cfg.TRAIN.DATASET:
+        if "GRU" not in cfg.TRAIN.DATASET:
             inputs, labels, _, _ = batch
 
             # Transfer the data to the current GPU device.
